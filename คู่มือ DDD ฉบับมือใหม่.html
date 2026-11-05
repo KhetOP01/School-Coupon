@@ -1,0 +1,843 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#faf9f5;color:#141413}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}.author { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; font-size: 14px; color: var(--muted) } .author b { color: var(--ink); font-weight: 600 }
+</style></head><body>
+<title>คู่มือ DDD ฉบับมือใหม่</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bai+Jamjuree:wght@500;600;700&family=IBM+Plex+Sans+Thai:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: คู่มือคอลัมน์เดียว สารบัญ sticky ซ้ายบนจอกว้าง; ใช้ระบบสีเดียวกับเอกสาร workflow ของทีม แต่ละชั้นของ DDD มีสีประจำตัว */
+:root {
+  --bg: #f5f7f6;
+  --surface: #ffffff;
+  --ink: #17232b;
+  --muted: #56646c;
+  --line: #d6dedc;
+  --accent: #1f6f66;
+  --accent-soft: #e2efec;
+  --stamp: #b4372f;
+  --code-bg: #eef2f1;
+  --l-domain: #1f6f66; --l-domain-bg: #e2efec;
+  --l-app: #2b5f9e;    --l-app-bg: #e4ecf6;
+  --l-infra: #8a5a12;  --l-infra-bg: #f5ecdc;
+  --l-http: #6b4a9e;   --l-http-bg: #ece6f5;
+  --good: #2f7d4a; --bad: #b4372f;
+  --f-display: "Bai Jamjuree", "IBM Plex Sans Thai", system-ui, sans-serif;
+  --f-body: "IBM Plex Sans Thai", system-ui, sans-serif;
+  --f-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #11181c; --surface: #172127; --ink: #e3ebe9; --muted: #9aa9ae; --line: #2a3840;
+  --accent: #5fc0b2; --accent-soft: #1c3431; --stamp: #ef7d72; --code-bg: #0d1417;
+  --l-domain: #5fc0b2; --l-domain-bg: #173330;
+  --l-app: #82aee6;    --l-app-bg: #1a2a3f;
+  --l-infra: #e0b062;  --l-infra-bg: #33281a;
+  --l-http: #b79ae6;   --l-http-bg: #2a2140;
+  --good: #74c98f; --bad: #ef7d72; color-scheme: dark } }
+:root[data-theme="dark"] {
+  --bg: #11181c; --surface: #172127; --ink: #e3ebe9; --muted: #9aa9ae; --line: #2a3840;
+  --accent: #5fc0b2; --accent-soft: #1c3431; --stamp: #ef7d72; --code-bg: #0d1417;
+  --l-domain: #5fc0b2; --l-domain-bg: #173330;
+  --l-app: #82aee6;    --l-app-bg: #1a2a3f;
+  --l-infra: #e0b062;  --l-infra-bg: #33281a;
+  --l-http: #b79ae6;   --l-http-bg: #2a2140;
+  --good: #74c98f; --bad: #ef7d72; color-scheme: dark }
+
+* { box-sizing: border-box }
+html { scroll-behavior: smooth }
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto } }
+body { background: var(--bg); color: var(--ink); font-family: var(--f-body); font-size: 16px; line-height: 1.75; padding: 0 16px }
+.shell { max-width: 1120px; margin: 0 auto; display: grid; grid-template-columns: 220px minmax(0, 1fr); gap: 48px; padding-block: 48px 96px }
+@media (max-width: 900px) { .shell { grid-template-columns: minmax(0, 1fr); gap: 24px; padding-block: 28px 64px } nav.toc { position: static !important } }
+
+nav.toc { position: sticky; top: calc(env(safe-area-inset-top, 0px) + 24px); align-self: start; font-size: 14px; max-height: calc(100vh - 48px); overflow-y: auto }
+nav.toc .label { font-family: var(--f-mono); font-size: 11px; letter-spacing: .12em; text-transform: uppercase; color: var(--muted) }
+nav.toc ol { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 2px }
+nav.toc a { display: block; color: var(--muted); text-decoration: none; padding: 4px 10px; border-left: 2px solid var(--line); line-height: 1.5 }
+nav.toc a:hover, nav.toc a:focus-visible { color: var(--accent); border-left-color: var(--accent); outline: none }
+nav.toc .part { font-family: var(--f-mono); font-size: 10px; letter-spacing: .1em; color: var(--muted); padding: 10px 0 2px 12px; text-transform: uppercase }
+
+main { min-width: 0; max-width: 760px }
+h1, h2, h3, h4 { font-family: var(--f-display); line-height: 1.3; text-wrap: balance; margin: 0 }
+h1 { font-size: clamp(30px, 5vw, 44px); font-weight: 700 }
+h2 { font-size: 26px; font-weight: 700 }
+h3 { font-size: 19px; font-weight: 600; margin-top: 28px }
+h4 { font-size: 16px; font-weight: 600 }
+p { margin: 12px 0 }
+a { color: var(--accent) }
+b, strong { font-weight: 600 }
+.eyebrow { font-family: var(--f-mono); font-size: 12px; letter-spacing: .12em; text-transform: uppercase; color: var(--accent) }
+.lede { font-size: 18px; color: var(--muted); max-width: 62ch }
+header.top { display: grid; gap: 12px; padding-bottom: 32px; border-bottom: 1px solid var(--line) }
+.meta { font-family: var(--f-mono); font-size: 12px; color: var(--muted) }
+
+section { padding-top: 60px; scroll-margin-top: 16px }
+.chap { font-family: var(--f-mono); font-size: 12px; color: var(--accent); letter-spacing: .08em; margin-bottom: 6px }
+
+.note { margin-top: 16px; padding: 12px 16px; background: var(--accent-soft); border-radius: 6px; font-size: 15px }
+.warn { margin-top: 16px; padding: 12px 16px; border: 1px dashed var(--stamp); border-radius: 6px; font-size: 15px }
+.warn b { color: var(--stamp) }
+
+code { font-family: var(--f-mono); font-size: .88em; background: var(--code-bg); padding: 1px 5px; border-radius: 4px }
+pre { margin: 14px 0; background: var(--code-bg); border: 1px solid var(--line); border-radius: 6px; padding: 14px 16px; overflow-x: auto; font-size: 13px; line-height: 1.6 }
+pre code { background: none; padding: 0; font-size: inherit }
+.file { display: flex; gap: 8px; align-items: center; margin: 18px 0 -8px; font-family: var(--f-mono); font-size: 12px; color: var(--muted) }
+.cmt { color: var(--muted) }
+
+.tbl { overflow-x: auto; margin: 14px 0; border: 1px solid var(--line); border-radius: 6px; background: var(--surface) }
+table { border-collapse: collapse; width: 100%; font-size: 14px; min-width: 540px }
+th, td { text-align: left; padding: 9px 12px; border-bottom: 1px solid var(--line); vertical-align: top }
+th { font-family: var(--f-mono); font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); font-weight: 500; background: var(--bg) }
+tr:last-child td { border-bottom: 0 }
+
+/* layer chips */
+.chip { display: inline-block; font-family: var(--f-mono); font-size: 11px; padding: 1px 8px; border-radius: 999px; font-weight: 500; letter-spacing: .02em; white-space: nowrap }
+.c-domain { color: var(--l-domain); background: var(--l-domain-bg) }
+.c-app { color: var(--l-app); background: var(--l-app-bg) }
+.c-infra { color: var(--l-infra); background: var(--l-infra-bg) }
+.c-http { color: var(--l-http); background: var(--l-http-bg) }
+
+/* glossary */
+.terms { display: grid; gap: 14px; margin-top: 20px }
+.term { background: var(--surface); border: 1px solid var(--line); border-radius: 6px; padding: 18px 20px; display: grid; gap: 6px }
+.term .head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 12px }
+.term h4 { font-size: 18px }
+.term .th { color: var(--muted); font-size: 14px }
+.term .like { font-size: 15px; padding-left: 12px; border-left: 2px solid var(--line); color: var(--muted) }
+.term p { margin: 0 }
+
+/* before / after */
+.ba { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; margin-top: 16px }
+@media (max-width: 700px) { .ba { grid-template-columns: minmax(0, 1fr) } }
+.ba > div { min-width: 0 }
+.ba .lbl { font-family: var(--f-mono); font-size: 12px; font-weight: 500 }
+.ba .lbl.bad { color: var(--bad) } .ba .lbl.good { color: var(--good) }
+.ba pre { margin-top: 6px }
+
+/* onion diagram */
+.onion { margin: 20px 0; display: grid; gap: 0 }
+.ring { border-radius: 14px; padding: 14px 16px 16px; display: grid; gap: 10px }
+.ring .rl { font-family: var(--f-mono); font-size: 12px; font-weight: 500; display: flex; justify-content: space-between; flex-wrap: wrap; gap: 4px 12px }
+.ring .rl span:last-child { font-weight: 400; opacity: .85 }
+.r-outer { background: var(--surface); border: 1px solid var(--line) }
+.outer-row { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 10px }
+.outer-row div { border-radius: 8px; padding: 8px 12px; font-size: 13px; line-height: 1.5 }
+.outer-row b { font-family: var(--f-mono); font-size: 12px; display: block }
+@media (max-width: 520px) { .outer-row { grid-template-columns: minmax(0,1fr) } }
+.r-app { background: var(--l-app-bg); color: var(--ink) }
+.r-app .rl { color: var(--l-app) }
+.r-domain { background: var(--surface); border: 2px solid var(--l-domain); color: var(--ink) }
+.r-domain .rl { color: var(--l-domain) }
+.r-domain p { margin: 0; font-size: 14px }
+.arrowline { text-align: center; font-family: var(--f-mono); font-size: 12px; color: var(--muted); margin-top: 8px }
+
+/* request path */
+.path { list-style: none; padding: 0; margin: 16px 0; display: grid; gap: 0 }
+.path li { display: grid; grid-template-columns: 26px minmax(0, 1fr); gap: 12px; position: relative; padding-bottom: 14px }
+.path li::before { content: ""; position: absolute; left: 12px; top: 26px; bottom: 0; width: 2px; background: var(--line) }
+.path li:last-child::before { display: none }
+.path .dot { width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; font-family: var(--f-mono); font-size: 12px; background: var(--surface); border: 1.5px solid var(--line); color: var(--muted) }
+.path .body { min-width: 0; padding-top: 1px }
+.path .body p { margin: 2px 0 0; font-size: 15px; color: var(--muted) }
+
+/* tree */
+.tree { font-family: var(--f-mono); font-size: 13px; line-height: 1.65 }
+.tree .d { color: var(--l-domain) } .tree .a { color: var(--l-app) } .tree .i { color: var(--l-infra) } .tree .h { color: var(--l-http) }
+
+ul.check { list-style: none; padding: 0; margin: 12px 0; display: grid; gap: 6px }
+ul.check li { padding-left: 26px; position: relative }
+ul.check li::before { content: ""; position: absolute; left: 2px; top: .55em; width: 13px; height: 13px; border: 1.5px solid var(--accent); border-radius: 3px }
+ul.plain { padding-left: 20px; margin: 10px 0 } ul.plain li { margin: 4px 0 }
+
+.mistakes { display: grid; gap: 12px; margin-top: 16px }
+.mistake { background: var(--surface); border: 1px solid var(--line); border-radius: 6px; padding: 16px 18px }
+.mistake h4 { color: var(--bad) }
+.mistake p { margin: 6px 0 0; font-size: 15px }
+
+.step-h { display: flex; gap: 10px; align-items: baseline; flex-wrap: wrap; margin-top: 32px }
+.step-h h3 { margin: 0 }
+.step-h .n { font-family: var(--f-mono); font-size: 12px; color: var(--muted) }
+
+footer { margin-top: 64px; padding-top: 20px; border-top: 1px solid var(--line); font-size: 13px; color: var(--muted) }
+</style>
+
+<div class="shell">
+  <nav class="toc" aria-label="สารบัญ">
+    <div class="label">สารบัญ</div>
+    <ol>
+      <li class="part">เข้าใจแนวคิด</li>
+      <li><a href="#why">1 · DDD แก้ปัญหาอะไร</a></li>
+      <li><a href="#terms">2 · คำศัพท์ 8 คำ</a></li>
+      <li><a href="#contexts">3 · แบ่ง Bounded Context</a></li>
+      <li><a href="#layers">4 · 4 ชั้นและกฎทิศทาง</a></li>
+      <li class="part">ลงมือทำ</li>
+      <li><a href="#tree">5 · โครงสร้างโปรเจกต์</a></li>
+      <li><a href="#build">6 · สร้าง UC-01 ทีละไฟล์</a></li>
+      <li><a href="#flow">7 · เส้นทางของ request</a></li>
+      <li><a href="#talk">8 · context คุยกันยังไง</a></li>
+      <li><a href="#test">9 · เทสต์แต่ละชั้น</a></li>
+      <li class="part">ใช้งานจริง</li>
+      <li><a href="#where">10 · ไฟล์นี้ควรอยู่ไหน</a></li>
+      <li><a href="#mistakes">11 · ข้อผิดพลาดที่พบบ่อย</a></li>
+      <li><a href="#when">12 · เมื่อไหร่ไม่ต้องใช้</a></li>
+      <li><a href="#cheat">13 · สรุปหน้าเดียว</a></li>
+    </ol>
+  </nav>
+
+  <main>
+    <header class="top">
+      <div class="eyebrow">Team Playbook · ภาคต่อของ Spec-First Dev Workflow</div>
+      <h1>คู่มือ DDD ฉบับมือใหม่</h1>
+      <p class="lede">Domain-Driven Design อธิบายแบบไม่ต้องมีพื้นมาก่อน เริ่มจากว่ามันแก้ปัญหาอะไร ไปจนถึงสร้าง use case "ยืมหนังสือ" ทีละไฟล์ในโครงสร้างโปรเจกต์จริง</p>
+      <div class="meta">ตัวอย่าง: ระบบห้องสมุด · TypeScript · Express · PostgreSQL · Jest</div>
+      <div class="author">จัดทำโดย <b>นายปัณณธร ขันละ</b><span>B6610364</span></div>
+    </header>
+
+    <!-- 1 -->
+    <section id="why">
+      <div class="chap">บทที่ 1</div>
+      <h2>DDD แก้ปัญหาอะไร</h2>
+      <p>ลองนึกถึงโปรเจกต์ที่โตมาสักปี กฎ "ยืมได้ไม่เกิน 3 เล่ม" อาจอยู่ใน controller ตัวหนึ่ง อยู่ใน service อีกตัว และอยู่ใน SQL อีกที่ วันที่ห้องสมุดขอเปลี่ยนเป็น 5 เล่ม ไม่มีใครแน่ใจว่าต้องแก้กี่ที่</p>
+      <p><b>DDD คือวิธีจัดโค้ดให้กฎของธุรกิจอยู่รวมกันในที่ที่หาง่าย</b> แยกขาดจากเรื่องเทคนิคอย่าง database และ HTTP โดยมีหลักใหญ่ 3 ข้อ</p>
+      <ul class="plain">
+        <li><b>ใช้ภาษาเดียวกับธุรกิจ</b> ถ้าบรรณารักษ์พูดว่า "ผู้ยืม" และ "ยืม" โค้ดก็ควรมี <code>Borrower</code> และ <code>borrow()</code></li>
+        <li><b>แบ่งระบบเป็นเรื่องย่อยๆ</b> แต่ละเรื่องมีโมเดลของตัวเอง ไม่ต้องมีคลาสเดียวที่ทุกคนแก้</li>
+        <li><b>กฎธุรกิจอยู่ในโมเดล</b> ไม่ใช่กระจายใน service หรือ controller</li>
+      </ul>
+
+      <h3>ก่อนและหลังใช้ DDD</h3>
+      <div class="ba">
+        <div>
+          <div class="lbl bad">ก่อน: กฎ SQL และ HTTP ปนกันในไฟล์เดียว</div>
+<pre><code>app.post('/loans', async (req, res) =&gt; {
+  const m = await db.query(
+    'SELECT * FROM members WHERE member_code=$1',
+    [req.body.memberCode]);
+  if (m.rows[0].status === 'suspended')
+    return res.status(409).json(...);
+  const c = await db.query(
+    'SELECT count(*) FROM loans WHERE ...');
+  if (c.rows[0].count &gt;= 3)
+    return res.status(409).json(...);
+  <span class="cmt">// อีก 40 บรรทัด...</span>
+});</code></pre>
+          <p style="font-size:14px;color:var(--muted)">จะเทสต์กฎ "ห้ามยืมเกิน 3 เล่ม" ต้องเปิด DB และยิง HTTP ทุกครั้ง</p>
+        </div>
+        <div>
+          <div class="lbl good">หลัง: กฎอยู่ในโมเดลที่อ่านเหมือนภาษาคน</div>
+<pre><code>class Borrower {
+  borrow(copyId, now) {
+    if (this.suspended)
+      throw new DomainError('MEMBER_SUSPENDED');
+    if (this.activeLoans.length &gt;= 3)
+      throw new DomainError('LOAN_LIMIT_REACHED');
+    return Loan.start(this.id, copyId, now);
+  }
+}</code></pre>
+          <p style="font-size:14px;color:var(--muted)">เทสต์ได้ทันทีโดยไม่ต้องมี DB เปลี่ยนเป็น 5 เล่มแก้ที่เดียว</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- 2 -->
+    <section id="terms">
+      <div class="chap">บทที่ 2</div>
+      <h2>คำศัพท์ 8 คำที่ต้องรู้</h2>
+      <p>DDD มีศัพท์เยอะ แต่ใช้จริงในงานประจำวันแค่ 8 คำนี้ อ่านคำเปรียบเทียบก่อน แล้วค่อยดูตัวอย่างจากห้องสมุด</p>
+
+      <div class="terms">
+        <div class="term">
+          <div class="head"><h4>Ubiquitous Language</h4><span class="th">ภาษากลางของทีม</span></div>
+          <div class="like">เหมือนทีมฟุตบอลที่ตกลงกันว่า "ปิดหลัง" แปลว่าอะไร ทุกคนพูดแล้วเข้าใจตรงกัน</div>
+          <p>คำศัพท์ที่ทั้งคนทำธุรกิจและ dev ใช้ตรงกัน และใช้ชื่อเดียวกันในโค้ด เช่น ห้องสมุดพูดว่า "ยืม" "คืน" "เกินกำหนด" โค้ดก็มี <code>borrow()</code> <code>return()</code> <code>isOverdue()</code> ไม่ใช่ <code>createLoanRecord()</code> หรือ <code>updateFlag()</code></p>
+        </div>
+        <div class="term">
+          <div class="head"><h4>Bounded Context</h4><span class="th">ขอบเขตของเรื่อง</span></div>
+          <div class="like">เหมือนแผนกในบริษัท คำว่า "ลูกค้า" ในฝ่ายขายกับฝ่ายบัญชีสนใจข้อมูลคนละอย่าง</div>
+          <p>ส่วนของระบบที่มีโมเดลและภาษาของตัวเอง ห้องสมุดมี Catalog (หนังสือ), Circulation (ยืมคืน), Membership (สมาชิก) คนคนเดียวกันเป็น <code>Member</code> ใน Membership แต่เป็น <code>Borrower</code> ใน Circulation</p>
+        </div>
+        <div class="term">
+          <div class="head"><h4>Entity</h4><span class="th">สิ่งที่มีตัวตน</span></div>
+          <div class="like">เหมือนคนที่มีเลขบัตรประชาชน เปลี่ยนชื่อ เปลี่ยนที่อยู่ ก็ยังเป็นคนเดิม</div>
+          <p>วัตถุที่แยกแยะด้วย <b>id</b> ไม่ใช่ด้วยค่าข้างใน การยืมแต่ละครั้ง (<code>Loan</code>) เป็น entity เพราะแม้สองครั้งจะยืมเล่มเดียวกันวันเดียวกัน ก็ยังเป็นการยืมคนละครั้ง</p>
+        </div>
+        <div class="term">
+          <div class="head"><h4>Value Object</h4><span class="th">ค่าที่ไม่มีตัวตน</span></div>
+          <div class="like">เหมือนแบงก์ร้อย ใบไหนก็มีค่าเท่ากัน ไม่มีใครสนใจว่าเป็นใบไหน</div>
+          <p>วัตถุที่แยกแยะด้วย <b>ค่า</b> และสร้างแล้วห้ามแก้ (immutable) เช่น <code>DueDate</code> (วันกำหนดคืน) <code>Money</code> (ค่าปรับ) ข้อดีคือใส่กฎไว้ในตัวได้ เช่น <code>DueDate.from(now)</code> คำนวณ 14 วันให้เอง ไม่ต้องมีใครบวกวันเองทั่วโค้ด</p>
+        </div>
+        <div class="term">
+          <div class="head"><h4>Aggregate</h4><span class="th">กลุ่มวัตถุที่ต้องถูกต้องไปด้วยกัน</span></div>
+          <div class="like">เหมือนตะกร้าสินค้าที่มีพนักงานเฝ้า จะหยิบเข้าออกต้องผ่านพนักงานคนนั้นเสมอ เขาจะคอยดูว่าไม่เกินโควตา</div>
+          <p>กลุ่ม entity และ value object ที่มีกฎร่วมกัน มีตัวหลักเรียกว่า <b>Aggregate Root</b> เป็นทางเข้าทางเดียว <code>Borrower</code> เป็น root ที่ถือรายการ <code>Loan</code> ที่ยังไม่คืน กฎ "ไม่เกิน 3 เล่ม" ต้องดูทุก loan พร้อมกัน จึงอยู่ใน <code>Borrower</code> และทุกการยืมต้องผ่าน <code>borrower.borrow()</code></p>
+        </div>
+        <div class="term">
+          <div class="head"><h4>Repository</h4><span class="th">ที่เก็บ aggregate</span></div>
+          <div class="like">เหมือนห้องเก็บของ บอกว่าขอตะกร้าของคุณสมชาย ก็ได้ตะกร้าทั้งใบมา ไม่ต้องรู้ว่าวางไว้ชั้นไหน</div>
+          <p>ตัวกลางสำหรับโหลดและบันทึก aggregate ทั้งก้อน domain ประกาศแค่ <b>interface</b> (ต้องการอะไร) ส่วน infrastructure เขียนตัวจริงด้วย SQL หนึ่ง aggregate มีหนึ่ง repository</p>
+        </div>
+        <div class="term">
+          <div class="head"><h4>Domain Service</h4><span class="th">กฎที่ไม่เป็นของใคร</span></div>
+          <div class="like">เหมือนกรรมการตัดสิน ไม่ได้เป็นของทีมไหน แต่ต้องดูทั้งสองทีม</div>
+          <p>กฎธุรกิจที่ต้องใช้หลาย aggregate และไม่เหมาะจะอยู่ในตัวใดตัวหนึ่ง เช่น <code>FineCalculator</code> ที่คิดค่าปรับจากประเภทหนังสือและประเภทสมาชิก ใช้เมื่อจำเป็นเท่านั้น ถ้ากฎอยู่ใน entity ได้ ให้อยู่ใน entity</p>
+        </div>
+        <div class="term">
+          <div class="head"><h4>Application Service / Use Case</h4><span class="th">ผู้ประสานงาน</span></div>
+          <div class="like">เหมือนพนักงานเคาน์เตอร์ รับเรื่อง หยิบแฟ้ม ส่งให้คนตัดสิน แล้วเก็บแฟ้มคืน แต่ไม่ตัดสินเอง</div>
+          <p>หนึ่งคลาสต่อหนึ่ง use case เช่น <code>BorrowBook</code> ทำหน้าที่โหลด aggregate จาก repository เรียกเมธอดของ domain แล้วบันทึก <b>ไม่มีกฎธุรกิจ</b> ถ้าเห็น <code>if</code> เรื่องกฎใน use case แปลว่ามันควรย้ายไป domain</p>
+        </div>
+      </div>
+      <div class="note">ยังมีคำอื่นอีก เช่น Domain Event, Factory, Specification ยังไม่ต้องใช้ตอนเริ่ม พอทีมคล่อง 8 คำนี้แล้วค่อยศึกษาเพิ่ม</div>
+    </section>
+
+    <!-- 3 -->
+    <section id="contexts">
+      <div class="chap">บทที่ 3</div>
+      <h2>แบ่ง Bounded Context</h2>
+      <p>นี่คือการตัดสินใจที่สำคัญที่สุด ทำก่อนสร้างโฟลเดอร์ใดๆ วิธีหาง่ายๆ คือถาม 3 คำถาม</p>
+      <ul class="plain">
+        <li><b>ใครเป็นคนดูแลเรื่องนี้</b> คนละกลุ่มคนมักเป็นคนละ context</li>
+        <li><b>คำเดียวกันมีความหมายต่างกันไหม</b> ถ้าใช่ แยก context</li>
+        <li><b>เปลี่ยนเรื่องนี้แล้วกระทบเรื่องนั้นไหม</b> ถ้าไม่ค่อยกระทบ แยกได้</li>
+      </ul>
+      <div class="tbl"><table>
+        <thead><tr><th>Context</th><th>ดูแลเรื่อง</th><th>คำศัพท์</th><th>ความซับซ้อน</th></tr></thead>
+        <tbody>
+          <tr><td><b>Catalog</b></td><td>หนังสือ ตัวเล่ม บาร์โค้ด ค้นหา</td><td>Book, Copy, ISBN</td><td>ต่ำ ส่วนใหญ่เพิ่มแก้ค้น</td></tr>
+          <tr><td><b>Circulation</b></td><td>ยืม คืน ค่าปรับ</td><td>Borrower, Loan, DueDate, Fine</td><td>สูง กฎเยอะ</td></tr>
+          <tr><td><b>Membership</b></td><td>สมัคร ต่ออายุ ระงับสมาชิก</td><td>Member, Status</td><td>ปานกลาง</td></tr>
+        </tbody>
+      </table></div>
+      <h3>คนเดียวกัน สองโมเดล</h3>
+<pre><code><span class="cmt">// membership/domain/member.ts — สนใจข้อมูลส่วนตัวและสถานะ</span>
+class Member { id; memberCode; name; email; address; status; suspend(reason) {...} }
+
+<span class="cmt">// circulation/domain/borrower.ts — สนใจแค่เรื่องการยืม</span>
+class Borrower { id; suspended; activeLoans; borrow(copyId, now) {...} }</code></pre>
+      <p>ถ้ารวมเป็นคลาสเดียว ทีมที่แก้ระบบสมัครสมาชิกอาจทำกฎการยืมพังโดยไม่รู้ตัว แยกกันแล้วแต่ละฝั่งเปลี่ยนได้อิสระ</p>
+      <div class="note">เริ่มที่ 2–3 context พอ แยกเพิ่มทีหลังง่ายกว่ารวมกลับ ทุก context ใช้ database ตัวเดียวกันได้ แค่ตกลงว่าตารางไหนเป็นของ context ไหน</div>
+    </section>
+
+    <!-- 4 -->
+    <section id="layers">
+      <div class="chap">บทที่ 4</div>
+      <h2>4 ชั้นในแต่ละ context และกฎทิศทาง</h2>
+      <p>ข้างในแต่ละ context แบ่งเป็น 4 ชั้น ให้นึกภาพเป็นหัวหอม <b>domain อยู่ตรงกลาง</b> ชั้นนอกรู้จักชั้นใน แต่ชั้นในไม่รู้จักชั้นนอกเลย</p>
+
+      <div class="onion" role="img" aria-label="แผนภาพ 4 ชั้น: interface และ infrastructure อยู่นอกสุด application อยู่กลาง domain อยู่ในสุด ลูกศรพึ่งพาชี้เข้าข้างใน">
+        <div class="ring r-outer">
+          <div class="rl"><span>ชั้นนอก · เรื่องเทคนิค</span><span>เปลี่ยนบ่อย</span></div>
+          <div class="outer-row">
+            <div style="background:var(--l-http-bg)"><b style="color:var(--l-http)">interface/http</b>รับ request ตาม openapi.yaml แปลง JSON และ error</div>
+            <div style="background:var(--l-infra-bg)"><b style="color:var(--l-infra)">infrastructure</b>SQL, เรียก API ภายนอก, ส่งอีเมล</div>
+          </div>
+          <div class="ring r-app">
+            <div class="rl"><span>application</span><span>use case: ประสานงาน ไม่มีกฎ</span></div>
+            <div class="ring r-domain">
+              <div class="rl"><span>domain</span><span>กฎธุรกิจล้วนๆ · เปลี่ยนน้อยที่สุด</span></div>
+              <p>Entity · Value Object · Aggregate · Repository interface · Domain error</p>
+            </div>
+          </div>
+        </div>
+        <div class="arrowline">การ import ชี้เข้าข้างในเสมอ: http → application → domain ← infrastructure</div>
+      </div>
+
+      <div class="tbl"><table>
+        <thead><tr><th>ชั้น</th><th>หน้าที่</th><th>import ได้จาก</th><th>ห้าม</th></tr></thead>
+        <tbody>
+          <tr><td><span class="chip c-domain">domain</span></td><td>กฎธุรกิจ</td><td>ไม่มี (ยกเว้น <code>shared/</code> เล็กๆ)</td><td>import <code>pg</code>, <code>express</code>, หรือชั้นอื่น</td></tr>
+          <tr><td><span class="chip c-app">application</span></td><td>ขั้นตอนของ use case</td><td>domain</td><td>เขียน SQL, รู้จัก req/res</td></tr>
+          <tr><td><span class="chip c-infra">infrastructure</span></td><td>implement repository</td><td>domain</td><td>ใส่กฎธุรกิจ</td></tr>
+          <tr><td><span class="chip c-http">interface/http</span></td><td>รับส่ง HTTP</td><td>application, domain (เฉพาะ error/type)</td><td>เขียน SQL, ใส่กฎธุรกิจ</td></tr>
+        </tbody>
+      </table></div>
+      <h3>ทำไมต้องมีกฎทิศทาง</h3>
+      <ul class="plain">
+        <li><b>เทสต์ง่าย</b> domain ไม่ต้องมี DB เทสต์กฎหลายสิบข้อจบในไม่กี่วินาที</li>
+        <li><b>เปลี่ยนเทคโนโลยีได้</b> ย้ายจาก PostgreSQL หรือ Express ไปตัวอื่น กฎธุรกิจไม่ต้องแตะ</li>
+        <li><b>หาโค้ดง่าย</b> อยากรู้กฎการยืม เปิด <code>domain/</code> ที่เดียว</li>
+      </ul>
+    </section>
+
+    <!-- 5 -->
+    <section id="tree">
+      <div class="chap">บทที่ 5</div>
+      <h2>โครงสร้างโปรเจกต์</h2>
+      <p>ระดับบนแบ่งตาม context ข้างในแต่ละ context แบ่งตามชั้น สีของชื่อโฟลเดอร์ตรงกับสีของชั้นในบทที่ 4</p>
+<pre class="tree"><code>library-api/
+├── src/
+│   ├── modules/
+│   │   ├── circulation/
+│   │   │   ├── <span class="d">domain/</span>
+│   │   │   │   ├── borrower.ts               <span class="cmt">Aggregate Root</span>
+│   │   │   │   ├── loan.ts                   <span class="cmt">Entity</span>
+│   │   │   │   ├── due-date.ts               <span class="cmt">Value Object</span>
+│   │   │   │   ├── borrower.repository.ts    <span class="cmt">interface</span>
+│   │   │   │   └── __tests__/
+│   │   │   ├── <span class="a">application/</span>
+│   │   │   │   ├── borrow-book.ts            <span class="cmt">UC-01</span>
+│   │   │   │   ├── return-book.ts            <span class="cmt">UC-02</span>
+│   │   │   │   ├── ports.ts                  <span class="cmt">สิ่งที่ use case ต้องการจากภายนอก</span>
+│   │   │   │   └── __tests__/
+│   │   │   ├── <span class="i">infrastructure/</span>
+│   │   │   │   ├── pg-borrower.repository.ts
+│   │   │   │   └── __tests__/                <span class="cmt">เทสต์กับ DB จริง</span>
+│   │   │   ├── <span class="h">interface/http/</span>
+│   │   │   │   ├── loans.routes.ts
+│   │   │   │   └── loans.mapper.ts
+│   │   │   ├── module.ts                     <span class="cmt">ประกอบชิ้นส่วนของ context นี้</span>
+│   │   │   └── index.ts                      <span class="cmt">สิ่งที่ context อื่นใช้ได้</span>
+│   │   ├── catalog/                          <span class="cmt">โครงเดียวกัน (หรือเรียบง่ายกว่า)</span>
+│   │   └── membership/
+│   ├── shared/
+│   │   ├── domain-error.ts
+│   │   ├── clock.ts
+│   │   ├── http-errors.ts
+│   │   └── db.ts
+│   └── main.ts                               <span class="cmt">จุดเริ่มโปรแกรม ประกอบทุก module</span>
+├── db/migrations/   db/seed.sql
+├── docs/usecases/
+├── openapi.yaml
+├── tests/e2e/
+└── docker-compose.yml</code></pre>
+      <div class="note">โครงนี้ต่อกับ workflow เดิมได้ตรงๆ: use case ใน <code>docs/usecases/</code> กลายเป็นไฟล์ใน <code>application/</code>, AC เรื่องกฎกลายเป็นเทสต์ใน <code>domain/__tests__/</code>, migration อยู่ใน <code>db/</code>, API spec ตรงกับ <code>interface/http/</code></div>
+    </section>
+
+    <!-- 6 -->
+    <section id="build">
+      <div class="chap">บทที่ 6</div>
+      <h2>สร้าง UC-01 "ยืมหนังสือ" ทีละไฟล์</h2>
+      <p>สร้างจากในออกนอก เริ่มที่ domain ซึ่งไม่ต้องพึ่งอะไรเลย แล้วค่อยต่อชั้นที่อยู่ข้างนอก ทุกไฟล์เริ่มด้วยเทสต์ตาม workflow TDD</p>
+
+      <div class="step-h"><span class="n">ไฟล์ 1</span><h3>ของที่ใช้ร่วมกัน</h3><span class="chip c-domain">shared</span></div>
+      <div class="file">src/shared/domain-error.ts · src/shared/clock.ts</div>
+<pre><code>export class DomainError extends Error {
+  constructor(readonly code: string, message?: string) {
+    super(message ?? code);
+  }
+}
+
+export interface Clock { now(): Date }
+export const systemClock: Clock = { now: () =&gt; new Date() };
+export const fixedClock = (iso: string): Clock =&gt; ({ now: () =&gt; new Date(iso) });</code></pre>
+      <p><code>Clock</code> ทำให้เทสต์กำหนดวันที่ได้ ไม่งั้นเทสต์เรื่องเกินกำหนดจะผ่านบ้างไม่ผ่านบ้างตามวันที่รัน</p>
+
+      <div class="step-h"><span class="n">ไฟล์ 2</span><h3>Value Object: DueDate</h3><span class="chip c-domain">domain</span></div>
+      <div class="file">src/modules/circulation/domain/due-date.ts</div>
+<pre><code>export class DueDate {
+  static readonly LOAN_DAYS = 14;
+
+  private constructor(readonly value: Date) {}   <span class="cmt">// สร้างตรงๆ ไม่ได้ ต้องผ่าน from()</span>
+
+  static from(borrowedAt: Date): DueDate {
+    const d = new Date(borrowedAt);
+    d.setDate(d.getDate() + DueDate.LOAN_DAYS);
+    return new DueDate(d);
+  }
+
+  static restore(value: Date): DueDate {         <span class="cmt">// ใช้ตอนโหลดจาก DB</span>
+    return new DueDate(value);
+  }
+
+  isPassed(now: Date): boolean {
+    return now.getTime() &gt; this.value.getTime();
+  }
+}</code></pre>
+      <p>สังเกตว่าไม่มี setter เลย กฎ "14 วัน" อยู่ที่นี่ที่เดียว ใครอยากได้วันกำหนดคืนต้องเรียก <code>DueDate.from()</code></p>
+
+      <div class="step-h"><span class="n">ไฟล์ 3</span><h3>Entity: Loan</h3><span class="chip c-domain">domain</span></div>
+      <div class="file">src/modules/circulation/domain/loan.ts</div>
+<pre><code>import { DomainError } from '../../../shared/domain-error';
+import { DueDate } from './due-date';
+
+export class Loan {
+  private constructor(
+    readonly id: number | null,          <span class="cmt">// null = ยังไม่ได้บันทึก</span>
+    readonly borrowerId: number,
+    readonly copyId: number,
+    readonly borrowedAt: Date,
+    readonly dueDate: DueDate,
+    private returnedAt: Date | null,
+  ) {}
+
+  <span class="cmt">// การยืมใหม่</span>
+  static start(borrowerId: number, copyId: number, now: Date): Loan {
+    return new Loan(null, borrowerId, copyId, now, DueDate.from(now), null);
+  }
+
+  <span class="cmt">// โหลดของเดิมจาก DB</span>
+  static restore(p: { id: number; borrowerId: number; copyId: number;
+                      borrowedAt: Date; dueAt: Date; returnedAt: Date | null }): Loan {
+    return new Loan(p.id, p.borrowerId, p.copyId, p.borrowedAt,
+                    DueDate.restore(p.dueAt), p.returnedAt);
+  }
+
+  isOverdue(now: Date): boolean {
+    return this.returnedAt === null &amp;&amp; this.dueDate.isPassed(now);
+  }
+
+  markReturned(now: Date): void {
+    if (this.returnedAt) throw new DomainError('ALREADY_RETURNED');
+    this.returnedAt = now;
+  }
+}</code></pre>
+      <p>มีสองทางสร้าง: <code>start()</code> สำหรับการยืมใหม่ (มีกฎ) และ <code>restore()</code> สำหรับโหลดจาก DB (เชื่อข้อมูลที่บันทึกไว้แล้ว)</p>
+
+      <div class="step-h"><span class="n">ไฟล์ 4</span><h3>Aggregate Root: Borrower</h3><span class="chip c-domain">domain</span></div>
+      <div class="file">src/modules/circulation/domain/borrower.ts</div>
+<pre><code>import { DomainError } from '../../../shared/domain-error';
+import { Loan } from './loan';
+
+export class Borrower {
+  static readonly MAX_ACTIVE_LOANS = 3;
+
+  constructor(
+    readonly id: number,
+    private readonly suspended: boolean,
+    private readonly activeLoans: Loan[],
+  ) {}
+
+  borrow(copyId: number, now: Date): Loan {
+    if (this.suspended)
+      throw new DomainError('MEMBER_SUSPENDED');            <span class="cmt">// AC5</span>
+    if (this.activeLoans.some(l =&gt; l.isOverdue(now)))
+      throw new DomainError('HAS_OVERDUE_LOANS');           <span class="cmt">// AC4</span>
+    if (this.activeLoans.length &gt;= Borrower.MAX_ACTIVE_LOANS)
+      throw new DomainError('LOAN_LIMIT_REACHED');          <span class="cmt">// AC3</span>
+
+    const loan = Loan.start(this.id, copyId, now);          <span class="cmt">// AC1</span>
+    this.activeLoans.push(loan);
+    return loan;
+  }
+}</code></pre>
+      <p>นี่คือหัวใจของระบบ กฎการยืมทั้งหมดอยู่ใน 10 บรรทัดนี้ อ่านแล้วเข้าใจได้แม้คนไม่เขียนโค้ด เอาไปให้บรรณารักษ์ช่วยตรวจได้เลย</p>
+
+      <div class="step-h"><span class="n">ไฟล์ 5</span><h3>Repository interface</h3><span class="chip c-domain">domain</span></div>
+      <div class="file">src/modules/circulation/domain/borrower.repository.ts</div>
+<pre><code>import { Borrower } from './borrower';
+import { Loan } from './loan';
+
+export interface BorrowerRepository {
+  findByMemberCode(memberCode: string): Promise&lt;Borrower | null&gt;;
+  saveNewLoan(loan: Loan): Promise&lt;Loan&gt;;
+}</code></pre>
+      <p>domain บอกแค่ว่า "ต้องหา Borrower จากรหัสสมาชิกได้ และบันทึก Loan ได้" ไม่สนใจว่าเก็บใน PostgreSQL หรือที่ไหน</p>
+
+      <div class="step-h"><span class="n">ไฟล์ 6</span><h3>Use case: BorrowBook</h3><span class="chip c-app">application</span></div>
+      <div class="file">src/modules/circulation/application/ports.ts · borrow-book.ts</div>
+<pre><code><span class="cmt">// ports.ts — สิ่งที่ use case ต้องการจาก context อื่น</span>
+export interface CopyInfo { id: number; barcode: string; title: string }
+export interface CatalogLookup {
+  findCopyByBarcode(barcode: string): Promise&lt;CopyInfo | null&gt;;
+}
+
+<span class="cmt">// borrow-book.ts — UC-01</span>
+export class BorrowBook {
+  constructor(
+    private readonly borrowers: BorrowerRepository,
+    private readonly catalog: CatalogLookup,
+    private readonly clock: Clock,
+  ) {}
+
+  async execute(memberCode: string, barcode: string) {
+    const borrower = await this.borrowers.findByMemberCode(memberCode);
+    if (!borrower) throw new DomainError('MEMBER_NOT_FOUND');     <span class="cmt">// AC6</span>
+
+    const copy = await this.catalog.findCopyByBarcode(barcode);
+    if (!copy) throw new DomainError('COPY_NOT_FOUND');           <span class="cmt">// AC6</span>
+
+    const loan = borrower.borrow(copy.id, this.clock.now());      <span class="cmt">// กฎอยู่ใน domain</span>
+    const saved = await this.borrowers.saveNewLoan(loan);
+    return { loan: saved, copy };
+  }
+}</code></pre>
+      <p>อ่านแล้วเหมือนขั้นตอนใน use case ที่เขียนไว้ใน <code>docs/usecases/</code> เป๊ะ: หาสมาชิก หาหนังสือ ตรวจกฎ บันทึก สังเกตว่าไม่มีกฎ "3 เล่ม" อยู่ที่นี่</p>
+
+      <div class="step-h"><span class="n">ไฟล์ 7</span><h3>Repository ตัวจริง</h3><span class="chip c-infra">infrastructure</span></div>
+      <div class="file">src/modules/circulation/infrastructure/pg-borrower.repository.ts</div>
+<pre><code>import { Pool } from 'pg';
+
+export class PgBorrowerRepository implements BorrowerRepository {
+  constructor(private readonly db: Pool) {}
+
+  async findByMemberCode(code: string): Promise&lt;Borrower | null&gt; {
+    const m = await this.db.query(
+      'SELECT id, status FROM members WHERE member_code = $1', [code]);
+    if (m.rowCount === 0) return null;
+
+    const rows = await this.db.query(
+      `SELECT id, member_id, copy_id, borrowed_at, due_at, returned_at
+         FROM loans WHERE member_id = $1 AND returned_at IS NULL`, [m.rows[0].id]);
+
+    const loans = rows.rows.map(r =&gt; Loan.restore({
+      id: r.id, borrowerId: r.member_id, copyId: r.copy_id,
+      borrowedAt: r.borrowed_at, dueAt: r.due_at, returnedAt: r.returned_at,
+    }));
+    return new Borrower(m.rows[0].id, m.rows[0].status === 'suspended', loans);
+  }
+
+  async saveNewLoan(loan: Loan): Promise&lt;Loan&gt; {
+    try {
+      const r = await this.db.query(
+        `INSERT INTO loans (member_id, copy_id, borrowed_at, due_at)
+         VALUES ($1, $2, $3, $4) RETURNING id`,
+        [loan.borrowerId, loan.copyId, loan.borrowedAt, loan.dueDate.value]);
+      return Loan.restore({ id: r.rows[0].id, borrowerId: loan.borrowerId,
+        copyId: loan.copyId, borrowedAt: loan.borrowedAt,
+        dueAt: loan.dueDate.value, returnedAt: null });
+    } catch (e: any) {
+      if (e.code === '23505') throw new DomainError('COPY_NOT_AVAILABLE');  <span class="cmt">// AC2: unique index</span>
+      throw e;
+    }
+  }
+}</code></pre>
+      <p>SQL ทั้งหมดอยู่ที่นี่ หน้าที่หลักคือแปลงแถวในตารางเป็นวัตถุ domain และแปลง error ของ DB เป็นภาษาธุรกิจ</p>
+      <div class="warn"><b>ทางลัดที่ยอมรับได้</b> · repository นี้อ่านตาราง <code>members</code> ซึ่งเป็นของ Membership โดยตรง ใช้ได้ตอนเริ่มเพราะอยู่ DB เดียวกันและอ่านอย่างเดียว ถ้าวันหนึ่งต้องแยก service ค่อยเปลี่ยนเป็นถามผ่าน <code>membership/index.ts</code> แทน ห้ามเขียน (UPDATE/INSERT) ตารางของ context อื่นเด็ดขาด</div>
+
+      <div class="step-h"><span class="n">ไฟล์ 8</span><h3>HTTP route และ mapper</h3><span class="chip c-http">interface/http</span></div>
+      <div class="file">src/modules/circulation/interface/http/loans.mapper.ts · loans.routes.ts</div>
+<pre><code><span class="cmt">// loans.mapper.ts — domain → JSON ตาม components/schemas/Loan ใน openapi.yaml</span>
+export function toLoanResponse(loan: Loan, copy: CopyInfo, memberCode: string) {
+  return {
+    id: loan.id,
+    memberCode,
+    barcode: copy.barcode,
+    bookTitle: copy.title,
+    borrowedAt: loan.borrowedAt.toISOString(),
+    dueAt: loan.dueDate.value.toISOString(),
+  };
+}
+
+<span class="cmt">// loans.routes.ts</span>
+export function loanRoutes(borrowBook: BorrowBook): Router {
+  const r = Router();
+  r.post('/loans', async (req, res, next) =&gt; {
+    try {
+      const { memberCode, barcode } = req.body;
+      const { loan, copy } = await borrowBook.execute(memberCode, barcode);
+      res.status(201).json(toLoanResponse(loan, copy, memberCode));
+    } catch (e) { next(e); }
+  });
+  return r;
+}</code></pre>
+      <div class="file">src/shared/http-errors.ts</div>
+<pre><code>const STATUS: Record&lt;string, number&gt; = {
+  MEMBER_NOT_FOUND: 404, COPY_NOT_FOUND: 404,
+  COPY_NOT_AVAILABLE: 409, LOAN_LIMIT_REACHED: 409,
+  HAS_OVERDUE_LOANS: 409, MEMBER_SUSPENDED: 409,
+};
+
+export function httpErrorHandler(err, req, res, next) {
+  if (err instanceof DomainError) {
+    return res.status(STATUS[err.code] ?? 400).json({ code: err.code, message: err.message });
+  }
+  console.error(err);
+  res.status(500).json({ code: 'INTERNAL_ERROR' });
+}</code></pre>
+      <p>domain โยน error เป็นภาษาธุรกิจ ชั้น HTTP เป็นคนเดียวที่รู้ว่าต้องแปลงเป็น 404 หรือ 409</p>
+
+      <div class="step-h"><span class="n">ไฟล์ 9</span><h3>ประกอบทุกอย่างเข้าด้วยกัน</h3><span class="chip c-http">main</span></div>
+      <div class="file">src/modules/circulation/module.ts · src/main.ts</div>
+<pre><code><span class="cmt">// circulation/module.ts</span>
+export function createCirculationModule(db: Pool, catalog: CatalogLookup, clock: Clock) {
+  const borrowBook = new BorrowBook(new PgBorrowerRepository(db), catalog, clock);
+  return { router: loanRoutes(borrowBook) };
+}
+
+<span class="cmt">// main.ts</span>
+const db = new Pool({ connectionString: process.env.DATABASE_URL });
+const catalog = createCatalogModule(db);
+const circulation = createCirculationModule(db, catalog.lookup, systemClock);
+
+const app = express();
+app.use(express.json());
+app.use(catalog.router);
+app.use(circulation.router);
+app.use(httpErrorHandler);
+app.listen(3000);</code></pre>
+      <p>ที่นี่คือที่เดียวที่ "ต่อสายไฟ" ระหว่างชิ้นส่วน ตอนเทสต์จะต่อสายเองด้วย fake แทนของจริง</p>
+    </section>
+
+    <!-- 7 -->
+    <section id="flow">
+      <div class="chap">บทที่ 7</div>
+      <h2>เส้นทางของ request หนึ่งครั้ง</h2>
+      <p>เมื่อบรรณารักษ์สแกนบัตร M0002 และหนังสือ BC-000123 แล้วกดยืม</p>
+      <ol class="path">
+        <li><span class="dot">1</span><div class="body"><span class="chip c-http">interface/http</span> <b>loans.routes.ts</b><p>รับ <code>POST /loans</code> ดึง memberCode และ barcode ส่งต่อให้ use case</p></div></li>
+        <li><span class="dot">2</span><div class="body"><span class="chip c-app">application</span> <b>BorrowBook.execute()</b><p>ขอ Borrower จาก repository และขอข้อมูลเล่มจาก Catalog</p></div></li>
+        <li><span class="dot">3</span><div class="body"><span class="chip c-infra">infrastructure</span> <b>PgBorrowerRepository</b><p>query ตาราง members และ loans แล้วประกอบเป็น Borrower ที่มี 3 loan ค้างอยู่</p></div></li>
+        <li><span class="dot">4</span><div class="body"><span class="chip c-domain">domain</span> <b>borrower.borrow()</b><p>ตรวจกฎ เจอว่ายืมครบ 3 เล่ม โยน <code>DomainError('LOAN_LIMIT_REACHED')</code></p></div></li>
+        <li><span class="dot">5</span><div class="body"><span class="chip c-http">interface/http</span> <b>httpErrorHandler</b><p>แปลงเป็น <code>409 {"code":"LOAN_LIMIT_REACHED"}</code> ตรงตาม openapi.yaml</p></div></li>
+      </ol>
+      <p>ถ้าเป็น M0001 ที่ยืม 0 เล่ม ขั้นที่ 4 จะคืน Loan ใหม่ use case สั่ง repository บันทึก แล้ว route ตอบ <code>201</code> ผ่าน mapper</p>
+    </section>
+
+    <!-- 8 -->
+    <section id="talk">
+      <div class="chap">บทที่ 8</div>
+      <h2>context คุยกันยังไง</h2>
+      <p>Circulation ต้องรู้ว่าบาร์โค้ดนี้คือเล่มไหน แต่ข้อมูลนั้นเป็นของ Catalog กติกาคือ</p>
+      <ul class="check">
+        <li>context อื่นใช้ได้เฉพาะสิ่งที่ <code>index.ts</code> export ออกมา</li>
+        <li>ห้าม import ไฟล์ข้างใน เช่น <code>catalog/domain/book.ts</code> หรือ <code>catalog/infrastructure/...</code></li>
+        <li>ฝั่งที่ต้องการข้อมูลเป็นคนกำหนดหน้าตาที่ต้องการ (<code>CatalogLookup</code> ใน <code>ports.ts</code>) ฝั่งที่มีข้อมูลเป็นคนทำให้ตรง</li>
+      </ul>
+      <div class="file">src/modules/catalog/index.ts</div>
+<pre><code>export { createCatalogModule } from './module';
+<span class="cmt">// module.ts คืน { router, lookup } โดย lookup มีเมธอด findCopyByBarcode() ตรงกับ CatalogLookup</span></code></pre>
+      <div class="ba">
+        <div><div class="lbl bad">ผิด</div>
+<pre><code>import { BookCopy } from
+  '../../catalog/domain/book-copy';</code></pre></div>
+        <div><div class="lbl good">ถูก</div>
+<pre><code>import type { CatalogLookup } from
+  '../application/ports';
+<span class="cmt">// main.ts ส่ง catalog.lookup เข้ามาให้</span></code></pre></div>
+      </div>
+      <p>ตั้ง ESLint ให้จับการ import ข้ามแบบผิดกติกาอัตโนมัติ เช่นใช้ <code>no-restricted-imports</code> ห้าม path <code>**/modules/*/domain/**</code> จากนอก module นั้น หรือใช้ปลั๊กอิน <code>eslint-plugin-boundaries</code></p>
+    </section>
+
+    <!-- 9 -->
+    <section id="test">
+      <div class="chap">บทที่ 9</div>
+      <h2>เทสต์แต่ละชั้น</h2>
+      <p>ข้อดีที่เห็นชัดที่สุดของ DDD คือเทสต์กฎธุรกิจได้โดยไม่ต้องมีอะไรเลยนอกจากโค้ด</p>
+      <div class="tbl"><table>
+        <thead><tr><th>ชั้น</th><th>เทสต์อะไร</th><th>ต้องมี</th><th>ความเร็ว</th></tr></thead>
+        <tbody>
+          <tr><td><span class="chip c-domain">domain</span></td><td>AC เรื่องกฎ (AC1, AC3–AC5)</td><td>ไม่ต้องมีอะไร</td><td>เร็วมาก</td></tr>
+          <tr><td><span class="chip c-app">application</span></td><td>ขั้นตอนและเคสไม่พบข้อมูล (AC6)</td><td>fake repository</td><td>เร็ว</td></tr>
+          <tr><td><span class="chip c-infra">infrastructure</span></td><td>SQL และ constraint (AC2)</td><td>PostgreSQL จริงใน Docker</td><td>ช้ากว่า</td></tr>
+          <tr><td><span class="chip c-http">http / e2e</span></td><td>status code ตรง spec, flow ข้าม context</td><td>app + DB จริง</td><td>ช้าที่สุด</td></tr>
+        </tbody>
+      </table></div>
+
+      <div class="file">domain/__tests__/borrower.test.ts</div>
+<pre><code>const NOW = new Date('2026-10-01T10:00:00Z');
+const activeLoan = (borrowedAt = NOW) =&gt; Loan.start(1, 99, borrowedAt);
+
+describe('Borrower.borrow', () =&gt; {
+  it('AC1: ยืมสำเร็จ กำหนดคืน 14 วัน', () =&gt; {
+    const loan = new Borrower(1, false, []).borrow(10, NOW);
+    expect(loan.dueDate.value.toISOString()).toBe('2026-10-15T10:00:00.000Z');
+  });
+
+  it('AC3: ปฏิเสธเมื่อยืมครบ 3 เล่ม', () =&gt; {
+    const b = new Borrower(1, false, [activeLoan(), activeLoan(), activeLoan()]);
+    expect(() =&gt; b.borrow(10, NOW)).toThrow('LOAN_LIMIT_REACHED');
+  });
+
+  it('AC4: ปฏิเสธเมื่อมีเล่มเกินกำหนด', () =&gt; {
+    const old = activeLoan(new Date('2026-09-01T10:00:00Z'));   <span class="cmt">// กำหนดคืน 15 ก.ย.</span>
+    expect(() =&gt; new Borrower(1, false, [old]).borrow(10, NOW)).toThrow('HAS_OVERDUE_LOANS');
+  });
+
+  it('AC5: ปฏิเสธสมาชิกที่ถูกระงับ', () =&gt; {
+    expect(() =&gt; new Borrower(1, true, []).borrow(10, NOW)).toThrow('MEMBER_SUSPENDED');
+  });
+});</code></pre>
+
+      <div class="file">application/__tests__/borrow-book.test.ts</div>
+<pre><code>class FakeBorrowers implements BorrowerRepository {
+  constructor(private borrower: Borrower | null) {}
+  async findByMemberCode() { return this.borrower; }
+  async saveNewLoan(loan: Loan) { return loan; }
+}
+const catalogWith = (copy: CopyInfo | null): CatalogLookup =&gt;
+  ({ findCopyByBarcode: async () =&gt; copy });
+
+it('AC6: ปฏิเสธเมื่อไม่พบสมาชิก', async () =&gt; {
+  const uc = new BorrowBook(new FakeBorrowers(null), catalogWith(null), fixedClock('2026-10-01'));
+  await expect(uc.execute('M9999', 'BC-1')).rejects.toMatchObject({ code: 'MEMBER_NOT_FOUND' });
+});</code></pre>
+      <div class="note">เทสต์ของ domain และ application รันได้ทันทีแม้ยังไม่มี database เลย จึงเริ่ม TDD ได้ตั้งแต่วันแรก ส่วนเทสต์ infrastructure เขียนหลัง migration พร้อมแล้ว</div>
+    </section>
+
+    <!-- 10 -->
+    <section id="where">
+      <div class="chap">บทที่ 10</div>
+      <h2>ไฟล์นี้ควรอยู่ไหน</h2>
+      <p>คำถามที่มือใหม่เจอบ่อยที่สุด ใช้ตารางนี้ถามตัวเองก่อนสร้างไฟล์</p>
+      <div class="tbl"><table>
+        <thead><tr><th>ถ้าโค้ดนี้...</th><th>ใส่ใน</th></tr></thead>
+        <tbody>
+          <tr><td>ตัดสินว่าทำได้หรือไม่ได้ตามกฎธุรกิจ</td><td><span class="chip c-domain">domain</span> ใน entity หรือ aggregate</td></tr>
+          <tr><td>คำนวณค่าที่มีความหมายทางธุรกิจ (วันกำหนดคืน ค่าปรับ)</td><td><span class="chip c-domain">domain</span> value object</td></tr>
+          <tr><td>กฎที่ต้องดูหลาย aggregate</td><td><span class="chip c-domain">domain</span> domain service</td></tr>
+          <tr><td>เรียงลำดับว่าโหลดอะไร เรียกอะไร บันทึกอะไร</td><td><span class="chip c-app">application</span> use case</td></tr>
+          <tr><td>ต้องการข้อมูลจาก context อื่น</td><td><span class="chip c-app">application</span> ประกาศใน <code>ports.ts</code></td></tr>
+          <tr><td>มี SQL, เรียก API ภายนอก, ส่งอีเมล, อ่านไฟล์</td><td><span class="chip c-infra">infrastructure</span></td></tr>
+          <tr><td>อ่าน <code>req</code> / เขียน <code>res</code>, แปลง JSON, แปลง error เป็น status</td><td><span class="chip c-http">interface/http</span></td></tr>
+          <tr><td>ตรวจรูปแบบ input (ขาด field, ผิด type)</td><td><span class="chip c-http">interface/http</span> หรือ validator จาก openapi</td></tr>
+          <tr><td>ใช้ได้ทุก context และไม่มีกฎธุรกิจ</td><td><code>shared/</code></td></tr>
+        </tbody>
+      </table></div>
+      <div class="note">แยกให้ออกระหว่าง <b>ตรวจรูปแบบ</b> (barcode ต้องเป็น string ไม่ว่าง) ซึ่งอยู่ชั้น HTTP กับ <b>ตรวจกฎ</b> (ยืมเกิน 3 เล่มไม่ได้) ซึ่งอยู่ domain</div>
+    </section>
+
+    <!-- 11 -->
+    <section id="mistakes">
+      <div class="chap">บทที่ 11</div>
+      <h2>ข้อผิดพลาดที่พบบ่อย</h2>
+      <div class="mistakes">
+        <div class="mistake"><h4>Entity มีแต่ getter/setter กฎไปอยู่ใน service</h4><p>เรียกว่า Anemic Model เช่น <code>loan.setReturnedAt(now)</code> แล้วไปเช็กใน service ว่าคืนไปแล้วหรือยัง แก้โดยให้ entity มีเมธอดที่มีความหมาย <code>loan.markReturned(now)</code> และเช็กกฎข้างในเอง</p></div>
+        <div class="mistake"><h4>domain import ของชั้นนอก</h4><p>เช่น <code>import { Pool } from 'pg'</code> ในไฟล์ domain ทำให้เทสต์ต้องมี DB และผิดกฎทิศทาง ให้ประกาศ interface ใน domain แล้วให้ infrastructure implement</p></div>
+        <div class="mistake"><h4>Aggregate ใหญ่เกินไป</h4><p>เช่นทำ <code>Library</code> ที่ถือหนังสือ สมาชิก และการยืมทั้งหมด โหลดทีหนึ่งช้ามาก และคนแก้ชนกันตลอด aggregate ควรเล็กที่สุดที่ยังรักษากฎได้ <code>Borrower</code> ถือแค่ loan ที่ยังไม่คืนของคนคนเดียว</p></div>
+        <div class="mistake"><h4>ส่งแถวจาก DB ออกไปเป็น JSON ตรงๆ</h4><p>ทำให้ API ผูกกับโครงตาราง แก้ schema ทีไร API เปลี่ยนตาม ให้ผ่าน domain และ mapper เสมอ API ตอบตาม openapi.yaml ไม่ใช่ตามตาราง</p></div>
+        <div class="mistake"><h4><code>shared/</code> บวมจนเป็นที่ทิ้งของ</h4><p>ถ้ามีกฎธุรกิจอยู่ใน shared แปลว่ามันเป็นของ context ใด context หนึ่ง ย้ายกลับไป shared ควรมีแค่ของเทคนิคล้วนๆ</p></div>
+        <div class="mistake"><h4>แบ่ง context ละเอียดเกินตั้งแต่วันแรก</h4><p>แยก 10 context ทั้งที่ระบบยังเล็ก ทำให้ต้องเขียนโค้ดเชื่อมเยอะโดยไม่จำเป็น เริ่ม 2–3 ตัว แล้วแยกเมื่อเห็นว่าเรื่องไหนโตจนควรแยก</p></div>
+        <div class="mistake"><h4>ตั้งชื่อตามเทคนิคแทนภาษาธุรกิจ</h4><p><code>LoanManager</code>, <code>processData()</code>, <code>handleRecord()</code> ไม่บอกอะไร ให้ใช้คำที่บรรณารักษ์ใช้ ถ้าไม่แน่ใจ ถามคนทำธุรกิจว่าเขาเรียกสิ่งนี้ว่าอะไร</p></div>
+      </div>
+    </section>
+
+    <!-- 12 -->
+    <section id="when">
+      <div class="chap">บทที่ 12</div>
+      <h2>เมื่อไหร่ไม่ต้องใช้ DDD เต็มรูป</h2>
+      <p>DDD มีต้นทุน คือไฟล์และชั้นเพิ่มขึ้น คุ้มเมื่อกฎธุรกิจซับซ้อน ไม่คุ้มเมื่องานเป็นแค่บันทึกและแสดงข้อมูล</p>
+      <div class="tbl"><table>
+        <thead><tr><th>ลักษณะงาน</th><th>แนะนำ</th><th>ตัวอย่างในห้องสมุด</th></tr></thead>
+        <tbody>
+          <tr><td>กฎเยอะ มีเงื่อนไขซ้อนกัน เปลี่ยนบ่อย</td><td>DDD เต็ม 4 ชั้น</td><td>Circulation (ยืม คืน ค่าปรับ)</td></tr>
+          <tr><td>มีกฎบ้าง ไม่มาก</td><td>มี domain บางๆ หรือรวม application กับ domain</td><td>Membership (ระงับ ต่ออายุ)</td></tr>
+          <tr><td>เพิ่ม แก้ ลบ ค้นหาเป็นหลัก</td><td>route → repository ตรงๆ ใน module ของตัวเอง</td><td>Catalog (ข้อมูลหนังสือ)</td></tr>
+        </tbody>
+      </table></div>
+      <p>แม้ context ที่เรียบง่าย ก็ยังควรอยู่ในโฟลเดอร์ของตัวเองใต้ <code>modules/</code> และคุยกับคนอื่นผ่าน <code>index.ts</code> เหมือนเดิม วันหนึ่งที่กฎเพิ่มขึ้นค่อยเติมชั้น domain ได้โดยไม่กระทบ context อื่น</p>
+    </section>
+
+    <!-- 13 -->
+    <section id="cheat">
+      <div class="chap">บทที่ 13</div>
+      <h2>สรุปหน้าเดียว</h2>
+      <h3>ลำดับการทำ use case ใหม่</h3>
+      <ul class="check">
+        <li>ตัดสินว่า use case นี้อยู่ context ไหน</li>
+        <li>เขียนเทสต์ domain ตาม AC เรื่องกฎ แล้วสร้าง entity / value object / aggregate ให้ผ่าน</li>
+        <li>ประกาศ repository interface ใน domain และ port ใน application ถ้าต้องใช้ข้อมูลจาก context อื่น</li>
+        <li>เขียนเทสต์ use case ด้วย fake แล้วสร้างคลาส use case ใน application</li>
+        <li>เขียน repository จริงใน infrastructure พร้อมเทสต์กับ DB จริง</li>
+        <li>เขียน route และ mapper ให้ตรง openapi.yaml และเพิ่ม error code ใน <code>http-errors.ts</code></li>
+        <li>ต่อสายใน <code>module.ts</code> และเพิ่ม e2e test</li>
+      </ul>
+      <h3>กฎ 5 ข้อที่ต้องจำ</h3>
+      <ol class="plain">
+        <li>domain ไม่ import อะไรจากชั้นอื่น</li>
+        <li>กฎธุรกิจอยู่ใน domain เท่านั้น use case แค่ประสานงาน</li>
+        <li>context อื่นใช้ได้เฉพาะสิ่งที่ <code>index.ts</code> export</li>
+        <li>เปลี่ยนข้อมูลผ่าน aggregate root เสมอ (<code>borrower.borrow()</code> ไม่ใช่ <code>new Loan()</code> เอง)</li>
+        <li>ชื่อในโค้ดตรงกับคำที่ธุรกิจใช้</li>
+      </ol>
+      <h3>อ่านต่อ</h3>
+      <ul class="plain">
+        <li><i>Domain-Driven Design Distilled</i> โดย Vaughn Vernon เล่มบาง เหมาะเริ่มต้น</li>
+        <li><i>Learning Domain-Driven Design</i> โดย Vlad Khononov อธิบายเป็นขั้นตอน มีเรื่องเลือกว่าส่วนไหนควรใช้ DDD</li>
+        <li><i>Domain-Driven Design</i> โดย Eric Evans ต้นฉบับ อ่านเมื่อพื้นแน่นแล้ว</li>
+      </ul>
+    </section>
+
+    <footer>คู่มือ DDD ฉบับมือใหม่ · ใช้คู่กับเอกสาร Spec-First Dev Workflow · โค้ดตัวอย่างตัดส่วน import บางบรรทัดออกเพื่อให้อ่านง่าย · จัดทำโดย นายปัณณธร ขันละ · B6610364</footer>
+  </main>
+</div>
+
+</body></html>
