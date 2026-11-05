@@ -1,0 +1,12 @@
+Issue Id,Parent Id,Issue Type,Summary,Component,Story Points,Labels,Description
+1,,Epic,การยืมคืนหนังสือ,circulation,,,"บรรณารักษ์บันทึกการยืมและการคืนหนังสือ พร้อมตรวจกฎการยืม"
+2,1,Story,UC-01 ยืมหนังสือ,circulation,5,,"ในฐานะ บรรณารักษ์
+ฉันต้องการ บันทึกการยืมหนังสือด้วยการสแกนบัตรสมาชิกและบาร์โค้ด
+เพื่อ ให้รู้ว่าหนังสือเล่มไหนอยู่กับใคร และต้องคืนเมื่อไหร่
+
+Acceptance criteria
+AC1 Given สมาชิกปกติ ยืมอยู่ 0 เล่ม  When ยืม  Then สำเร็จ กำหนดคืน = วันนี้ + 14 วัน
+AC3 Given ยืมอยู่แล้ว 3 เล่ม  When ยืม  Then ปฏิเสธ LOAN_LIMIT_REACHED"
+3,2,Sub-task,Spec: เพิ่ม POST /loans ใน openapi.yaml,circulation,,,
+4,2,Sub-task,Domain: Borrower Loan DueDate (AC1 AC3),circulation,,,
+5,,Task,Setup: docker-compose สำหรับ Postgres + Prism,,,setup,"ทุกคนรัน docker compose up แล้วได้ DB และ mock server เหมือนกัน"
