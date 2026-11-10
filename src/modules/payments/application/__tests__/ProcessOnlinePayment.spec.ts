@@ -19,8 +19,10 @@ describe('ProcessOnlinePayment Use Case', () => {
     };
     paymentRepository = {
       findExistingOfflinePayment: jest.fn(),
+      findPaymentById: jest.fn(),
       getDailySpentAmount: jest.fn().mockResolvedValue('0.00'),
       savePaymentAndDeductWallet: jest.fn(),
+      savePaymentVoidAndCreditWallet: jest.fn(),
     };
 
     useCase = new ProcessOnlinePayment(

@@ -21,8 +21,10 @@ describe('SyncOfflinePayment Use Case', () => {
     };
     paymentRepository = {
       findExistingOfflinePayment: jest.fn(),
+      findPaymentById: jest.fn(),
       getDailySpentAmount: jest.fn(),
       savePaymentAndDeductWallet: jest.fn(),
+      savePaymentVoidAndCreditWallet: jest.fn(),
     };
 
     useCase = new SyncOfflinePayment(

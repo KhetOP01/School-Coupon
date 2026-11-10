@@ -3,6 +3,7 @@ import { SystemClock } from '../../shared/clock';
 import { PostgresDatabase } from '../../shared/postgres-database';
 import { ProcessOnlinePayment } from './application/ProcessOnlinePayment';
 import { SyncOfflinePayment } from './application/SyncOfflinePayment';
+import { VoidPayment } from './application/VoidPayment';
 import { PostgresMerchantGateway } from './infrastructure/PostgresMerchantGateway';
 import { PostgresPaymentRepository } from './infrastructure/PostgresPaymentRepository';
 import { PostgresStudentPaymentGateway } from './infrastructure/PostgresStudentPaymentGateway';
@@ -51,6 +52,15 @@ export const PAYMENT_REPOSITORY = Symbol('PAYMENT_REPOSITORY');
         clock: SystemClock,
       ) => new SyncOfflinePayment(merchantGateway, studentGateway, paymentRepository, clock),
       inject: [MERCHANT_GATEWAY, STUDENT_PAYMENT_GATEWAY, PAYMENT_REPOSITORY, SystemClock],
+    },
+    {
+      provide: VoidPayment,
+      useFactory: (
+        merchantGateway: PostgresMerchantGateway,
+        paymentRepository: PostgresPaymentRepository,
+        clock: SystemClock,
+      ) => new VoidPayment(merchantGateway, paymentRepository, clock),
+      inject: [MERCHANT_GATEWAY, PAYMENT_REPOSITORY, SystemClock],
     },
   ],
   exports: [PAYMENT_REPOSITORY],

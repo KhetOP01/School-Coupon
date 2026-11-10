@@ -59,7 +59,7 @@ describe('UC-05 Merchant Payments E2E', () => {
 
   beforeEach(async () => {
     await database.pool.query(
-      'TRUNCATE TABLE payments, merchants, rfid_cards, students RESTART IDENTITY CASCADE',
+      'TRUNCATE TABLE payment_voids, payments, merchants, rfid_cards, students RESTART IDENTITY CASCADE',
     );
   });
 

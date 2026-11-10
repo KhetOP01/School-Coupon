@@ -1,14 +1,17 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   Headers,
   HttpCode,
   HttpStatus,
+  Param,
   Post,
 } from '@nestjs/common';
-import { IsNotEmpty, IsString, IsUUID } from 'class-validator';
+import { IsNotEmpty, IsOptional, IsString, IsUUID } from 'class-validator';
 import { ProcessOnlinePayment } from '../../application/ProcessOnlinePayment';
 import { SyncOfflinePayment } from '../../application/SyncOfflinePayment';
+import { VoidPayment } from '../../application/VoidPayment';
 
 class OnlinePaymentDto {
   @IsString()
@@ -38,11 +41,20 @@ class OfflinePaymentSyncDto {
   offlineCreatedAt!: string;
 }
 
+class VoidPaymentDto {
+  @IsOptional()
+  @IsString()
+  reason?: string;
+}
+
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 @Controller()
 export class MerchantPaymentController {
   constructor(
     private readonly processOnlinePayment: ProcessOnlinePayment,
     private readonly syncOfflinePayment: SyncOfflinePayment,
+    private readonly voidPaymentUseCase: VoidPayment,
   ) {}
 
   @Post('merchant/payments')
@@ -97,6 +109,40 @@ export class MerchantPaymentController {
       walletBalance: result.walletBalance,
       duplicate: result.duplicate,
       createdAt: result.createdAt.toISOString(),
+    };
+  }
+
+  @Post('merchant/payments/:id/void')
+  @HttpCode(HttpStatus.OK)
+  async voidPayment(
+    @Param('id') id: string,
+    @Body() dto: VoidPaymentDto,
+    @Headers('authorization') authHeader: string | undefined,
+    @Headers('x-merchant-id') merchantIdHeader: string | undefined,
+  ) {
+    if (!id || !UUID_REGEX.test(id)) {
+      throw new BadRequestException({
+        code: 'INVALID_REQUEST',
+        message: 'Invalid payment ID format.',
+      });
+    }
+
+    const merchant = extractMerchant(authHeader, merchantIdHeader);
+
+    const result = await this.voidPaymentUseCase.execute({
+      merchant,
+      paymentId: id,
+      reason: dto?.reason,
+    });
+
+    return {
+      paymentId: result.paymentId,
+      studentId: result.studentId,
+      merchantId: result.merchantId,
+      amount: result.amount,
+      status: result.status,
+      walletBalance: result.walletBalance,
+      voidedAt: result.voidedAt.toISOString(),
     };
   }
 }
