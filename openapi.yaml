@@ -813,6 +813,177 @@ paths:
               example:
                 code: INVALID_GATEWAY_EVENT
                 message: "ข้อมูล callback ไม่ถูกต้อง"
+  /merchant/payments:
+    post:
+      operationId: processOnlinePayment
+      summary: ร้านค้ารับชำระเงินแบบ Online
+      description: >
+        รับชำระเงินจากนักเรียนด้วยบัตร RFID ในโหมด Online โดยตัดเงินจาก Wallet ทันที
+        และตรวจสอบวงเงินใช้จ่ายรายวัน (Daily Limit).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OnlinePaymentRequest'
+            example:
+              rfidUid: '04A1B2C3D4'
+              amount: '35.00'
+      responses:
+        '201':
+          description: ชำระเงินสำเร็จ
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaymentResult'
+              example:
+                paymentId: '550e8400-e29b-41d4-a716-446655440000'
+                studentId: 101
+                merchantId: 1
+                amount: '35.00'
+                paymentMode: ONLINE
+                walletBalance: '65.00'
+                createdAt: '2026-11-10T10:00:00.000Z'
+        '400':
+          description: ข้อมูลชำระเงินไม่ถูกต้อง
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                code: INVALID_PAYMENT_REQUEST
+                message: "จำนวนเงินไม่ถูกต้อง"
+        '401':
+          description: ไม่ได้ยืนยันตัวตน
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                code: AUTHENTICATION_REQUIRED
+                message: "Authentication is required."
+        '403':
+          description: ไม่มีสิทธิ์ร้านค้า
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                code: MERCHANT_ACCESS_DENIED
+                message: "Merchant access is denied."
+        '404':
+          description: ไม่พบบัตร RFID
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                code: CARD_NOT_FOUND
+                message: "RFID card not found."
+        '409':
+          description: บัตรไม่ active, ยอดเงินไม่พอ, หรือเกินวงเงินรายวัน
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                cardNotActive:
+                  value:
+                    code: CARD_NOT_ACTIVE
+                    message: "Card is not active."
+                insufficientBalance:
+                  value:
+                    code: INSUFFICIENT_BALANCE
+                    message: "Insufficient wallet balance."
+                dailyLimitExceeded:
+                  value:
+                    code: DAILY_LIMIT_EXCEEDED
+                    message: "Daily limit exceeded."
+  /merchant/payments/sync:
+    post:
+      operationId: syncOfflinePayment
+      summary: ร้านค้า Sync รายการชำระเงินแบบ Offline
+      description: >
+        รับ Sync รายการชำระเงินที่เกิดขึ้นแบบ Offline โดยใช้ offlineTrxId ป้องกันรายการซ้ำ
+        และตัดยอด Wallet จริง (ยอดสามารถติดลบได้ถึง -500.00 ตาม BR-PAY-02).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OfflinePaymentSyncRequest'
+            example:
+              offlineTrxId: 'f47ac10b-58cc-4372-a567-0e02b2c3d479'
+              rfidUid: '04A1B2C3D4'
+              amount: '30.00'
+              offlineCreatedAt: '2026-11-10T09:00:00.000Z'
+      responses:
+        '200':
+          description: Sync รายการสำเร็จ (หรือคืนผลเดิมหาก Sync ซ้ำ)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OfflinePaymentSyncResult'
+              example:
+                paymentId: '550e8400-e29b-41d4-a716-446655440000'
+                studentId: 101
+                merchantId: 1
+                amount: '30.00'
+                paymentMode: OFFLINE
+                walletBalance: '20.00'
+                duplicate: false
+                createdAt: '2026-11-10T09:00:00.000Z'
+        '400':
+          description: ข้อมูล Sync ไม่ถูกต้อง
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                code: INVALID_PAYMENT_REQUEST
+                message: "ข้อมูลชำระเงินไม่ถูกต้อง"
+        '401':
+          description: ไม่ได้ยืนยันตัวตน
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                code: AUTHENTICATION_REQUIRED
+                message: "Authentication is required."
+        '403':
+          description: ไม่มีสิทธิ์ร้านค้า
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                code: MERCHANT_ACCESS_DENIED
+                message: "Merchant access is denied."
+        '404':
+          description: ไม่พบบัตร RFID
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                code: CARD_NOT_FOUND
+                message: "RFID card not found."
+        '409':
+          description: บัตรไม่ active หรือเกินวงเงินรายวัน
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                cardNotActive:
+                  value:
+                    code: CARD_NOT_ACTIVE
+                    message: "Card is not active."
+                dailyLimitExceeded:
+                  value:
+                    code: DAILY_LIMIT_EXCEEDED
+                    message: "Daily limit exceeded."
 components:
   securitySchemes:
     StaffAdminSessionCookie:
@@ -1192,5 +1363,122 @@ components:
         studentId: 101
         currentDailyLimit: '100.00'
         nextDailyLimit: '150.00'
+    OnlinePaymentRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - rfidUid
+        - amount
+      properties:
+        rfidUid:
+          type: string
+          minLength: 1
+          example: '04A1B2C3D4'
+        amount:
+          type: string
+          pattern: '^[0-9]{1,8}(\.[0-9]{1,2})?$'
+          example: '35.00'
+    OfflinePaymentSyncRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - offlineTrxId
+        - rfidUid
+        - amount
+        - offlineCreatedAt
+      properties:
+        offlineTrxId:
+          type: string
+          format: uuid
+          example: 'f47ac10b-58cc-4372-a567-0e02b2c3d479'
+        rfidUid:
+          type: string
+          minLength: 1
+          example: '04A1B2C3D4'
+        amount:
+          type: string
+          pattern: '^[0-9]{1,8}(\.[0-9]{1,2})?$'
+          example: '30.00'
+        offlineCreatedAt:
+          type: string
+          format: date-time
+          example: '2026-11-10T09:00:00.000Z'
+    PaymentResult:
+      type: object
+      additionalProperties: false
+      required:
+        - paymentId
+        - studentId
+        - merchantId
+        - amount
+        - paymentMode
+        - walletBalance
+        - createdAt
+      properties:
+        paymentId:
+          type: string
+          format: uuid
+          example: '550e8400-e29b-41d4-a716-446655440000'
+        studentId:
+          type: integer
+          example: 101
+        merchantId:
+          type: integer
+          example: 1
+        amount:
+          type: string
+          example: '35.00'
+        paymentMode:
+          type: string
+          enum: [ONLINE, OFFLINE]
+          example: ONLINE
+        walletBalance:
+          type: string
+          example: '65.00'
+        createdAt:
+          type: string
+          format: date-time
+          example: '2026-11-10T10:00:00.000Z'
+    OfflinePaymentSyncResult:
+      type: object
+      additionalProperties: false
+      required:
+        - paymentId
+        - studentId
+        - merchantId
+        - amount
+        - paymentMode
+        - walletBalance
+        - duplicate
+        - createdAt
+      properties:
+        paymentId:
+          type: string
+          format: uuid
+          example: '550e8400-e29b-41d4-a716-446655440000'
+        studentId:
+          type: integer
+          example: 101
+        merchantId:
+          type: integer
+          example: 1
+        amount:
+          type: string
+          example: '30.00'
+        paymentMode:
+          type: string
+          enum: [ONLINE, OFFLINE]
+          example: OFFLINE
+        walletBalance:
+          type: string
+          example: '20.00'
+        duplicate:
+          type: boolean
+          example: false
+        createdAt:
+          type: string
+          format: date-time
+          example: '2026-11-10T09:00:00.000Z'
+
 
 

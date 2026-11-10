@@ -204,5 +204,37 @@ ON CONFLICT (student_code) DO NOTHING;
 
 SELECT setval(pg_get_serial_sequence('students', 'id'), GREATEST((SELECT MAX(id) FROM students), 1), TRUE);
 
+-- UC-05 Seed Data
+INSERT INTO merchants (id, merchant_code, name, fee_percent, status)
+VALUES
+  (501, 'M-501', 'Noodle Shop', 2.00, 'active'),
+  (502, 'M-502', 'Suspended Shop', 2.00, 'suspended')
+ON CONFLICT (merchant_code) DO NOTHING;
+
+INSERT INTO students (id, student_code, first_name, last_name, wallet_balance, current_daily_limit, next_daily_limit)
+VALUES
+  (501, 'UC05-AC51', 'Student', 'AC51', 100.00, 200.00, 200.00),
+  (502, 'UC05-AC52', 'Student', 'AC52', 50.00, 200.00, 200.00),
+  (506, 'UC05-AC56', 'Student', 'AC56', 300.00, 50.00, 50.00),
+  (508, 'UC05-AC58', 'Student', 'AC58', 100.00, 200.00, 200.00),
+  (510, 'UC05-AC510', 'Student', 'AC510', 100.00, 200.00, 200.00),
+  (511, 'UC05-AC511', 'Student', 'AC511', 20.00, 200.00, 200.00)
+ON CONFLICT (student_code) DO NOTHING;
+
+INSERT INTO rfid_cards (id, rfid_uid, student_id, status)
+VALUES
+  (501, 'UC05-AC51-CARD', 501, 'active'),
+  (502, 'UC05-AC52-CARD', 502, 'active'),
+  (506, 'UC05-AC56-CARD', 506, 'active'),
+  (508, 'UC05-AC58-CARD', 508, 'suspended'),
+  (510, 'UC05-AC510-CARD', 510, 'active'),
+  (511, 'UC05-AC511-CARD', 511, 'active')
+ON CONFLICT (rfid_uid) DO NOTHING;
+
+SELECT setval(pg_get_serial_sequence('merchants', 'id'), GREATEST((SELECT MAX(id) FROM merchants), 1), TRUE);
+SELECT setval(pg_get_serial_sequence('students', 'id'), GREATEST((SELECT MAX(id) FROM students), 1), TRUE);
+SELECT setval(pg_get_serial_sequence('rfid_cards', 'id'), GREATEST((SELECT MAX(id) FROM rfid_cards), 1), TRUE);
+
+
 
 
