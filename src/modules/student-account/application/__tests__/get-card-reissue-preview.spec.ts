@@ -22,6 +22,10 @@ describe('GetCardReissuePreview', () => {
     const repository: jest.Mocked<StudentAccountRepository> = {
       findForCardReissue: jest.fn().mockResolvedValue(student),
       saveCardReissue: jest.fn(),
+      findByCardId: jest.fn(),
+      findById: jest.fn(),
+      saveCardStatus: jest.fn(),
+      saveDepartureRefund: jest.fn(),
     };
     const useCase = new GetCardReissuePreview(repository);
 
@@ -41,6 +45,10 @@ describe('GetCardReissuePreview', () => {
     const repository: jest.Mocked<StudentAccountRepository> = {
       findForCardReissue: jest.fn().mockResolvedValue(null),
       saveCardReissue: jest.fn(),
+      findByCardId: jest.fn(),
+      findById: jest.fn(),
+      saveCardStatus: jest.fn(),
+      saveDepartureRefund: jest.fn(),
     };
     const useCase = new GetCardReissuePreview(repository);
 

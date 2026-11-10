@@ -75,4 +75,143 @@ describe('Student', () => {
       walletBalance: '65.00',
     });
   });
+
+  it('AC2.1a: marks card as lost when parent reports it lost', () => {
+    const student = Student.restore({
+      id: 101,
+      studentCode: 'STU-101',
+      firstName: 'Mali',
+      lastName: 'Srisuk',
+      walletBalance: '65.00',
+      currentCard: RfidCard.restore({
+        id: 101,
+        uid: 'CARD-101',
+        status: 'active',
+        issuedAt: new Date('2026-01-01T00:00:00.000Z'),
+      }),
+    });
+
+    const card = student.freezeCard(101, 'lost');
+    expect(card.status).toBe('lost');
+    expect(student.currentCard?.status).toBe('lost');
+  });
+
+  it('AC2.1b: suspends card when staff requests freeze', () => {
+    const student = Student.restore({
+      id: 101,
+      studentCode: 'STU-101',
+      firstName: 'Mali',
+      lastName: 'Srisuk',
+      walletBalance: '65.00',
+      currentCard: RfidCard.restore({
+        id: 101,
+        uid: 'CARD-101',
+        status: 'active',
+        issuedAt: new Date('2026-01-01T00:00:00.000Z'),
+      }),
+    });
+
+    const card = student.freezeCard(101, 'suspended');
+    expect(card.status).toBe('suspended');
+    expect(student.currentCard?.status).toBe('suspended');
+  });
+
+  it('AC2.3: restores a suspended card back to active', () => {
+    const student = Student.restore({
+      id: 101,
+      studentCode: 'STU-101',
+      firstName: 'Mali',
+      lastName: 'Srisuk',
+      walletBalance: '65.00',
+      currentCard: RfidCard.restore({
+        id: 101,
+        uid: 'CARD-101',
+        status: 'suspended',
+        issuedAt: new Date('2026-01-01T00:00:00.000Z'),
+      }),
+    });
+
+    const card = student.unfreezeCard(101);
+    expect(card.status).toBe('active');
+    expect(student.currentCard?.status).toBe('active');
+  });
+
+  it('AC2.3: rejects unfreezing a lost card with CARD_NOT_SUSPENDED', () => {
+    const student = Student.restore({
+      id: 101,
+      studentCode: 'STU-101',
+      firstName: 'Mali',
+      lastName: 'Srisuk',
+      walletBalance: '65.00',
+      currentCard: RfidCard.restore({
+        id: 101,
+        uid: 'CARD-101',
+        status: 'lost',
+        issuedAt: new Date('2026-01-01T00:00:00.000Z'),
+      }),
+    });
+
+    expect(() => student.unfreezeCard(101)).toThrow('CARD_NOT_SUSPENDED');
+  });
+
+  it('AC2.2: processes departure refund for student with positive balance', () => {
+    const student = Student.restore({
+      id: 101,
+      studentCode: 'STU-101',
+      firstName: 'Mali',
+      lastName: 'Srisuk',
+      walletBalance: '250.00',
+      currentCard: RfidCard.restore({
+        id: 101,
+        uid: 'CARD-101',
+        status: 'active',
+        issuedAt: new Date('2026-01-01T00:00:00.000Z'),
+      }),
+    });
+
+    const refund = student.refundDeparture(now);
+    expect(refund.refundedAmount).toBe('250.00');
+    expect(student.walletBalance).toBe('0.00');
+    expect(student.departedAt).toEqual(now);
+    expect(refund.card?.status).toBe('deactivated');
+  });
+
+  it('AC2.6: rejects refund when departure was already processed', () => {
+    const student = Student.restore({
+      id: 101,
+      studentCode: 'STU-101',
+      firstName: 'Mali',
+      lastName: 'Srisuk',
+      walletBalance: '0.00',
+      departedAt: new Date('2026-11-01T00:00:00.000Z'),
+      currentCard: null,
+    });
+
+    expect(() => student.refundDeparture(now)).toThrow('REFUND_ALREADY_PROCESSED');
+  });
+
+  it('AC2.7: processes departure for student with zero balance', () => {
+    const student = Student.restore({
+      id: 101,
+      studentCode: 'STU-101',
+      firstName: 'Mali',
+      lastName: 'Srisuk',
+      walletBalance: '0.00',
+      currentCard: RfidCard.restore({
+        id: 101,
+        uid: 'CARD-101',
+        status: 'active',
+        issuedAt: new Date('2026-01-01T00:00:00.000Z'),
+      }),
+    });
+
+    const refund = student.refundDeparture(now);
+    expect(refund.refundedAmount).toBe('0.00');
+    expect(student.walletBalance).toBe('0.00');
+    expect(student.departedAt).toEqual(now);
+    expect(refund.card?.status).toBe('deactivated');
+  });
 });
+
+
+

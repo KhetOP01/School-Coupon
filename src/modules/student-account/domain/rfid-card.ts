@@ -40,4 +40,29 @@ export class RfidCard {
 
     this.currentStatus = 'deactivated';
   }
+
+  suspend(): void {
+    if (this.currentStatus !== 'active') {
+      throw new DomainError('CARD_CANNOT_BE_FROZEN');
+    }
+
+    this.currentStatus = 'suspended';
+  }
+
+  reportLost(): void {
+    if (this.currentStatus === 'deactivated') {
+      throw new DomainError('CARD_CANNOT_BE_FROZEN');
+    }
+
+    this.currentStatus = 'lost';
+  }
+
+  unfreeze(): void {
+    if (this.currentStatus !== 'suspended') {
+      throw new DomainError('CARD_NOT_SUSPENDED');
+    }
+
+    this.currentStatus = 'active';
+  }
 }
+

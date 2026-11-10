@@ -8,6 +8,10 @@ describe('ReissueRfidCard', () => {
     const repository: jest.Mocked<StudentAccountRepository> = {
       findForCardReissue: jest.fn().mockResolvedValue(null),
       saveCardReissue: jest.fn(),
+      findByCardId: jest.fn(),
+      findById: jest.fn(),
+      saveCardStatus: jest.fn(),
+      saveDepartureRefund: jest.fn(),
     };
     const cardIdGenerator: CardIdGenerator = { next: jest.fn().mockResolvedValue(2) };
     const clock: Clock = { now: () => new Date('2026-11-04T10:00:00.000Z') };

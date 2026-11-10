@@ -8,6 +8,7 @@ export interface RestoredStudent {
   lastName: string;
   walletBalance: string;
   currentCard: RfidCard | null;
+  departedAt?: Date | null;
 }
 
 export interface CardReissuePreview {
@@ -32,8 +33,9 @@ export class Student {
     readonly studentCode: string,
     readonly firstName: string,
     readonly lastName: string,
-    readonly walletBalance: string,
+    private currentWalletBalance: string,
     private activeCard: RfidCard | null,
+    private departedDate: Date | null,
   ) {}
 
   static restore(student: RestoredStudent): Student {
@@ -44,7 +46,16 @@ export class Student {
       student.lastName,
       student.walletBalance,
       student.currentCard,
+      student.departedAt ?? null,
     );
+  }
+
+  get walletBalance(): string {
+    return this.currentWalletBalance;
+  }
+
+  get departedAt(): Date | null {
+    return this.departedDate;
   }
 
   get currentCard(): RfidCard | null {
@@ -89,4 +100,50 @@ export class Student {
     this.activeCard = newCard;
     return { replacedCard, newCard };
   }
+
+  freezeCard(cardId: number, targetStatus: 'suspended' | 'lost'): RfidCard {
+    const card = this.activeCard;
+    if (card === null || card.id !== cardId) {
+      throw new DomainError('CARD_NOT_FOUND');
+    }
+
+    if (targetStatus === 'suspended') {
+      card.suspend();
+    } else {
+      card.reportLost();
+    }
+
+    return card;
+  }
+
+  unfreezeCard(cardId: number): RfidCard {
+    const card = this.activeCard;
+    if (card === null || card.id !== cardId) {
+      throw new DomainError('CARD_NOT_FOUND');
+    }
+
+    card.unfreeze();
+    return card;
+  }
+
+  refundDeparture(now: Date): { refundedAmount: string; card: RfidCard | null } {
+    if (this.departedDate !== null) {
+      throw new DomainError('REFUND_ALREADY_PROCESSED');
+    }
+
+    this.departedDate = now;
+    const refunded = this.currentWalletBalance;
+    this.currentWalletBalance = '0.00';
+
+    if (this.activeCard !== null && this.activeCard.status !== 'deactivated') {
+      this.activeCard.deactivate();
+    }
+
+    return {
+      refundedAmount: refunded,
+      card: this.activeCard,
+    };
+  }
 }
+
+
