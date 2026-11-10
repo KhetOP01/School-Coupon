@@ -15,4 +15,5 @@ export interface StudentAccountRepository {
   findById(studentId: number): Promise<Student | null>;
   saveCardStatus(card: RfidCard, updatedAt: Date): Promise<void>;
   saveDepartureRefund(student: Student, refund: StudentRefundRecord | null): Promise<void>;
+  saveDailyLimit(student: Student): Promise<void>;
 }
