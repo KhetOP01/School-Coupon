@@ -2,22 +2,34 @@ import { Module } from '@nestjs/common';
 import { SystemClock } from '../../shared/clock';
 import { PostgresDatabase } from '../../shared/postgres-database';
 import { SchoolConfigurationModule } from '../school-configuration';
+import { FreezeCardUseCase } from './application/freeze-card';
 import { GetCardReissuePreview } from './application/get-card-reissue-preview';
+import { RefundDepartingStudentUseCase } from './application/refund-departing-student';
 import { ReissueRfidCard } from './application/reissue-rfid-card';
+import { UnfreezeCardUseCase } from './application/unfreeze-card';
 import { CardIdGenerator } from './application/ports';
 import { StudentAccountRepository } from './application/student-account.repository';
 import { PostgresCardIdGenerator } from './infrastructure/postgres-card-id-generator';
 import { StudentAccountPostgresRepository } from './infrastructure/student-account-postgres.repository';
 import { CardReissuePreviewController } from './interface/http/card-reissue-preview.controller';
-import { StaffAuthGuard } from './interface/http/staff-auth.guard';
+import { FreezeCardController } from './interface/http/freeze-card.controller';
+import { RefundStudentController } from './interface/http/refund-student.controller';
 import { ReissueRfidCardController } from './interface/http/reissue-rfid-card.controller';
+import { StaffAuthGuard } from './interface/http/staff-auth.guard';
+import { UnfreezeCardController } from './interface/http/unfreeze-card.controller';
 
 export const STUDENT_ACCOUNT_REPOSITORY = Symbol('STUDENT_ACCOUNT_REPOSITORY');
 export const CARD_ID_GENERATOR = Symbol('CARD_ID_GENERATOR');
 
 @Module({
   imports: [SchoolConfigurationModule],
-  controllers: [ReissueRfidCardController, CardReissuePreviewController],
+  controllers: [
+    ReissueRfidCardController,
+    CardReissuePreviewController,
+    FreezeCardController,
+    UnfreezeCardController,
+    RefundStudentController,
+  ],
   providers: [
     PostgresDatabase,
     StaffAuthGuard,
@@ -48,6 +60,26 @@ export const CARD_ID_GENERATOR = Symbol('CARD_ID_GENERATOR');
       useFactory: (repository: StudentAccountRepository): GetCardReissuePreview =>
         new GetCardReissuePreview(repository),
       inject: [STUDENT_ACCOUNT_REPOSITORY],
+    },
+    {
+      provide: FreezeCardUseCase,
+      useFactory: (repository: StudentAccountRepository, clock: SystemClock): FreezeCardUseCase =>
+        new FreezeCardUseCase(repository, clock),
+      inject: [STUDENT_ACCOUNT_REPOSITORY, SystemClock],
+    },
+    {
+      provide: UnfreezeCardUseCase,
+      useFactory: (repository: StudentAccountRepository, clock: SystemClock): UnfreezeCardUseCase =>
+        new UnfreezeCardUseCase(repository, clock),
+      inject: [STUDENT_ACCOUNT_REPOSITORY, SystemClock],
+    },
+    {
+      provide: RefundDepartingStudentUseCase,
+      useFactory: (
+        repository: StudentAccountRepository,
+        clock: SystemClock,
+      ): RefundDepartingStudentUseCase => new RefundDepartingStudentUseCase(repository, clock),
+      inject: [STUDENT_ACCOUNT_REPOSITORY, SystemClock],
     },
   ],
 })
