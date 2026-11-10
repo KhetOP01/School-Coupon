@@ -29,6 +29,8 @@ export interface ExistingOfflinePayment {
 
 export interface PaymentRepository {
   findExistingOfflinePayment(offlineTrxId: string): Promise<ExistingOfflinePayment | null>;
+  findPaymentById(id: string): Promise<Payment | null>;
   getDailySpentAmount(studentId: number, date: Date): Promise<string>;
   savePaymentAndDeductWallet(payment: Payment, isOffline: boolean): Promise<{ walletBalance: string }>;
+  savePaymentVoidAndCreditWallet(payment: Payment, reason?: string): Promise<{ walletBalance: string }>;
 }
