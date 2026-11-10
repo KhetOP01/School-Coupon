@@ -1,0 +1,449 @@
+openapi: 3.1.0
+info:
+  title: School-Coupon API
+  version: 1.0.0
+servers:
+  - url: http://localhost:3000
+    description: Local development server
+paths:
+  /admin/auth/oidc/start:
+    get:
+      operationId: startStaffOidcLogin
+      summary: Start Staff sign-in with the configured school identity provider
+      responses:
+        '302':
+          description: Redirect to the configured OpenID Connect provider.
+          headers:
+            Location:
+              schema:
+                type: string
+                format: uri
+              example: "https://login.example.edu/authorize?client_id=school-coupon-admin&response_type=code&scope=openid"
+            Set-Cookie:
+              schema:
+                type: string
+              example: "school_coupon_oidc_flow=<opaque-state>; Path=/admin/auth/oidc; HttpOnly; Secure; SameSite=Lax; Max-Age=300"
+        '502':
+          description: The configured identity provider is unavailable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                code: AUTHENTICATION_UNAVAILABLE
+                message: "Staff sign-in is temporarily unavailable."
+  /admin/auth/oidc/callback:
+    get:
+      operationId: completeStaffOidcLogin
+      summary: Complete the OpenID Connect authorization flow
+      parameters:
+        - name: code
+          in: query
+          required: false
+          schema:
+            type: string
+          example: "example-authorization-code"
+        - name: state
+          in: query
+          required: true
+          schema:
+            type: string
+          example: "example-csrf-state"
+        - name: error
+          in: query
+          required: false
+          schema:
+            type: string
+          example: "access_denied"
+      responses:
+        '303':
+          description: Staff authentication succeeded; redirect to the protected Admin page.
+          headers:
+            Location:
+              schema:
+                type: string
+              example: /admin
+            Set-Cookie:
+              schema:
+                type: string
+              example: "school_coupon_admin_session=<opaque-random-value>; Path=/admin; HttpOnly; Secure; SameSite=Lax"
+        '400':
+          description: The callback is malformed or the user cancelled sign-in.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                invalidResponse:
+                  summary: The callback is malformed.
+                  value:
+                    code: INVALID_OIDC_RESPONSE
+                    message: "The identity provider response could not be validated."
+                cancelled:
+                  summary: The user cancelled sign-in.
+                  value:
+                    code: AUTHENTICATION_CANCELLED
+                    message: "Staff sign-in was cancelled."
+        '401':
+          description: Authentication failed or the provider response has expired.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                code: AUTHENTICATION_REQUIRED
+                message: "Authentication is required."
+        '403':
+          description: The authenticated identity is not mapped to Staff access.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                code: STAFF_ACCESS_REQUIRED
+                message: "Staff access is required."
+        '502':
+          description: The identity provider could not complete authentication.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                code: AUTHENTICATION_UNAVAILABLE
+                message: "Staff sign-in is temporarily unavailable."
+  /admin/auth/session:
+    get:
+      operationId: getStaffAdminSession
+      summary: Get the authenticated Staff session
+      security:
+        - StaffAdminSessionCookie: []
+      responses:
+        '200':
+          description: The current Staff session expiry.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StaffSession'
+              example:
+                expiresAt: "2026-11-05T15:00:00Z"
+        '401':
+          description: The session is missing, expired, or revoked.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                authenticationRequired:
+                  summary: No valid Staff session was provided.
+                  value:
+                    code: AUTHENTICATION_REQUIRED
+                    message: "Authentication is required."
+                sessionExpired:
+                  summary: The Staff session expired or was revoked.
+                  value:
+                    code: SESSION_EXPIRED
+                    message: "The Staff session has expired."
+  /admin/auth/logout:
+    post:
+      operationId: logoutStaffAdmin
+      summary: Revoke the current Staff Admin session
+      security:
+        - StaffAdminSessionCookie: []
+      responses:
+        '204':
+          description: The current session was revoked and its cookie was cleared.
+          headers:
+            Set-Cookie:
+              schema:
+                type: string
+              example: "school_coupon_admin_session=; Path=/admin; HttpOnly; Secure; SameSite=Lax; Max-Age=0"
+        '401':
+          description: No active Staff session is available to revoke.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                code: SESSION_EXPIRED
+                message: "The Staff session has expired."
+  /admin/students/{studentId}/card-reissue-preview:
+    get:
+      operationId: getCardReissuePreview
+      summary: Get the student and current replaceable card before reissue
+      security:
+        - StaffAdminSessionCookie: []
+      parameters:
+        - name: studentId
+          in: path
+          required: true
+          schema:
+            type: integer
+            minimum: 1
+          example: 42
+      responses:
+        '200':
+          description: The student and current card that the reissue request must replace.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CardReissuePreview'
+              example:
+                studentId: 42
+                studentCode: "STU-0042"
+                firstName: "Mali"
+                lastName: "Srisuk"
+                expectedCardId: 17
+                oldRfidUid: "04FFEEDDCC"
+                oldCardStatus: active
+                walletBalance: "65.00"
+        '401':
+          description: The caller has no valid Staff session.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                code: AUTHENTICATION_REQUIRED
+                message: "Authentication is required."
+        '403':
+          description: The authenticated caller is not authorized as Staff.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                code: STAFF_ACCESS_REQUIRED
+                message: "Staff access is required."
+        '404':
+          description: The student does not exist.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                code: STUDENT_NOT_FOUND
+                message: "The student was not found."
+        '409':
+          description: The student has no active or lost card that can be replaced.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                code: CARD_NOT_REPLACEABLE
+                message: "The current card cannot be replaced."
+  /admin/cards/reissue:
+    post:
+      operationId: reissueRfidCard
+      summary: Reissue a student's RFID card
+      description: >
+        Replaces the specified active or lost card. The expectedCardId is a
+        concurrency precondition so only one request can replace a given card.
+        Wallet balance is not modified.
+      tags:
+        - Student account
+      security:
+        - StaffAdminSessionCookie: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReissueCardRequest'
+            example:
+              studentId: 42
+              expectedCardId: 17
+              newRfidUid: "04A1B2C3D4"
+      responses:
+        '200':
+          description: The card was replaced and the wallet balance was preserved.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReissueCardResponse'
+              example:
+                studentId: 42
+                replacedCardId: 17
+                newCardId: 18
+                newRfidUid: "04A1B2C3D4"
+                newCardStatus: active
+                walletBalance: "65.00"
+        '400':
+          description: A required request field is missing or invalid.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                code: INVALID_REQUEST
+                message: "studentId, expectedCardId, and newRfidUid are required."
+        '401':
+          description: The caller is not authenticated.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                code: AUTHENTICATION_REQUIRED
+                message: "Authentication is required."
+        '403':
+          description: The authenticated caller is not authorized as staff.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                code: STAFF_ACCESS_REQUIRED
+                message: "Staff access is required."
+        '404':
+          description: The student does not exist.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                code: STUDENT_NOT_FOUND
+                message: "The student was not found."
+        '409':
+          description: The UID is already registered, or the expected card cannot be replaced.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                cardAlreadyBound:
+                  summary: The new UID has already been registered.
+                  value:
+                    code: CARD_ALREADY_BOUND
+                    message: "This RFID UID has already been registered."
+                activeCardConflict:
+                  summary: Another request already replaced the expected card.
+                  value:
+                    code: ACTIVE_CARD_CONFLICT
+                    message: "The card changed before this request could be completed."
+                cardNotReplaceable:
+                  summary: The expected card is not an active or lost card for this student.
+                  value:
+                    code: CARD_NOT_REPLACEABLE
+                    message: "The expected card cannot be replaced."
+components:
+  securitySchemes:
+    StaffAdminSessionCookie:
+      type: apiKey
+      in: cookie
+      name: school_coupon_admin_session
+      description: Opaque random session identifier; only its SHA-256 hash is stored in the database.
+  schemas:
+    CardReissuePreview:
+      type: object
+      required:
+        - studentId
+        - studentCode
+        - firstName
+        - lastName
+        - expectedCardId
+        - oldRfidUid
+        - oldCardStatus
+        - walletBalance
+      properties:
+        studentId:
+          type: integer
+          example: 42
+        studentCode:
+          type: string
+          example: "STU-0042"
+        firstName:
+          type: string
+          example: "Mali"
+        lastName:
+          type: string
+          example: "Srisuk"
+        expectedCardId:
+          type: integer
+          example: 17
+        oldRfidUid:
+          type: string
+          example: "04FFEEDDCC"
+        oldCardStatus:
+          type: string
+          enum: [active, lost]
+          example: active
+        walletBalance:
+          type: string
+          pattern: '^-?\d+\.\d{2}$'
+          example: "65.00"
+    StaffSession:
+      type: object
+      required:
+        - expiresAt
+      properties:
+        expiresAt:
+          type: string
+          format: date-time
+          example: "2026-11-05T15:00:00Z"
+    ReissueCardRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - studentId
+        - expectedCardId
+        - newRfidUid
+      properties:
+        studentId:
+          type: integer
+          minimum: 1
+          example: 42
+        expectedCardId:
+          type: integer
+          minimum: 1
+          description: ID of the active or lost card the staff member intends to replace.
+          example: 17
+        newRfidUid:
+          type: string
+          minLength: 1
+          maxLength: 50
+          description: RFID UID that has never been registered.
+          example: "04A1B2C3D4"
+    ReissueCardResponse:
+      type: object
+      required:
+        - studentId
+        - replacedCardId
+        - newCardId
+        - newRfidUid
+        - newCardStatus
+        - walletBalance
+      properties:
+        studentId:
+          type: integer
+          example: 42
+        replacedCardId:
+          type: integer
+          example: 17
+        newCardId:
+          type: integer
+          example: 18
+        newRfidUid:
+          type: string
+          example: "04A1B2C3D4"
+        newCardStatus:
+          type: string
+          const: active
+          example: active
+        walletBalance:
+          type: string
+          pattern: '^-?\d+\.\d{2}$'
+          description: Exact wallet balance after replacement; the operation does not change it.
+          example: "65.00"
+    ErrorResponse:
+      type: object
+      required:
+        - code
+        - message
+      properties:
+        code:
+          type: string
+          example: INVALID_REQUEST
+        message:
+          type: string
+          example: "The request is invalid."
