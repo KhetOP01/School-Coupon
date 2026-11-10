@@ -326,6 +326,266 @@ paths:
                   value:
                     code: CARD_NOT_REPLACEABLE
                     message: "The expected card cannot be replaced."
+  /admin/cards/{cardId}/freeze:
+    patch:
+      operationId: freezeCardAdmin
+      summary: Temporarily suspend a card (Staff Web Admin)
+      security:
+        - StaffAdminSessionCookie: []
+      parameters:
+        - name: cardId
+          in: path
+          required: true
+          schema:
+            type: integer
+            minimum: 1
+          example: 17
+      responses:
+        '200':
+          description: Card successfully suspended.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CardStatusResponse'
+              example:
+                cardId: 17
+                studentId: 42
+                rfidUid: "04FFEEDDCC"
+                status: "suspended"
+                updatedAt: "2026-11-10T10:00:00Z"
+        '401':
+          description: Authentication required.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                code: AUTHENTICATION_REQUIRED
+                message: "A valid staff session cookie is required."
+        '403':
+          description: Forbidden - Staff access required.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                code: STAFF_ACCESS_REQUIRED
+                message: "Staff role is required."
+        '404':
+          description: Card not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                code: CARD_NOT_FOUND
+                message: "The specified card was not found."
+        '409':
+          description: Card cannot be frozen.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                code: CARD_CANNOT_BE_FROZEN
+                message: "Only active cards can be suspended."
+  /parent/cards/{cardId}/freeze:
+    patch:
+      operationId: freezeCardParent
+      summary: Report card as lost and freeze it immediately (Parent App)
+      parameters:
+        - name: cardId
+          in: path
+          required: true
+          schema:
+            type: integer
+            minimum: 1
+          example: 17
+      responses:
+        '200':
+          description: Card successfully marked as lost.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CardStatusResponse'
+              example:
+                cardId: 17
+                studentId: 42
+                rfidUid: "04FFEEDDCC"
+                status: "lost"
+                updatedAt: "2026-11-10T10:00:00Z"
+        '401':
+          description: Authentication required.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                code: AUTHENTICATION_REQUIRED
+                message: "Parent authentication is required."
+        '403':
+          description: Forbidden - Parent does not manage this student.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                code: FORBIDDEN
+                message: "You are not authorized to manage this card."
+        '404':
+          description: Card not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                code: CARD_NOT_FOUND
+                message: "The specified card was not found."
+        '409':
+          description: Card cannot be frozen.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                code: CARD_CANNOT_BE_FROZEN
+                message: "Card is already lost or deactivated."
+  /admin/cards/{cardId}/unfreeze:
+    patch:
+      operationId: unfreezeCardAdmin
+      summary: Unfreeze a suspended card back to active (Staff Web Admin)
+      security:
+        - StaffAdminSessionCookie: []
+      parameters:
+        - name: cardId
+          in: path
+          required: true
+          schema:
+            type: integer
+            minimum: 1
+          example: 17
+      responses:
+        '200':
+          description: Card successfully un-suspended to active.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CardStatusResponse'
+              example:
+                cardId: 17
+                studentId: 42
+                rfidUid: "04FFEEDDCC"
+                status: "active"
+                updatedAt: "2026-11-10T10:00:00Z"
+        '401':
+          description: Authentication required.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                code: AUTHENTICATION_REQUIRED
+                message: "A valid staff session cookie is required."
+        '403':
+          description: Forbidden - Staff access required.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                code: STAFF_ACCESS_REQUIRED
+                message: "Staff role is required."
+        '404':
+          description: Card not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                code: CARD_NOT_FOUND
+                message: "The specified card was not found."
+        '409':
+          description: Card cannot be unfrozen.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                notSuspended:
+                  summary: Card is not in suspended state.
+                  value:
+                    code: CARD_NOT_SUSPENDED
+                    message: "Only suspended cards can be un-suspended."
+                activeConflict:
+                  summary: Student already has another active card.
+                  value:
+                    code: ACTIVE_CARD_CONFLICT
+                    message: "Student already has another active card."
+  /admin/students/{studentId}/refund:
+    post:
+      operationId: refundDepartingStudent
+      summary: Refund wallet balance and close card for departing student (Staff Web Admin)
+      security:
+        - StaffAdminSessionCookie: []
+      parameters:
+        - name: studentId
+          in: path
+          required: true
+          schema:
+            type: integer
+            minimum: 1
+          example: 42
+      responses:
+        '200':
+          description: Student departure refund processed successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StudentRefundResponse'
+              example:
+                studentId: 42
+                studentCode: "STU-0042"
+                refundedAmount: "250.00"
+                walletBalance: "0.00"
+                cardId: 17
+                cardStatus: "deactivated"
+                departedAt: "2026-11-10T10:00:00Z"
+        '401':
+          description: Authentication required.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                code: AUTHENTICATION_REQUIRED
+                message: "A valid staff session cookie is required."
+        '403':
+          description: Forbidden - Staff access required.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                code: STAFF_ACCESS_REQUIRED
+                message: "Staff role is required."
+        '404':
+          description: Student not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                code: STUDENT_NOT_FOUND
+                message: "The specified student was not found."
+        '409':
+          description: Refund already processed for departing student.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                code: REFUND_ALREADY_PROCESSED
+                message: "Departure refund has already been processed for this student."
 components:
   securitySchemes:
     StaffAdminSessionCookie:
@@ -447,3 +707,66 @@ components:
         message:
           type: string
           example: "The request is invalid."
+    CardStatusResponse:
+      type: object
+      required:
+        - cardId
+        - studentId
+        - rfidUid
+        - status
+        - updatedAt
+      properties:
+        cardId:
+          type: integer
+          example: 17
+        studentId:
+          type: integer
+          example: 42
+        rfidUid:
+          type: string
+          example: "04FFEEDDCC"
+        status:
+          type: string
+          enum: [active, suspended, lost, deactivated]
+          example: suspended
+        updatedAt:
+          type: string
+          format: date-time
+          example: "2026-11-10T10:00:00Z"
+    StudentRefundResponse:
+      type: object
+      required:
+        - studentId
+        - studentCode
+        - refundedAmount
+        - walletBalance
+        - departedAt
+      properties:
+        studentId:
+          type: integer
+          example: 42
+        studentCode:
+          type: string
+          example: "STU-0042"
+        refundedAmount:
+          type: string
+          pattern: '^\d+\.\d{2}$'
+          example: "250.00"
+        walletBalance:
+          type: string
+          pattern: '^-?\d+\.\d{2}$'
+          example: "0.00"
+        cardId:
+          type: integer
+          nullable: true
+          example: 17
+        cardStatus:
+          type: string
+          nullable: true
+          enum: [deactivated, null]
+          example: deactivated
+        departedAt:
+          type: string
+          format: date-time
+          example: "2026-11-10T10:00:00Z"
+

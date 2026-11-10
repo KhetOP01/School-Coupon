@@ -87,3 +87,74 @@ ON CONFLICT (state_hash) DO NOTHING;
 
 SELECT setval(pg_get_serial_sequence('students', 'id'), GREATEST((SELECT MAX(id) FROM students), 1), TRUE);
 SELECT setval(pg_get_serial_sequence('rfid_cards', 'id'), GREATEST((SELECT MAX(id) FROM rfid_cards), 1), TRUE);
+
+-- UC-02 Seed Data
+-- AC2.1a: Parent freeze (report lost)
+INSERT INTO students (id, student_code, first_name, last_name, wallet_balance)
+VALUES (201, 'UC02-AC21A', 'Kanya', 'ParentFreeze', 50.00)
+ON CONFLICT (student_code) DO NOTHING;
+
+INSERT INTO rfid_cards (id, rfid_uid, student_id, status)
+SELECT 201, 'UC02-AC21A-CARD', id, 'active'
+FROM students WHERE student_code = 'UC02-AC21A'
+ON CONFLICT (rfid_uid) DO NOTHING;
+
+-- AC2.1b: Staff suspend card
+INSERT INTO students (id, student_code, first_name, last_name, wallet_balance)
+VALUES (202, 'UC02-AC21B', 'Chai', 'StaffSuspend', 40.00)
+ON CONFLICT (student_code) DO NOTHING;
+
+INSERT INTO rfid_cards (id, rfid_uid, student_id, status)
+SELECT 202, 'UC02-AC21B-CARD', id, 'active'
+FROM students WHERE student_code = 'UC02-AC21B'
+ON CONFLICT (rfid_uid) DO NOTHING;
+
+-- AC2.2: Departing student with 250.00 THB balance for refund
+INSERT INTO students (id, student_code, first_name, last_name, wallet_balance)
+VALUES (203, 'UC02-AC22', 'Somchai', 'DepartureRefund', 250.00)
+ON CONFLICT (student_code) DO NOTHING;
+
+INSERT INTO rfid_cards (id, rfid_uid, student_id, status)
+SELECT 203, 'UC02-AC22-CARD', id, 'active'
+FROM students WHERE student_code = 'UC02-AC22'
+ON CONFLICT (rfid_uid) DO NOTHING;
+
+-- AC2.3: Suspended card ready to be unfrozen
+INSERT INTO students (id, student_code, first_name, last_name, wallet_balance)
+VALUES (204, 'UC02-AC23', 'Wichai', 'Unfreeze', 30.00)
+ON CONFLICT (student_code) DO NOTHING;
+
+INSERT INTO rfid_cards (id, rfid_uid, student_id, status)
+SELECT 204, 'UC02-AC23-CARD', id, 'suspended'
+FROM students WHERE student_code = 'UC02-AC23'
+ON CONFLICT (rfid_uid) DO NOTHING;
+
+-- AC2.6: Departing student whose refund was already processed
+INSERT INTO students (id, student_code, first_name, last_name, wallet_balance, departed_at)
+VALUES (206, 'UC02-AC26', 'Prasert', 'AlreadyRefunded', 0.00, now() - INTERVAL '1 day')
+ON CONFLICT (student_code) DO NOTHING;
+
+INSERT INTO rfid_cards (id, rfid_uid, student_id, status)
+SELECT 206, 'UC02-AC26-CARD', id, 'deactivated'
+FROM students WHERE student_code = 'UC02-AC26'
+ON CONFLICT (rfid_uid) DO NOTHING;
+
+INSERT INTO student_refunds (id, student_id, amount, processed_by, created_at)
+SELECT 206, id, 100.00, 'staff-admin-seed', now() - INTERVAL '1 day'
+FROM students WHERE student_code = 'UC02-AC26'
+ON CONFLICT (student_id) DO NOTHING;
+
+-- AC2.7: Departing student with 0.00 THB balance
+INSERT INTO students (id, student_code, first_name, last_name, wallet_balance)
+VALUES (207, 'UC02-AC27', 'Sunan', 'ZeroBalanceRefund', 0.00)
+ON CONFLICT (student_code) DO NOTHING;
+
+INSERT INTO rfid_cards (id, rfid_uid, student_id, status)
+SELECT 207, 'UC02-AC27-CARD', id, 'active'
+FROM students WHERE student_code = 'UC02-AC27'
+ON CONFLICT (rfid_uid) DO NOTHING;
+
+SELECT setval(pg_get_serial_sequence('students', 'id'), GREATEST((SELECT MAX(id) FROM students), 1), TRUE);
+SELECT setval(pg_get_serial_sequence('rfid_cards', 'id'), GREATEST((SELECT MAX(id) FROM rfid_cards), 1), TRUE);
+SELECT setval(pg_get_serial_sequence('student_refunds', 'id'), GREATEST((SELECT MAX(id) FROM student_refunds), 1), TRUE);
+
