@@ -194,4 +194,15 @@ SELECT setval(pg_get_serial_sequence('students', 'id'), GREATEST((SELECT MAX(id)
 SELECT setval(pg_get_serial_sequence('wallet_topups', 'id'), GREATEST((SELECT MAX(id) FROM wallet_topups), 1), TRUE);
 SELECT setval(pg_get_serial_sequence('wallet_ledger_entries', 'id'), GREATEST((SELECT MAX(id) FROM wallet_ledger_entries), 1), TRUE);
 
+-- UC-04 Seed Data
+-- AC4.1: Current limit is 100.00, ready to set next limit to 150.00
+INSERT INTO students (id, student_code, first_name, last_name, wallet_balance, current_daily_limit, next_daily_limit)
+VALUES
+  (401, 'UC04-AC41', 'Ananda', 'DailyLimit', 200.00, 100.00, 100.00),
+  (405, 'UC04-AC45', 'Krit', 'IdempotentLimit', 200.00, 100.00, 150.00)
+ON CONFLICT (student_code) DO NOTHING;
+
+SELECT setval(pg_get_serial_sequence('students', 'id'), GREATEST((SELECT MAX(id) FROM students), 1), TRUE);
+
+
 

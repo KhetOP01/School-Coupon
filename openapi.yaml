@@ -586,6 +586,77 @@ paths:
               example:
                 code: REFUND_ALREADY_PROCESSED
                 message: "Departure refund has already been processed for this student."
+  /parent/students/{id}/daily-limit:
+    patch:
+      operationId: updateStudentDailyLimit
+      summary: ผู้ปกครองตั้งวงเงินใช้จ่ายรายวัน (Daily Limit)
+      description: >
+        ตั้งค่าวงเงินใช้จ่ายรายวันของนักเรียน วงเงินใหม่จะถูกบันทึกเป็น next_daily_limit
+        และมีผลในวันถัดไปเวลา 00:00 น. วงเงินของวันปัจจุบันยังคงเดิม (BR-LIMIT-01).
+        การส่งคำขอด้วยค่าเดิมซ้ำในวันเดียวกันจะได้รับผลสำเร็จแบบ idempotent.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            minimum: 1
+          example: 101
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateDailyLimitRequest'
+            example:
+              dailyLimit: '150.00'
+      responses:
+        '200':
+          description: ตั้งวงเงินสำเร็จ มีผลวันถัดไปเวลา 00:00 น.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DailyLimitResult'
+              example:
+                studentId: 101
+                currentDailyLimit: '100.00'
+                nextDailyLimit: '150.00'
+        '400':
+          description: วงเงินไม่ถูกต้อง (ติดลบ, ไม่ใช่ตัวเลข, หรือทศนิยมเกิน 2 ตำแหน่ง)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                code: INVALID_DAILY_LIMIT
+                message: "จำนวนเงินวงเงินรายวันไม่ถูกต้อง"
+        '401':
+          description: ไม่ได้ยืนยันตัวตน
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                code: AUTHENTICATION_REQUIRED
+                message: "Authentication is required."
+        '403':
+          description: ผู้ปกครองไม่มีสิทธิ์ดูแลนักเรียน
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                code: PARENT_STUDENT_ACCESS_DENIED
+                message: "Parent is not authorized to manage this student."
+        '404':
+          description: ไม่พบรหัสนักเรียน
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                code: STUDENT_NOT_FOUND
+                message: "Student not found."
   /parent/wallet/topup:
     post:
       operationId: createWalletTopUp
@@ -1087,5 +1158,39 @@ components:
       example:
         accepted: true
         duplicate: false
+    UpdateDailyLimitRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - dailyLimit
+      properties:
+        dailyLimit:
+          type: string
+          pattern: '^[0-9]{1,8}(\.[0-9]{1,2})?$'
+          description: วงเงินใช้จ่ายรายวันใหม่ (บาท)
+          example: '150.00'
+      example:
+        dailyLimit: '150.00'
+    DailyLimitResult:
+      type: object
+      additionalProperties: false
+      required:
+        - studentId
+        - currentDailyLimit
+        - nextDailyLimit
+      properties:
+        studentId:
+          type: integer
+          example: 101
+        currentDailyLimit:
+          type: string
+          example: '100.00'
+        nextDailyLimit:
+          type: string
+          example: '150.00'
+      example:
+        studentId: 101
+        currentDailyLimit: '100.00'
+        nextDailyLimit: '150.00'
 
 
