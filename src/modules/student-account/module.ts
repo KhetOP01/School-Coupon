@@ -9,6 +9,7 @@ import { GetCardReissuePreview } from './application/get-card-reissue-preview';
 import { PaymentGateway, ParentStudentAccess } from './application/ports';
 import { RefundDepartingStudentUseCase } from './application/refund-departing-student';
 import { ReissueRfidCard } from './application/reissue-rfid-card';
+import { SetDailyLimit } from './application/SetDailyLimit';
 import { StartTopUpPayment } from './application/StartTopUpPayment';
 import { TopUpStudentWallet } from './application/TopUpStudentWallet';
 import { UnfreezeCardUseCase } from './application/unfreeze-card';
@@ -24,6 +25,7 @@ import {
 } from './infrastructure/PostgresTopUpRepository';
 import { StudentAccountPostgresRepository } from './infrastructure/student-account-postgres.repository';
 import { CardReissuePreviewController } from './interface/http/card-reissue-preview.controller';
+import { DailyLimitController } from './interface/http/daily-limit.controller';
 import { FreezeCardController } from './interface/http/freeze-card.controller';
 import { RefundStudentController } from './interface/http/refund-student.controller';
 import { ReissueRfidCardController } from './interface/http/reissue-rfid-card.controller';
@@ -45,6 +47,7 @@ export const PARENT_STUDENT_ACCESS = Symbol('PARENT_STUDENT_ACCESS');
     UnfreezeCardController,
     RefundStudentController,
     TopUpWalletController,
+    DailyLimitController,
   ],
   providers: [
     PostgresDatabase,
@@ -181,6 +184,15 @@ export const PARENT_STUDENT_ACCESS = Symbol('PARENT_STUDENT_ACCESS');
         clock: SystemClock,
       ): RefundDepartingStudentUseCase => new RefundDepartingStudentUseCase(repository, clock),
       inject: [STUDENT_ACCOUNT_REPOSITORY, SystemClock],
+    },
+    {
+      provide: SetDailyLimit,
+      useFactory: (
+        authorizeParent: AuthorizeParentStudentAccess,
+        repository: StudentAccountRepository,
+        clock: SystemClock,
+      ): SetDailyLimit => new SetDailyLimit(authorizeParent, repository, clock),
+      inject: [AuthorizeParentStudentAccess, STUDENT_ACCOUNT_REPOSITORY, SystemClock],
     },
   ],
 })
