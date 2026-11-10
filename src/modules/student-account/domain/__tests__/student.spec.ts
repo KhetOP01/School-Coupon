@@ -1,3 +1,4 @@
+import { DailyLimitAmount } from '../DailyLimitAmount';
 import { RfidCard } from '../rfid-card';
 import { Student } from '../student';
 
@@ -211,7 +212,58 @@ describe('Student', () => {
     expect(student.departedAt).toEqual(now);
     expect(refund.card?.status).toBe('deactivated');
   });
+
+  it('AC4.1: sets next_daily_limit while keeping current_daily_limit unchanged until next day', () => {
+    const student = Student.restore({
+      id: 101,
+      studentCode: 'STU-101',
+      firstName: 'Mali',
+      lastName: 'Srisuk',
+      walletBalance: '100.00',
+      currentCard: null,
+      currentDailyLimit: '100.00',
+      nextDailyLimit: '100.00',
+    });
+
+    const result = student.setDailyLimit(DailyLimitAmount.fromString('150.00'), now);
+
+    expect(result.currentDailyLimit).toBe('100.00');
+    expect(result.nextDailyLimit).toBe('150.00');
+    expect(student.currentDailyLimit).toBe('100.00');
+    expect(student.nextDailyLimit).toBe('150.00');
+    expect(student.dailyLimitEffectiveDate).toEqual(new Date('2026-11-05T00:00:00.000Z'));
+
+    // Refresh before effective date
+    student.refreshDailyLimit(new Date('2026-11-04T23:59:59.999Z'));
+    expect(student.currentDailyLimit).toBe('100.00');
+
+    // Refresh on/after effective date
+    student.refreshDailyLimit(new Date('2026-11-05T00:00:00.000Z'));
+    expect(student.currentDailyLimit).toBe('150.00');
+    expect(student.dailyLimitEffectiveDate).toBeNull();
+  });
+
+  it('AC4.5: sets same daily limit value idempotently without resetting effective date', () => {
+    const student = Student.restore({
+      id: 101,
+      studentCode: 'STU-101',
+      firstName: 'Mali',
+      lastName: 'Srisuk',
+      walletBalance: '100.00',
+      currentCard: null,
+      currentDailyLimit: '100.00',
+      nextDailyLimit: '150.00',
+      dailyLimitEffectiveDate: new Date('2026-11-05T00:00:00.000Z'),
+    });
+
+    const result = student.setDailyLimit(DailyLimitAmount.fromString('150.00'), now);
+
+    expect(result.currentDailyLimit).toBe('100.00');
+    expect(result.nextDailyLimit).toBe('150.00');
+    expect(student.dailyLimitEffectiveDate).toEqual(new Date('2026-11-05T00:00:00.000Z'));
+  });
 });
+
 
 
 

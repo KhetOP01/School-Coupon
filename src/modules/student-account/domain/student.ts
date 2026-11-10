@@ -1,4 +1,5 @@
 import { DomainError } from '../../../shared/domain-error';
+import { DailyLimitAmount } from './DailyLimitAmount';
 import { RfidCard } from './rfid-card';
 
 export interface RestoredStudent {
@@ -9,6 +10,9 @@ export interface RestoredStudent {
   walletBalance: string;
   currentCard: RfidCard | null;
   departedAt?: Date | null;
+  currentDailyLimit?: string;
+  nextDailyLimit?: string;
+  dailyLimitEffectiveDate?: Date | null;
 }
 
 export interface CardReissuePreview {
@@ -36,6 +40,9 @@ export class Student {
     private currentWalletBalance: string,
     private activeCard: RfidCard | null,
     private departedDate: Date | null,
+    private dailyLimitCurrent: string = '200.00',
+    private dailyLimitNext: string = '200.00',
+    private dailyLimitEffective: Date | null = null,
   ) {}
 
   static restore(student: RestoredStudent): Student {
@@ -47,6 +54,9 @@ export class Student {
       student.walletBalance,
       student.currentCard,
       student.departedAt ?? null,
+      student.currentDailyLimit ?? '200.00',
+      student.nextDailyLimit ?? '200.00',
+      student.dailyLimitEffectiveDate ?? null,
     );
   }
 
@@ -60,6 +70,49 @@ export class Student {
 
   get currentCard(): RfidCard | null {
     return this.activeCard;
+  }
+
+  get currentDailyLimit(): string {
+    return this.dailyLimitCurrent;
+  }
+
+  get nextDailyLimit(): string {
+    return this.dailyLimitNext;
+  }
+
+  get dailyLimitEffectiveDate(): Date | null {
+    return this.dailyLimitEffective;
+  }
+
+  setDailyLimit(
+    newLimit: DailyLimitAmount,
+    now: Date,
+  ): { currentDailyLimit: string; nextDailyLimit: string } {
+    const newLimitStr = newLimit.toString();
+
+    // AC4.5: Idempotent if setting to the same next daily limit value
+    if (this.dailyLimitNext === newLimitStr) {
+      return {
+        currentDailyLimit: this.dailyLimitCurrent,
+        nextDailyLimit: this.dailyLimitNext,
+      };
+    }
+
+    const nextDay = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1));
+    this.dailyLimitNext = newLimitStr;
+    this.dailyLimitEffective = nextDay;
+
+    return {
+      currentDailyLimit: this.dailyLimitCurrent,
+      nextDailyLimit: this.dailyLimitNext,
+    };
+  }
+
+  refreshDailyLimit(now: Date): void {
+    if (this.dailyLimitEffective !== null && now >= this.dailyLimitEffective) {
+      this.dailyLimitCurrent = this.dailyLimitNext;
+      this.dailyLimitEffective = null;
+    }
   }
 
   cardReissuePreview(): CardReissuePreview {
