@@ -102,7 +102,7 @@ export const PARENT_STUDENT_ACCESS = Symbol('PARENT_STUDENT_ACCESS');
     {
       provide: PARENT_STUDENT_ACCESS,
       useValue: {
-        hasAccess: async (parentId: string, _studentId: string) => {
+        hasAccess: async (parentId: string) => {
           if (parentId === 'unauthorized' || parentId === 'denied') return false;
           return true;
         },
