@@ -235,6 +235,51 @@ SELECT setval(pg_get_serial_sequence('merchants', 'id'), GREATEST((SELECT MAX(id
 SELECT setval(pg_get_serial_sequence('students', 'id'), GREATEST((SELECT MAX(id) FROM students), 1), TRUE);
 SELECT setval(pg_get_serial_sequence('rfid_cards', 'id'), GREATEST((SELECT MAX(id) FROM rfid_cards), 1), TRUE);
 
+-- UC-06 Seed Data
+INSERT INTO merchants (id, merchant_code, name, fee_percent, status)
+VALUES
+  (601, 'M-601', 'Drink Stall', 2.00, 'active'),
+  (602, 'M-602', 'Other Stall', 2.00, 'active')
+ON CONFLICT (merchant_code) DO NOTHING;
+
+INSERT INTO students (id, student_code, first_name, last_name, wallet_balance, current_daily_limit, next_daily_limit)
+VALUES
+  (601, 'UC06-AC61', 'Student', 'AC61', 60.00, 200.00, 200.00),
+  (602, 'UC06-AC62', 'Student', 'AC62', 50.00, 200.00, 200.00),
+  (604, 'UC06-AC64', 'Student', 'AC64', 70.00, 200.00, 200.00),
+  (605, 'UC06-AC65', 'Student', 'AC65', 100.00, 200.00, 200.00)
+ON CONFLICT (student_code) DO NOTHING;
+
+INSERT INTO rfid_cards (id, rfid_uid, student_id, status)
+VALUES
+  (601, 'UC06-AC61-CARD', 601, 'active'),
+  (602, 'UC06-AC62-CARD', 602, 'active'),
+  (604, 'UC06-AC64-CARD', 604, 'active'),
+  (605, 'UC06-AC65-CARD', 605, 'active')
+ON CONFLICT (rfid_uid) DO NOTHING;
+
+INSERT INTO payments (id, student_id, merchant_id, card_id, amount, payment_mode, status, created_at)
+VALUES
+  ('60000000-0000-0000-0000-000000000061', 601, 601, 601, 40.00, 'ONLINE', 'COMPLETED', now()),
+  ('60000000-0000-0000-0000-000000000062', 602, 601, 602, 50.00, 'ONLINE', 'COMPLETED', now() - INTERVAL '2 days'),
+  ('60000000-0000-0000-0000-000000000064', 604, 602, 604, 30.00, 'ONLINE', 'COMPLETED', now()),
+  ('60000000-0000-0000-0000-000000000065', 605, 601, 605, 25.00, 'ONLINE', 'VOIDED', now() - INTERVAL '1 hour')
+ON CONFLICT (id) DO NOTHING;
+
+UPDATE payments
+SET voided_at = now() - INTERVAL '30 minutes', void_reason = 'seed already voided'
+WHERE id = '60000000-0000-0000-0000-000000000065';
+
+INSERT INTO payment_voids (id, payment_id, merchant_id, student_id, amount, reason, voided_at)
+VALUES
+  ('60000000-0000-0000-0000-000000000095', '60000000-0000-0000-0000-000000000065', 601, 605, 25.00, 'seed already voided', now() - INTERVAL '30 minutes')
+ON CONFLICT (payment_id) DO NOTHING;
+
+SELECT setval(pg_get_serial_sequence('merchants', 'id'), GREATEST((SELECT MAX(id) FROM merchants), 1), TRUE);
+SELECT setval(pg_get_serial_sequence('students', 'id'), GREATEST((SELECT MAX(id) FROM students), 1), TRUE);
+SELECT setval(pg_get_serial_sequence('rfid_cards', 'id'), GREATEST((SELECT MAX(id) FROM rfid_cards), 1), TRUE);
+
+
 
 
 

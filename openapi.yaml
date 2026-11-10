@@ -984,6 +984,99 @@ paths:
                   value:
                     code: DAILY_LIMIT_EXCEEDED
                     message: "Daily limit exceeded."
+  /merchant/payments/{id}/void:
+    post:
+      operationId: voidPayment
+      summary: ร้านค้ายกเลิกรายการชำระเงิน (Void)
+      description: >
+        ยกเลิกรายการชำระเงินที่เกิดขึ้นภายในวันเดียวกันก่อนเวลา 23:59:59 (BR-VOID-01)
+        โดยคืนยอดเข้า Wallet นักเรียนทันที และไม่จำเป็นต้องสแกนบัตรนักเรียนซ้ำ.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          example: '550e8400-e29b-41d4-a716-446655440000'
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VoidPaymentRequest'
+      responses:
+        '200':
+          description: ยกเลิกรายการสำเร็จ และคืนเงินเข้ากระเป๋าเงินนักเรียน
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VoidPaymentResult'
+              example:
+                paymentId: '550e8400-e29b-41d4-a716-446655440000'
+                studentId: 101
+                merchantId: 1
+                amount: '35.00'
+                status: 'VOIDED'
+                walletBalance: '100.00'
+                voidedAt: '2026-11-10T11:00:00.000Z'
+        '400':
+          description: ข้อมูลคำขอไม่ถูกต้อง หรือพ้นช่วงเวลาที่อนุญาตให้ยกเลิก
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                invalidVoidPeriod:
+                  value:
+                    code: INVALID_VOID_PERIOD
+                    message: "Payment can only be voided on the same day before 23:59:59."
+                invalidRequest:
+                  value:
+                    code: INVALID_REQUEST
+                    message: "Request validation failed."
+        '401':
+          description: ไม่ได้ยืนยันตัวตน
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                code: AUTHENTICATION_REQUIRED
+                message: "Authentication is required."
+        '403':
+          description: ไม่มีสิทธิ์ร้านค้า หรือไม่ใช่ร้านค้าเจ้าของรายการ
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                code: MERCHANT_ACCESS_DENIED
+                message: "Merchant access is denied."
+        '404':
+          description: ไม่พบรายการชำระเงิน
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                code: PAYMENT_NOT_FOUND
+                message: "Payment not found."
+        '409':
+          description: รายการถูกยกเลิกแล้ว หรืออยู่ในสถานะที่ไม่สามารถยกเลิกได้
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                paymentAlreadyVoided:
+                  value:
+                    code: PAYMENT_ALREADY_VOIDED
+                    message: "Payment has already been voided."
+                paymentNotVoidable:
+                  value:
+                    code: PAYMENT_NOT_VOIDABLE
+                    message: "Payment is not in a voidable state."
 components:
   securitySchemes:
     StaffAdminSessionCookie:
@@ -1479,6 +1572,51 @@ components:
           type: string
           format: date-time
           example: '2026-11-10T09:00:00.000Z'
+    VoidPaymentRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        reason:
+          type: string
+          maxLength: 255
+          example: 'Customer ordered wrong item'
+    VoidPaymentResult:
+      type: object
+      additionalProperties: false
+      required:
+        - paymentId
+        - studentId
+        - merchantId
+        - amount
+        - status
+        - walletBalance
+        - voidedAt
+      properties:
+        paymentId:
+          type: string
+          format: uuid
+          example: '550e8400-e29b-41d4-a716-446655440000'
+        studentId:
+          type: integer
+          example: 101
+        merchantId:
+          type: integer
+          example: 1
+        amount:
+          type: string
+          example: '35.00'
+        status:
+          type: string
+          enum: [VOIDED]
+          example: VOIDED
+        walletBalance:
+          type: string
+          example: '100.00'
+        voidedAt:
+          type: string
+          format: date-time
+          example: '2026-11-10T11:00:00.000Z'
+
 
 
 
