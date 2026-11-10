@@ -166,7 +166,7 @@ describe('StudentAccountPostgresRepository', () => {
 
     const fixtures = await pool.query(
       `SELECT student_code FROM students
-       WHERE student_code LIKE 'UC01-%'
+       WHERE student_code LIKE 'UC01-%' OR student_code LIKE 'UC02-%'
        ORDER BY student_code`,
     );
     expect(fixtures.rows.map((row) => row.student_code)).toEqual([
@@ -174,7 +174,145 @@ describe('StudentAccountPostgresRepository', () => {
       'UC01-AC12',
       'UC01-AC16',
       'UC01-AC17',
+      'UC02-AC21A',
+      'UC02-AC21B',
+      'UC02-AC22',
+      'UC02-AC23',
+      'UC02-AC26',
+      'UC02-AC27',
     ]);
+  });
+
+  it('AC2.1: updates card status to suspended and lost with updated_at timestamp', async () => {
+    await insertStudentAndCard(10, 'STU-10', '150.00', 101, 'SUSP-UID', 'active');
+
+    const student = await repository.findByCardId(101);
+    expect(student).not.toBeNull();
+    expect(student?.currentCard?.status).toBe('active');
+
+    const updateTime = new Date('2026-11-10T10:00:00.000Z');
+    student!.freezeCard(101, 'suspended');
+    await repository.saveCardStatus(student!.currentCard!, updateTime);
+
+    const updatedCard = await pool.query(
+      'SELECT status, updated_at FROM rfid_cards WHERE id = 101',
+    );
+    expect(updatedCard.rows[0].status).toBe('suspended');
+    expect(new Date(updatedCard.rows[0].updated_at).toISOString()).toBe(updateTime.toISOString());
+
+    // Also test report lost
+    const studentLost = await repository.findByCardId(101);
+    studentLost!.freezeCard(101, 'lost');
+    await repository.saveCardStatus(studentLost!.currentCard!, updateTime);
+
+    const lostCard = await pool.query(
+      'SELECT status FROM rfid_cards WHERE id = 101',
+    );
+    expect(lostCard.rows[0].status).toBe('lost');
+  });
+
+  it('AC2.3: unfreezes suspended card back to active', async () => {
+    await insertStudentAndCard(20, 'STU-20', '200.00', 102, 'UNFREEZE-UID', 'suspended');
+
+    const student = await repository.findByCardId(102);
+    expect(student).not.toBeNull();
+    expect(student?.currentCard?.status).toBe('suspended');
+
+    const updateTime = new Date('2026-11-10T11:00:00.000Z');
+    student!.unfreezeCard(102);
+    await repository.saveCardStatus(student!.currentCard!, updateTime);
+
+    const cardRow = await pool.query(
+      'SELECT status, updated_at FROM rfid_cards WHERE id = 102',
+    );
+    expect(cardRow.rows[0].status).toBe('active');
+  });
+
+  it('AC2.2: atomically deactivates active card, sets wallet balance to 0, sets departed_at and inserts student_refunds record', async () => {
+    await insertStudentAndCard(30, 'STU-30', '120.00', 103, 'REFUND-UID', 'active');
+
+    const student = await repository.findById(30);
+    expect(student).not.toBeNull();
+
+    const refundTime = new Date('2026-11-10T12:00:00.000Z');
+    const result = student!.refundDeparture(refundTime);
+    expect(result.refundedAmount).toBe('120.00');
+
+    await repository.saveDepartureRefund(student!, {
+      studentId: student!.id,
+      amount: result.refundedAmount,
+      processedBy: 'staff-99',
+      createdAt: refundTime,
+    });
+
+    const studentRow = await pool.query(
+      'SELECT wallet_balance::text AS wallet_balance, departed_at FROM students WHERE id = 30',
+    );
+    expect(studentRow.rows[0].wallet_balance).toBe('0.00');
+    expect(new Date(studentRow.rows[0].departed_at).toISOString()).toBe(refundTime.toISOString());
+
+    const cardRow = await pool.query(
+      'SELECT status FROM rfid_cards WHERE id = 103',
+    );
+    expect(cardRow.rows[0].status).toBe('deactivated');
+
+    const refundRows = await pool.query(
+      'SELECT student_id, amount::text AS amount, processed_by FROM student_refunds WHERE student_id = 30',
+    );
+    expect(refundRows.rows).toEqual([
+      { student_id: 30, amount: '120.00', processed_by: 'staff-99' },
+    ]);
+  });
+
+  it('AC2.6: rejects duplicate departure refund when student is already refunded', async () => {
+    await insertStudentAndCard(40, 'STU-40', '50.00', 104, 'DUP-UID', 'active');
+    const student = await repository.findById(40);
+    const refundTime = new Date('2026-11-10T13:00:00.000Z');
+    const result = student!.refundDeparture(refundTime);
+    await repository.saveDepartureRefund(student!, {
+      studentId: student!.id,
+      amount: result.refundedAmount,
+      processedBy: 'staff-99',
+      createdAt: refundTime,
+    });
+
+    // Attempt to insert another refund for the same student
+    await expect(
+      repository.saveDepartureRefund(student!, {
+        studentId: 40,
+        amount: '50.00',
+        processedBy: 'staff-99',
+        createdAt: refundTime,
+      }),
+    ).rejects.toMatchObject({
+      code: 'REFUND_ALREADY_PROCESSED',
+    });
+  });
+
+  it('AC2.7: processes zero-balance departure without inserting a student_refunds row', async () => {
+    await insertStudentAndCard(50, 'STU-50', '0.00', 105, 'ZERO-UID', 'active');
+    const student = await repository.findById(50);
+    const refundTime = new Date('2026-11-10T14:00:00.000Z');
+    const result = student!.refundDeparture(refundTime);
+    expect(result.refundedAmount).toBe('0.00');
+
+    await repository.saveDepartureRefund(student!, null);
+
+    const studentRow = await pool.query(
+      'SELECT wallet_balance::text AS wallet_balance, departed_at FROM students WHERE id = 50',
+    );
+    expect(studentRow.rows[0].wallet_balance).toBe('0.00');
+    expect(new Date(studentRow.rows[0].departed_at).toISOString()).toBe(refundTime.toISOString());
+
+    const cardRow = await pool.query(
+      'SELECT status FROM rfid_cards WHERE id = 105',
+    );
+    expect(cardRow.rows[0].status).toBe('deactivated');
+
+    const refundRows = await pool.query(
+      'SELECT COUNT(*)::integer AS count FROM student_refunds WHERE student_id = 50',
+    );
+    expect(refundRows.rows[0].count).toBe(0);
   });
 
   async function insertStudentAndCard(
@@ -183,7 +321,7 @@ describe('StudentAccountPostgresRepository', () => {
     walletBalance: string,
     cardId: number,
     uid: string,
-    status: 'active' | 'deactivated',
+    status: 'active' | 'deactivated' | 'suspended' | 'lost',
   ): Promise<void> {
     await pool.query(
       `INSERT INTO students (id, student_code, first_name, last_name, wallet_balance)

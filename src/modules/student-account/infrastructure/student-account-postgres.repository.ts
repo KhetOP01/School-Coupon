@@ -1,6 +1,9 @@
 import { Pool } from 'pg';
 import { DomainError } from '../../../shared/domain-error';
-import { StudentAccountRepository } from '../application/student-account.repository';
+import {
+  StudentAccountRepository,
+  StudentRefundRecord,
+} from '../application/student-account.repository';
 import { RfidCard, RfidCardStatus } from '../domain/rfid-card';
 import { CardReissue, Student } from '../domain/student';
 
@@ -10,6 +13,7 @@ interface StudentCardRow {
   first_name: string;
   last_name: string;
   wallet_balance: string;
+  departed_at: Date | null;
   card_id: number | null;
   rfid_uid: string | null;
   card_status: RfidCardStatus | null;
@@ -31,6 +35,7 @@ export class StudentAccountPostgresRepository implements StudentAccountRepositor
          student.first_name,
          student.last_name,
          student.wallet_balance::text AS wallet_balance,
+         student.departed_at,
          card.id AS card_id,
          card.rfid_uid,
          card.status AS card_status,
@@ -52,27 +57,128 @@ export class StudentAccountPostgresRepository implements StudentAccountRepositor
       return null;
     }
 
-    const currentCard =
-      row.card_id === null ||
-      row.rfid_uid === null ||
-      row.card_status === null ||
-      row.issued_at === null
-        ? null
-        : RfidCard.restore({
-            id: row.card_id,
-            uid: row.rfid_uid,
-            status: row.card_status,
-            issuedAt: row.issued_at,
-          });
+    return this.mapStudent(row);
+  }
 
-    return Student.restore({
-      id: row.student_id,
-      studentCode: row.student_code,
-      firstName: row.first_name,
-      lastName: row.last_name,
-      walletBalance: row.wallet_balance,
-      currentCard,
-    });
+  async findByCardId(cardId: number): Promise<Student | null> {
+    const result = await this.pool.query<StudentCardRow>(
+      `SELECT
+         student.id AS student_id,
+         student.student_code,
+         student.first_name,
+         student.last_name,
+         student.wallet_balance::text AS wallet_balance,
+         student.departed_at,
+         card.id AS card_id,
+         card.rfid_uid,
+         card.status AS card_status,
+         card.issued_at
+       FROM rfid_cards AS card
+       INNER JOIN students AS student ON student.id = card.student_id
+       WHERE card.id = $1`,
+      [cardId],
+    );
+    const row = result.rows[0];
+    if (!row) {
+      return null;
+    }
+
+    return this.mapStudent(row);
+  }
+
+  async findById(studentId: number): Promise<Student | null> {
+    const result = await this.pool.query<StudentCardRow>(
+      `SELECT
+         student.id AS student_id,
+         student.student_code,
+         student.first_name,
+         student.last_name,
+         student.wallet_balance::text AS wallet_balance,
+         student.departed_at,
+         card.id AS card_id,
+         card.rfid_uid,
+         card.status AS card_status,
+         card.issued_at
+       FROM students AS student
+       LEFT JOIN LATERAL (
+         SELECT id, rfid_uid, status, issued_at
+         FROM rfid_cards
+         WHERE student_id = student.id
+           AND status != 'deactivated'
+         ORDER BY CASE status WHEN 'active' THEN 0 WHEN 'suspended' THEN 1 ELSE 2 END, issued_at DESC, id DESC
+         LIMIT 1
+       ) AS card ON TRUE
+       WHERE student.id = $1`,
+      [studentId],
+    );
+    const row = result.rows[0];
+    if (!row) {
+      return null;
+    }
+
+    return this.mapStudent(row);
+  }
+
+  async saveCardStatus(card: RfidCard, updatedAt: Date): Promise<void> {
+    try {
+      await this.pool.query(
+        `UPDATE rfid_cards
+         SET status = $1, updated_at = $2
+         WHERE id = $3`,
+        [card.status, updatedAt, card.id],
+      );
+    } catch (error) {
+      throw mapPostgresError(error);
+    }
+  }
+
+  async saveDepartureRefund(student: Student, refund: StudentRefundRecord | null): Promise<void> {
+    const client = await this.pool.connect();
+    let transactionStarted = false;
+
+    try {
+      await client.query('BEGIN');
+      transactionStarted = true;
+
+      await client.query(
+        `UPDATE students
+         SET wallet_balance = '0.00', departed_at = $1, updated_at = $1
+         WHERE id = $2`,
+        [student.departedAt, student.id],
+      );
+
+      await client.query(
+        `UPDATE rfid_cards
+         SET status = 'deactivated', updated_at = $1
+         WHERE student_id = $2 AND status != 'deactivated'`,
+        [student.departedAt, student.id],
+      );
+
+      if (refund !== null) {
+        await client.query(
+          `INSERT INTO student_refunds (student_id, amount, processed_by, created_at)
+           VALUES ($1, $2, $3, $4)`,
+          [refund.studentId, refund.amount, refund.processedBy, refund.createdAt],
+        );
+      }
+
+      await client.query('COMMIT');
+      transactionStarted = false;
+    } catch (error) {
+      if (transactionStarted) {
+        try {
+          await client.query('ROLLBACK');
+        } catch (rollbackError) {
+          throw new AggregateError(
+            [error, rollbackError],
+            'The departure refund failed and its database transaction could not be rolled back.',
+          );
+        }
+      }
+      throw mapPostgresError(error);
+    } finally {
+      client.release();
+    }
   }
 
   async saveCardReissue(student: Student, reissue: CardReissue): Promise<void> {
@@ -128,6 +234,31 @@ export class StudentAccountPostgresRepository implements StudentAccountRepositor
       client.release();
     }
   }
+
+  private mapStudent(row: StudentCardRow): Student {
+    const currentCard =
+      row.card_id === null ||
+      row.rfid_uid === null ||
+      row.card_status === null ||
+      row.issued_at === null
+        ? null
+        : RfidCard.restore({
+            id: row.card_id,
+            uid: row.rfid_uid,
+            status: row.card_status,
+            issuedAt: row.issued_at,
+          });
+
+    return Student.restore({
+      id: row.student_id,
+      studentCode: row.student_code,
+      firstName: row.first_name,
+      lastName: row.last_name,
+      walletBalance: row.wallet_balance,
+      departedAt: row.departed_at,
+      currentCard,
+    });
+  }
 }
 
 function mapPostgresError(error: unknown): unknown {
@@ -143,6 +274,9 @@ function mapPostgresError(error: unknown): unknown {
     }
     if (error.constraint === 'uq_active_card_per_student') {
       return new DomainError('ACTIVE_CARD_CONFLICT');
+    }
+    if (error.constraint === 'student_refunds_student_id_key') {
+      return new DomainError('REFUND_ALREADY_PROCESSED');
     }
   }
 
