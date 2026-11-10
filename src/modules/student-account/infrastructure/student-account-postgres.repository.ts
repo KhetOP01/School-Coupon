@@ -14,6 +14,9 @@ interface StudentCardRow {
   last_name: string;
   wallet_balance: string;
   departed_at: Date | null;
+  current_daily_limit: string | null;
+  next_daily_limit: string | null;
+  daily_limit_effective_date: Date | null;
   card_id: number | null;
   rfid_uid: string | null;
   card_status: RfidCardStatus | null;
@@ -36,6 +39,9 @@ export class StudentAccountPostgresRepository implements StudentAccountRepositor
          student.last_name,
          student.wallet_balance::text AS wallet_balance,
          student.departed_at,
+         student.current_daily_limit::text AS current_daily_limit,
+         student.next_daily_limit::text AS next_daily_limit,
+         student.daily_limit_effective_date,
          card.id AS card_id,
          card.rfid_uid,
          card.status AS card_status,
@@ -69,6 +75,9 @@ export class StudentAccountPostgresRepository implements StudentAccountRepositor
          student.last_name,
          student.wallet_balance::text AS wallet_balance,
          student.departed_at,
+         student.current_daily_limit::text AS current_daily_limit,
+         student.next_daily_limit::text AS next_daily_limit,
+         student.daily_limit_effective_date,
          card.id AS card_id,
          card.rfid_uid,
          card.status AS card_status,
@@ -95,6 +104,9 @@ export class StudentAccountPostgresRepository implements StudentAccountRepositor
          student.last_name,
          student.wallet_balance::text AS wallet_balance,
          student.departed_at,
+         student.current_daily_limit::text AS current_daily_limit,
+         student.next_daily_limit::text AS next_daily_limit,
+         student.daily_limit_effective_date,
          card.id AS card_id,
          card.rfid_uid,
          card.status AS card_status,
@@ -235,6 +247,23 @@ export class StudentAccountPostgresRepository implements StudentAccountRepositor
     }
   }
 
+  async saveDailyLimit(student: Student): Promise<void> {
+    await this.pool.query(
+      `UPDATE students
+       SET current_daily_limit = $1,
+           next_daily_limit = $2,
+           daily_limit_effective_date = $3,
+           updated_at = now()
+       WHERE id = $4`,
+      [
+        student.currentDailyLimit,
+        student.nextDailyLimit,
+        student.dailyLimitEffectiveDate,
+        student.id,
+      ],
+    );
+  }
+
   private mapStudent(row: StudentCardRow): Student {
     const currentCard =
       row.card_id === null ||
@@ -256,6 +285,9 @@ export class StudentAccountPostgresRepository implements StudentAccountRepositor
       lastName: row.last_name,
       walletBalance: row.wallet_balance,
       departedAt: row.departed_at,
+      currentDailyLimit: row.current_daily_limit ?? '200.00',
+      nextDailyLimit: row.next_daily_limit ?? '200.00',
+      dailyLimitEffectiveDate: row.daily_limit_effective_date,
       currentCard,
     });
   }

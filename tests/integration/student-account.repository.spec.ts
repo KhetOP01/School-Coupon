@@ -4,6 +4,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { createServer } from 'node:net';
 import { Pool } from 'pg';
+import { DailyLimitAmount } from '../../src/modules/student-account/domain/DailyLimitAmount';
 import { ReissueRfidCard } from '../../src/modules/student-account/application/reissue-rfid-card';
 import { PostgresCardIdGenerator } from '../../src/modules/student-account/infrastructure/postgres-card-id-generator';
 import { StudentAccountPostgresRepository } from '../../src/modules/student-account/infrastructure/student-account-postgres.repository';
@@ -313,6 +314,23 @@ describe('StudentAccountPostgresRepository', () => {
       'SELECT COUNT(*)::integer AS count FROM student_refunds WHERE student_id = 50',
     );
     expect(refundRows.rows[0].count).toBe(0);
+  });
+
+  it('AC4.1: saves daily limit and loads updated student record', async () => {
+    await insertStudentAndCard(60, 'STU-60', '100.00', 106, 'LIMIT-UID', 'active');
+    const student = await repository.findById(60);
+    expect(student).not.toBeNull();
+    expect(student?.currentDailyLimit).toBe('200.00');
+
+    const updateTime = new Date('2026-11-10T10:00:00.000Z');
+    student!.setDailyLimit(DailyLimitAmount.fromString('150.00'), updateTime);
+    await repository.saveDailyLimit(student!);
+
+    const loaded = await repository.findById(60);
+    expect(loaded).not.toBeNull();
+    expect(loaded!.currentDailyLimit).toBe('200.00');
+    expect(loaded!.nextDailyLimit).toBe('150.00');
+    expect(loaded!.dailyLimitEffectiveDate).toEqual(new Date('2026-11-11T00:00:00.000Z'));
   });
 
   async function insertStudentAndCard(
