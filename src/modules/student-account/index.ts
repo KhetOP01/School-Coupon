@@ -1,0 +1,1 @@
+export { StudentAccountModule } from './module';
