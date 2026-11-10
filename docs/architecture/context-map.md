@@ -49,6 +49,7 @@
 | `payments` | ตรวจว่าร้านค้ารับชำระได้ | port สำหรับอ่านสถานะร้านค้าจาก `merchant-settlement` |
 | `merchant-settlement` | สรุปยอดขายสุทธิหลังหักรายการ Void | read port หรือข้อมูลเหตุการณ์จาก `payments`; การคำนวณค่าธรรมเนียมและสถานะอนุมัติยังเป็นของ `merchant-settlement` |
 | `student-account` / `payments` | ตรวจผู้เรียกและสิทธิ์ตามบทบาท | ใช้ identity/authorization ที่ผ่านการยืนยันจาก `school-configuration`; `student-account` ยังเป็นผู้ตัดสินความสัมพันธ์ Parent-Student |
+| `student-account` | ตรวจ Staff session สำหรับ Web Admin endpoint | ให้ HTTP boundary ใช้ public auth port จาก `school-configuration`; ห้ามอ่าน/เขียนตาราง session จาก repository ของ `student-account` |
 
 การเชื่อมต่อให้พึ่งพา interface ใน `ports.ts` หรือ public API ที่ export จาก `index.ts` เท่านั้น และต่อ implementation ที่ composition root (`main.ts`/module ของ NestJS) ห้าม import ไฟล์ภายในหรือเขียนตารางของ context อื่นโดยตรง
 
@@ -63,6 +64,7 @@ PRD ระบุ PostgreSQL transaction แบบ ACID แต่ยังไม�
 | `students`, `rfid_cards` | `student-account` | `wallet_balance` และวงเงินอยู่ใน `students` ตามตัวอย่าง แต่เป็นแนวคิด Wallet; อย่าให้บัตรเป็นเจ้าของยอดเงิน |
 | `merchants`, `settlements` | `merchant-settlement` | ควรกำหนดเจ้าของข้อมูลร้านค้า/อัตราค่าธรรมเนียมให้ชัดก่อนสร้าง repository |
 | `system_settings` | `school-configuration` | ใช้เก็บ policy ขั้นต่ำ/ขั้นสูงเติมเงิน |
+| `staff_admin_sessions`, `staff_admin_oidc_flows` | `school-configuration` | ข้อมูล technical session/one-time OIDC flow; เก็บ hash ของ session identifier เท่านั้น |
 | `transactions` | ยังไม่ยืนยัน | ตัวอย่างรวม `PURCHASE`, `REFUND`, `TOPUP`, `VOID` ไว้ตารางเดียว ซึ่งมีความหมายและเจ้าของต่างกัน ต้องตกลง ledger, การอ้างอิงรายการต้นทาง และผู้มีสิทธิ์เขียนก่อน migration |
 | บัญชี Parent/Staff และ Parent-Student link | ยังไม่มีใน schema ตัวอย่าง | บัญชี/role อยู่ `school-configuration`; ความสัมพันธ์ที่ใช้พิสูจน์สิทธิ์ดูแลนักเรียนอยู่ `student-account` |
 
@@ -86,6 +88,6 @@ Aggregate root ต้องเป็นทางเดียวในการ�
 | รายการเงินและ Void | ตาราง `transactions` รวมหลายประเภทและไม่ได้ระบุ foreign key ไปยังรายการที่ถูก Void | กำหนด ledger owner, เครื่องหมาย amount, ความสัมพันธ์ void/refund และการป้องกันทำซ้ำ |
 | Top-up | มีทั้งขั้นต่ำและขั้นสูง แต่ AC3.2 ครอบคลุมเฉพาะยอดต่ำกว่า minimum; ขั้นตอน Gateway/webhook ยังไม่ระบุ | เพิ่ม AC สำหรับขอบเขตสูงสุด, gateway failure/duplicate callback และจังหวะเพิ่มยอด Wallet |
 | Settlement cutoff | BR ใช้ 23:59 แต่ AC7.1 ระบุ 23:59:59; ไม่ระบุ timezone และรายการ Offline ที่ sync หลังปิดวัน | กำหนดเวลาปิดรอบ, timezone, การจัดวันของ Offline sale และวิธีหัก Void |
-| Identity/authorization | ผู้ใช้ยืนยันให้รวม identity แล้ว แต่ PRD ยังไม่มี schema/use case สำหรับ login, reset, role หรือความสัมพันธ์ Parent-Student | ทำ AC และกำหนดว่าจะใช้ identity provider ภายนอกหรือจัดการบัญชีในระบบ; ห้ามอนุมานสิทธิ์จาก ID ที่ส่งมา |
+| Identity/authorization | ผู้ใช้ยืนยันให้รวม identity แล้ว แต่ PRD ยังไม่มี schema/use case สำหรับ login, reset, role หรือความสัมพันธ์ Parent-Student; แนวทาง OIDC ของโรงเรียนและ opaque session cookie สำหรับ Web Admin ได้รับอนุมัติแล้ว | ต้องกำหนดค่า IdP, Staff claim mapping, อายุ session และการตั้งค่า same-origin reverse proxy ก่อน deploy; ห้ามอนุมานสิทธิ์จาก ID ที่ส่งมา |
 
 เอกสารนี้ไม่เปลี่ยน acceptance criteria ใน PRD; ให้แก้ PRD/use case และให้ผู้ใช้รีวิวก่อนใช้ข้อสรุปเหล่านี้สร้าง migration หรือ API
