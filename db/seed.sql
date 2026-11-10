@@ -158,3 +158,40 @@ SELECT setval(pg_get_serial_sequence('students', 'id'), GREATEST((SELECT MAX(id)
 SELECT setval(pg_get_serial_sequence('rfid_cards', 'id'), GREATEST((SELECT MAX(id) FROM rfid_cards), 1), TRUE);
 SELECT setval(pg_get_serial_sequence('student_refunds', 'id'), GREATEST((SELECT MAX(id) FROM student_refunds), 1), TRUE);
 
+-- UC-03 Seed Data
+INSERT INTO students (id, student_code, first_name, last_name, wallet_balance)
+VALUES
+  (301, 'UC03-AC31', 'UC03', 'AC31', 0.00),
+  (302, 'UC03-AC32', 'UC03', 'AC32', 0.00),
+  (303, 'UC03-AC33', 'UC03', 'AC33', -30.00),
+  (304, 'UC03-AC34', 'UC03', 'AC34', 0.00),
+  (306, 'UC03-AC36', 'UC03', 'AC36', 0.00),
+  (307, 'UC03-AC37', 'UC03', 'AC37', 0.00),
+  (308, 'UC03-AC38', 'UC03', 'AC38', 100.00),
+  (309, 'UC03-AC39', 'UC03', 'AC39', 0.00)
+ON CONFLICT (student_code) DO NOTHING;
+
+INSERT INTO wallet_topups (
+  id,
+  student_id,
+  amount,
+  status,
+  gateway_provider,
+  gateway_reference
+)
+SELECT 308, id, 100.00, 'succeeded', 'seed-gateway', 'UC03-AC38'
+FROM students
+WHERE student_code = 'UC03-AC38'
+ON CONFLICT (id) DO NOTHING;
+
+INSERT INTO wallet_ledger_entries (id, student_id, topup_id, amount)
+SELECT 308, id, 308, 100.00
+FROM students
+WHERE student_code = 'UC03-AC38'
+ON CONFLICT (id) DO NOTHING;
+
+SELECT setval(pg_get_serial_sequence('students', 'id'), GREATEST((SELECT MAX(id) FROM students), 1), TRUE);
+SELECT setval(pg_get_serial_sequence('wallet_topups', 'id'), GREATEST((SELECT MAX(id) FROM wallet_topups), 1), TRUE);
+SELECT setval(pg_get_serial_sequence('wallet_ledger_entries', 'id'), GREATEST((SELECT MAX(id) FROM wallet_ledger_entries), 1), TRUE);
+
+

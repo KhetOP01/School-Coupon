@@ -586,6 +586,162 @@ paths:
               example:
                 code: REFUND_ALREADY_PROCESSED
                 message: "Departure refund has already been processed for this student."
+  /parent/wallet/topup:
+    post:
+      operationId: createWalletTopUp
+      summary: เติมเงินเข้า Wallet นักเรียน (Parent App)
+      description: >
+        ยอดต้องอยู่ระหว่าง policy ขั้นต่ำและสูงสุดที่ตั้งในระบบ การยืนยันรายการจาก Gateway
+        เท่านั้นที่ทำให้ยอด Wallet เปลี่ยน; หากผลชำระยังไม่แน่ชัดให้คงรายการเป็น pending.
+        ขอบเขตขั้นต่ำและสูงสุดเป็น inclusive และจำนวนเงินรองรับทศนิยมไม่เกิน 2 ตำแหน่ง.
+        ผลที่ยืนยันว่าล้มเหลวตอบ 502; timeout ที่ผลยังไม่แน่ชัดตอบ 202.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateTopUpRequest'
+            example:
+              studentId: 123
+              amount: '100.00'
+      responses:
+        '200':
+          description: Gateway ยืนยันการชำระและเติมยอด Wallet แล้ว
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TopUpResult'
+              example:
+                topUpId: 812
+                studentId: 123
+                amount: '100.00'
+                walletBalance: '70.00'
+                status: succeeded
+        '202':
+          description: ยังยืนยันผลชำระไม่ได้; รายการคงสถานะ pending และยังไม่เพิ่มยอด Wallet
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PendingTopUpResult'
+              example:
+                topUpId: 813
+                studentId: 123
+                amount: '100.00'
+                status: pending
+        '400':
+          description: จำนวนเงินไม่ถูกต้องหรือต่ำ/สูงกว่าค่าที่ policy อนุญาต
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                invalidTopUpAmount:
+                  value:
+                    code: INVALID_TOPUP_AMOUNT
+                    message: "ยอดเติมเงินต้องไม่น้อยกว่า 50.00 บาทและไม่เกิน 2000.00 บาท"
+        '401':
+          description: ไม่ได้ยืนยันตัวตน
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                code: AUTHENTICATION_REQUIRED
+                message: "กรุณาเข้าสู่ระบบก่อนทำรายการ"
+        '403':
+          description: Parent ไม่มีสิทธิ์ดูแลนักเรียนที่ระบุ
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                code: PARENT_STUDENT_ACCESS_DENIED
+                message: "คุณไม่มีสิทธิ์เติมเงินให้บัญชีนักเรียนนี้"
+        '404':
+          description: ไม่พบนักเรียนที่ระบุ
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                code: STUDENT_NOT_FOUND
+                message: "ไม่พบนักเรียนที่ระบุ"
+        '502':
+          description: Gateway ยืนยันว่าปฏิเสธหรือชำระเงินไม่สำเร็จ; timeout ที่ผลยังไม่แน่ชัดตอบ 202 แทน
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                code: PAYMENT_GATEWAY_FAILED
+                message: "Payment Gateway ปฏิเสธการชำระเงิน"
+  /parent/wallet/topups/{topUpId}:
+    get:
+      operationId: getWalletTopUp
+      summary: ตรวจสอบสถานะรายการเติมเงิน
+      parameters:
+        - name: topUpId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+          example: 813
+      responses:
+        '200':
+          description: คืนสถานะรายการเติมเงิน
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TopUpStatus'
+              example:
+                topUpId: 813
+                studentId: 123
+                amount: '100.00'
+                status: pending
+                walletBalance: null
+        '404':
+          description: ไม่พบรายการเติมเงินที่อ้างอิง
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                code: TOPUP_NOT_FOUND
+                message: "ไม่พบรายการเติมเงินที่อ้างอิง"
+  /callbacks/payment-gateway/topup:
+    post:
+      operationId: confirmGatewayTopUp
+      summary: Webhook รับผลการชำระจาก Payment Gateway
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TopUpGatewayCallback'
+            example:
+              gatewayReference: gateway-ref-812
+              status: succeeded
+              amount: '100.00'
+      responses:
+        '200':
+          description: รับทราบผลการชำระเงินสำเร็จ; การส่งซ้ำเดิมคืน duplicate true
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GatewayCallbackResult'
+              example:
+                accepted: true
+                duplicate: false
+        '400':
+          description: รูปแบบ callback ไม่ถูกต้องหรือ reference ขัดแย้ง
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                code: INVALID_GATEWAY_EVENT
+                message: "ข้อมูล callback ไม่ถูกต้อง"
 components:
   securitySchemes:
     StaffAdminSessionCookie:
@@ -769,4 +925,167 @@ components:
           type: string
           format: date-time
           example: "2026-11-10T10:00:00Z"
+    CreateTopUpRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - studentId
+        - amount
+      properties:
+        studentId:
+          type: integer
+          format: int32
+          minimum: 1
+          description: รหัสนักเรียนในระบบ
+          example: 123
+        amount:
+          type: string
+          pattern: '^[0-9]{1,8}(\.[0-9]{1,2})?$'
+          description: จำนวนเงินเป็นบาท ใช้ string เพื่อรักษาความแม่นยำทศนิยม
+          example: '100.00'
+      example:
+        studentId: 123
+        amount: '100.00'
+    TopUpResult:
+      type: object
+      required:
+        - topUpId
+        - studentId
+        - amount
+        - walletBalance
+        - status
+      properties:
+        topUpId:
+          type: integer
+          format: int64
+          example: 812
+        studentId:
+          type: integer
+          format: int32
+          example: 123
+        amount:
+          type: string
+          example: '100.00'
+        walletBalance:
+          type: string
+          example: '70.00'
+        status:
+          type: string
+          const: succeeded
+          example: succeeded
+      example:
+        topUpId: 812
+        studentId: 123
+        amount: '100.00'
+        walletBalance: '70.00'
+        status: succeeded
+    PendingTopUpResult:
+      type: object
+      required:
+        - topUpId
+        - studentId
+        - amount
+        - status
+      properties:
+        topUpId:
+          type: integer
+          format: int64
+          example: 813
+        studentId:
+          type: integer
+          format: int32
+          example: 123
+        amount:
+          type: string
+          example: '100.00'
+        status:
+          type: string
+          const: pending
+          example: pending
+      example:
+        topUpId: 813
+        studentId: 123
+        amount: '100.00'
+        status: pending
+    TopUpStatus:
+      type: object
+      required:
+        - topUpId
+        - studentId
+        - amount
+        - status
+        - walletBalance
+      properties:
+        topUpId:
+          type: integer
+          format: int64
+          example: 813
+        studentId:
+          type: integer
+          format: int32
+          example: 123
+        amount:
+          type: string
+          example: '100.00'
+        status:
+          type: string
+          enum:
+            - pending
+            - succeeded
+            - failed
+          example: pending
+        walletBalance:
+          type:
+            - string
+            - 'null'
+          description: ยอด Wallet หลังเติมเงินเมื่อ status เป็น succeeded; null ในสถานะอื่น
+          example: null
+      example:
+        topUpId: 813
+        studentId: 123
+        amount: '100.00'
+        status: pending
+        walletBalance: null
+    TopUpGatewayCallback:
+      type: object
+      additionalProperties: false
+      required:
+        - gatewayReference
+        - status
+        - amount
+      properties:
+        gatewayReference:
+          type: string
+          minLength: 1
+          example: gateway-ref-812
+        status:
+          type: string
+          enum:
+            - succeeded
+            - failed
+          example: succeeded
+        amount:
+          type: string
+          pattern: '^[0-9]{1,8}(\.[0-9]{1,2})?$'
+          example: '100.00'
+      example:
+        gatewayReference: gateway-ref-812
+        status: succeeded
+        amount: '100.00'
+    GatewayCallbackResult:
+      type: object
+      required:
+        - accepted
+        - duplicate
+      properties:
+        accepted:
+          type: boolean
+          example: true
+        duplicate:
+          type: boolean
+          example: false
+      example:
+        accepted: true
+        duplicate: false
+
 
