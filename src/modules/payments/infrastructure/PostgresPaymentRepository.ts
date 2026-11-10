@@ -77,8 +77,9 @@ export class PostgresPaymentRepository implements PaymentRepository {
 
   async savePaymentAndDeductWallet(
     payment: Payment,
-    _isOffline: boolean,
+    isOffline: boolean,
   ): Promise<{ walletBalance: string }> {
+    void isOffline;
     const client = await this.pool.connect();
     let inTransaction = false;
 

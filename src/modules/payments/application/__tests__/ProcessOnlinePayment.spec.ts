@@ -1,4 +1,3 @@
-import { DomainError } from '../../../../shared/domain-error';
 import { MerchantGateway, PaymentRepository, StudentPaymentAccountGateway } from '../ports';
 import { ProcessOnlinePayment } from '../ProcessOnlinePayment';
 
