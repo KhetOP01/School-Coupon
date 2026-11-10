@@ -586,6 +586,87 @@ paths:
               example:
                 code: REFUND_ALREADY_PROCESSED
                 message: "Departure refund has already been processed for this student."
+  /admin/settlements/{id}/approve:
+    post:
+      operationId: approveSettlement
+      summary: เจ้าหน้าที่อนุมัติยอดสรุปโอนเงินให้ร้านค้า (Daily Settlement Approval)
+      description: >
+        Staff ตรวจสอบยอดและกด Approve ยอดโอนเงินประจำวันของร้านค้า (BR-SETTLE-01).
+        ระบบจะเปลี่ยนสถานะจาก PENDING_APPROVAL เป็น APPROVED พร้อมบันทึกผู้อนุมัติและเวลา.
+        หาก Settlement ได้รับการอนุมัติแล้ว การเรียกซ้ำจะคืนผลเดิมแบบ idempotent (AC7.7).
+      security:
+        - StaffAdminSessionCookie: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            minimum: 1
+          example: 1
+      responses:
+        '200':
+          description: อนุมัติยอดโอนเงินสำเร็จ (หรือคืนผลเดิมหากได้รับการอนุมัติแล้ว)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SettlementResult'
+              example:
+                id: 1
+                merchantId: 101
+                settlementDate: '2026-11-10'
+                grossAmount: '1000.00'
+                feeAmount: '20.00'
+                netAmount: '980.00'
+                status: 'APPROVED'
+                approvedBy: 'staff-admin'
+                approvedAt: '2026-11-10T23:59:59.000Z'
+                createdAt: '2026-11-10T23:59:59.000Z'
+        '400':
+          description: ข้อมูลคำขอไม่ถูกต้อง
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                code: INVALID_REQUEST
+                message: "Invalid settlement ID format."
+        '401':
+          description: ไม่ได้ยืนยันตัวตน
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                code: AUTHENTICATION_REQUIRED
+                message: "Authentication is required."
+        '403':
+          description: ไม่มีสิทธิ์เจ้าหน้าที่ (Staff)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                code: STAFF_ACCESS_REQUIRED
+                message: "Staff access is required."
+        '404':
+          description: ไม่พบรายการ Settlement
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                code: SETTLEMENT_NOT_FOUND
+                message: "Settlement not found."
+        '409':
+          description: Settlement ไม่อยู่ในสถานะที่สามารถอนุมัติได้
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                code: SETTLEMENT_NOT_PENDING
+                message: "Settlement is not in pending approval state."
   /parent/students/{id}/daily-limit:
     patch:
       operationId: updateStudentDailyLimit
@@ -1616,6 +1697,56 @@ components:
           type: string
           format: date-time
           example: '2026-11-10T11:00:00.000Z'
+    SettlementResult:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - merchantId
+        - settlementDate
+        - grossAmount
+        - feeAmount
+        - netAmount
+        - status
+        - createdAt
+      properties:
+        id:
+          type: integer
+          example: 1
+        merchantId:
+          type: integer
+          example: 101
+        settlementDate:
+          type: string
+          format: date
+          example: '2026-11-10'
+        grossAmount:
+          type: string
+          example: '1000.00'
+        feeAmount:
+          type: string
+          example: '20.00'
+        netAmount:
+          type: string
+          example: '980.00'
+        status:
+          type: string
+          enum: [PENDING_APPROVAL, APPROVED, PAID]
+          example: APPROVED
+        approvedBy:
+          type: string
+          nullable: true
+          example: 'staff-admin'
+        approvedAt:
+          type: string
+          format: date-time
+          nullable: true
+          example: '2026-11-10T23:59:59.000Z'
+        createdAt:
+          type: string
+          format: date-time
+          example: '2026-11-10T23:59:59.000Z'
+
 
 
 

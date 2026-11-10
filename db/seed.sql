@@ -235,6 +235,25 @@ SELECT setval(pg_get_serial_sequence('merchants', 'id'), GREATEST((SELECT MAX(id
 SELECT setval(pg_get_serial_sequence('students', 'id'), GREATEST((SELECT MAX(id) FROM students), 1), TRUE);
 SELECT setval(pg_get_serial_sequence('rfid_cards', 'id'), GREATEST((SELECT MAX(id) FROM rfid_cards), 1), TRUE);
 
+-- UC-07 Seed Data
+INSERT INTO merchants (id, merchant_code, name, fee_percent, status)
+VALUES
+  (701, 'M-701', 'Juice Shop', 2.50, 'active'),
+  (702, 'M-702', 'Bakery', 3.00, 'active'),
+  (703, 'M-703', 'Book Stall', 1.50, 'active')
+ON CONFLICT (merchant_code) DO NOTHING;
+
+INSERT INTO settlements (id, merchant_id, settlement_date, gross_amount, fee_amount, net_amount, status, approved_by, approved_at)
+VALUES
+  (701, 701, CURRENT_DATE, 100.00, 2.50, 97.50, 'PENDING_APPROVAL', NULL, NULL),
+  (702, 702, CURRENT_DATE, 200.00, 6.00, 194.00, 'APPROVED', 'staff-admin', now()),
+  (703, 703, CURRENT_DATE, 50.00, 0.75, 49.25, 'PAID', 'staff-admin', now())
+ON CONFLICT (merchant_id, settlement_date) DO NOTHING;
+
+SELECT setval(pg_get_serial_sequence('merchants', 'id'), GREATEST((SELECT MAX(id) FROM merchants), 1), TRUE);
+SELECT setval(pg_get_serial_sequence('settlements', 'id'), GREATEST((SELECT MAX(id) FROM settlements), 1), TRUE);
+
+
 -- UC-06 Seed Data
 INSERT INTO merchants (id, merchant_code, name, fee_percent, status)
 VALUES
@@ -278,6 +297,25 @@ ON CONFLICT (payment_id) DO NOTHING;
 SELECT setval(pg_get_serial_sequence('merchants', 'id'), GREATEST((SELECT MAX(id) FROM merchants), 1), TRUE);
 SELECT setval(pg_get_serial_sequence('students', 'id'), GREATEST((SELECT MAX(id) FROM students), 1), TRUE);
 SELECT setval(pg_get_serial_sequence('rfid_cards', 'id'), GREATEST((SELECT MAX(id) FROM rfid_cards), 1), TRUE);
+
+-- UC-07 Seed Data
+INSERT INTO merchants (id, merchant_code, name, fee_percent, status)
+VALUES
+  (701, 'M-701', 'Juice Shop', 2.50, 'active'),
+  (702, 'M-702', 'Bakery', 3.00, 'active'),
+  (703, 'M-703', 'Book Stall', 1.50, 'active')
+ON CONFLICT (merchant_code) DO NOTHING;
+
+INSERT INTO settlements (id, merchant_id, settlement_date, gross_amount, fee_amount, net_amount, status, approved_by, approved_at)
+VALUES
+  (701, 701, CURRENT_DATE, 100.00, 2.50, 97.50, 'PENDING_APPROVAL', NULL, NULL),
+  (702, 702, CURRENT_DATE, 200.00, 6.00, 194.00, 'APPROVED', 'staff-admin', now()),
+  (703, 703, CURRENT_DATE, 50.00, 0.75, 49.25, 'PAID', 'staff-admin', now())
+ON CONFLICT (merchant_id, settlement_date) DO NOTHING;
+
+SELECT setval(pg_get_serial_sequence('merchants', 'id'), GREATEST((SELECT MAX(id) FROM merchants), 1), TRUE);
+SELECT setval(pg_get_serial_sequence('settlements', 'id'), GREATEST((SELECT MAX(id) FROM settlements), 1), TRUE);
+
 
 
 
