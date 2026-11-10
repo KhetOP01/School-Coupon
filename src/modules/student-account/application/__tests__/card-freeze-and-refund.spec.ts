@@ -43,6 +43,8 @@ class InMemoryStudentAccountRepository implements StudentAccountRepository {
       this.savedRefunds.push(refund);
     }
   }
+
+  async saveDailyLimit(): Promise<void> {}
 }
 
 describe('UC-02 Application Use Cases: Card Freeze & Refund', () => {

@@ -26,6 +26,7 @@ describe('GetCardReissuePreview', () => {
       findById: jest.fn(),
       saveCardStatus: jest.fn(),
       saveDepartureRefund: jest.fn(),
+      saveDailyLimit: jest.fn(),
     };
     const useCase = new GetCardReissuePreview(repository);
 
@@ -49,6 +50,7 @@ describe('GetCardReissuePreview', () => {
       findById: jest.fn(),
       saveCardStatus: jest.fn(),
       saveDepartureRefund: jest.fn(),
+      saveDailyLimit: jest.fn(),
     };
     const useCase = new GetCardReissuePreview(repository);
 

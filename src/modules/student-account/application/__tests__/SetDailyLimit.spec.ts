@@ -1,4 +1,3 @@
-import { DomainError } from '../../../../shared/domain-error';
 import { Student } from '../../domain/student';
 import { AuthorizeParentStudentAccess } from '../AuthorizeParentStudentAccess';
 import { StudentAccountRepository } from '../student-account.repository';
@@ -14,7 +13,7 @@ describe('SetDailyLimit Use Case', () => {
 
   beforeEach(() => {
     const parentStudentAccess = {
-      hasAccess: jest.fn().mockImplementation(async (parentId: string, studentId: string) => {
+      hasAccess: jest.fn().mockImplementation(async (parentId: string) => {
         if (parentId === 'unauthorized-parent') return false;
         return true;
       }),
