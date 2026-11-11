@@ -19,10 +19,12 @@ import { createEmbeddedPostgresDatabase, EmbeddedPostgresDatabase } from '../hel
 type JoseModule = typeof import('jose');
 type OpenIdClientModule = typeof import('openid-client');
 
-const loadJose = new Function('return import("jose")') as () => Promise<JoseModule>;
-const loadOpenIdClient = new Function(
-  'return import("openid-client")',
-) as () => Promise<OpenIdClientModule>;
+function loadJose(): Promise<JoseModule> {
+  return eval('import("jose")');
+}
+function loadOpenIdClient(): Promise<OpenIdClientModule> {
+  return eval('import("openid-client")');
+}
 
 describe('Staff Admin OIDC Authentication (UC-08)', () => {
   let app: INestApplication;

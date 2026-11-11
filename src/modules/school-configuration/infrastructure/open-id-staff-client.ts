@@ -12,9 +12,9 @@ import {
 
 type OpenIdClientModule = typeof import('openid-client');
 
-const loadOpenIdClient = new Function(
-  'return import("openid-client")',
-) as () => Promise<OpenIdClientModule>;
+function loadOpenIdClient(): Promise<OpenIdClientModule> {
+  return eval('import("openid-client")');
+}
 
 @Injectable()
 export class OpenIdStaffClient implements StaffOidcClient {
