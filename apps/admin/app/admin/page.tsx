@@ -1,6 +1,6 @@
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
-import CardReissueForm from './reissue-form';
+import AdminDashboard from './admin-dashboard';
 
 export const dynamic = 'force-dynamic';
 
@@ -19,11 +19,7 @@ export default async function AdminPage() {
     throw new Error(`Staff session check failed with HTTP ${response.status}.`);
   }
 
-  return (
-    <main>
-      <h1>ออกบัตร RFID ทดแทน</h1>
-      <p>ค้นหานักเรียน ตรวจสอบบัตรเดิมและยอด Wallet ก่อนยืนยันออกบัตรใหม่</p>
-      <CardReissueForm />
-    </main>
-  );
+  const session = (await response.json()) as { expiresAt?: string };
+
+  return <AdminDashboard sessionExpiry={session.expiresAt} />;
 }
