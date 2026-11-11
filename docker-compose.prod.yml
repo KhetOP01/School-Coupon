@@ -23,10 +23,10 @@ services:
     environment:
       DATABASE_URL: postgres://${POSTGRES_USER:-school_coupon}:${POSTGRES_PASSWORD:-school_coupon_secure_pwd}@postgres:5432/${POSTGRES_DB:-school_coupon}
       PORT: 3000
-      STAFF_OIDC_ISSUER: ${STAFF_OIDC_ISSUER}
-      STAFF_OIDC_CLIENT_ID: ${STAFF_OIDC_CLIENT_ID}
-      STAFF_OIDC_CLIENT_SECRET: ${STAFF_OIDC_CLIENT_SECRET}
-      STAFF_OIDC_REDIRECT_URI: ${STAFF_OIDC_REDIRECT_URI}
+      STAFF_OIDC_ISSUER: ${STAFF_OIDC_ISSUER:-https://idp.example.edu/}
+      STAFF_OIDC_CLIENT_ID: ${STAFF_OIDC_CLIENT_ID:-school-coupon-client}
+      STAFF_OIDC_CLIENT_SECRET: ${STAFF_OIDC_CLIENT_SECRET:-school-coupon-secret}
+      STAFF_OIDC_REDIRECT_URI: ${STAFF_OIDC_REDIRECT_URI:-http://localhost/admin/auth/oidc/callback}
       STAFF_CLAIM_NAME: ${STAFF_CLAIM_NAME:-groups}
       STAFF_CLAIM_VALUE: ${STAFF_CLAIM_VALUE:-staff}
     depends_on:
