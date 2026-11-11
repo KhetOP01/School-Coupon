@@ -3,6 +3,7 @@ import {
   Controller,
   HttpCode,
   HttpStatus,
+  Inject,
   Param,
   Post,
   UseGuards,
@@ -13,7 +14,10 @@ import { ApproveSettlement } from '../../application/ApproveSettlement';
 @Controller('admin/settlements')
 @UseGuards(StaffAuthGuard)
 export class SettlementController {
-  constructor(private readonly approveSettlement: ApproveSettlement) {}
+  constructor(
+    @Inject(ApproveSettlement)
+    private readonly approveSettlement: ApproveSettlement,
+  ) {}
 
   @Post(':id/approve')
   @HttpCode(HttpStatus.OK)

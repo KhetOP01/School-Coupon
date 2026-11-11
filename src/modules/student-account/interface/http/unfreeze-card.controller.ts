@@ -2,6 +2,7 @@ import {
   Controller,
   HttpCode,
   HttpStatus,
+  Inject,
   Param,
   ParseIntPipe,
   Patch,
@@ -13,7 +14,10 @@ import { StaffAuthGuard } from './staff-auth.guard';
 @Controller('admin/cards')
 @UseGuards(StaffAuthGuard)
 export class UnfreezeCardController {
-  constructor(private readonly unfreezeCardUseCase: UnfreezeCardUseCase) {}
+  constructor(
+    @Inject(UnfreezeCardUseCase)
+    private readonly unfreezeCardUseCase: UnfreezeCardUseCase,
+  ) {}
 
   @Patch(':cardId/unfreeze')
   @HttpCode(HttpStatus.OK)

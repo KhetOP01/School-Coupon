@@ -4,6 +4,7 @@ import {
   Headers,
   HttpCode,
   HttpStatus,
+  Inject,
   Param,
   ParseIntPipe,
   Patch,
@@ -20,7 +21,10 @@ class UpdateDailyLimitDto {
 
 @Controller()
 export class DailyLimitController {
-  constructor(private readonly setDailyLimit: SetDailyLimit) {}
+  constructor(
+    @Inject(SetDailyLimit)
+    private readonly setDailyLimit: SetDailyLimit,
+  ) {}
 
   @Patch('parent/students/:studentId/daily-limit')
   @HttpCode(HttpStatus.OK)

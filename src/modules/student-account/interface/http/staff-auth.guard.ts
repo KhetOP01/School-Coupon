@@ -3,6 +3,7 @@ import {
   ExecutionContext,
   Inject,
   Injectable,
+  Optional,
   UnauthorizedException,
 } from '@nestjs/common';
 import { SystemClock } from '../../../../shared/clock';
@@ -19,10 +20,13 @@ interface StaffRequest {
 
 @Injectable()
 export class StaffAuthGuard implements CanActivate {
+  private readonly defaultClock = new SystemClock();
+
   constructor(
     @Inject(STAFF_SESSION_AUTHORIZER)
     private readonly sessions: StaffSessionAuthorizer,
-    private readonly clock: SystemClock,
+    @Optional()
+    private readonly clock?: SystemClock,
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
@@ -38,7 +42,8 @@ export class StaffAuthGuard implements CanActivate {
       });
     }
 
-    if (!(await this.sessions.isActiveStaffSession(sessionToken, this.clock.now()))) {
+    const now = (this.clock ?? this.defaultClock).now();
+    if (!(await this.sessions.isActiveStaffSession(sessionToken, now))) {
       throw new UnauthorizedException({
         code: 'SESSION_EXPIRED',
         message: 'The Staff session has expired.',

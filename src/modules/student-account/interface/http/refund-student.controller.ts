@@ -2,6 +2,7 @@ import {
   Controller,
   HttpCode,
   HttpStatus,
+  Inject,
   Param,
   ParseIntPipe,
   Post,
@@ -13,7 +14,10 @@ import { StaffAuthGuard } from './staff-auth.guard';
 @Controller('admin/students')
 @UseGuards(StaffAuthGuard)
 export class RefundStudentController {
-  constructor(private readonly refundUseCase: RefundDepartingStudentUseCase) {}
+  constructor(
+    @Inject(RefundDepartingStudentUseCase)
+    private readonly refundUseCase: RefundDepartingStudentUseCase,
+  ) {}
 
   @Post(':studentId/refund')
   @HttpCode(HttpStatus.OK)

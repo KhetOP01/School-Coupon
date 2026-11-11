@@ -3,6 +3,7 @@ import {
   Controller,
   HttpCode,
   HttpStatus,
+  Inject,
   Post,
   UseGuards,
 } from '@nestjs/common';
@@ -31,7 +32,10 @@ class ReissueRfidCardRequest {
 @Controller('admin/cards')
 @UseGuards(StaffAuthGuard)
 export class ReissueRfidCardController {
-  constructor(private readonly reissueRfidCard: ReissueRfidCard) {}
+  constructor(
+    @Inject(ReissueRfidCard)
+    private readonly reissueRfidCard: ReissueRfidCard,
+  ) {}
 
   @Post('reissue')
   @HttpCode(HttpStatus.OK)

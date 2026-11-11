@@ -5,6 +5,7 @@ import {
   Headers,
   HttpCode,
   HttpStatus,
+  Inject,
   Param,
   ParseIntPipe,
   Post,
@@ -46,7 +47,9 @@ class GatewayCallbackDto {
 @Controller()
 export class TopUpWalletController {
   constructor(
+    @Inject(TopUpStudentWallet)
     private readonly topUpStudentWallet: TopUpStudentWallet,
+    @Inject(PostgresTopUpRepository)
     private readonly repository: PostgresTopUpRepository,
   ) {}
 

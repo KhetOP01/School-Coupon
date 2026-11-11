@@ -5,6 +5,7 @@ import {
   Headers,
   HttpCode,
   HttpStatus,
+  Inject,
   Param,
   Post,
 } from '@nestjs/common';
@@ -52,8 +53,11 @@ const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12
 @Controller()
 export class MerchantPaymentController {
   constructor(
+    @Inject(ProcessOnlinePayment)
     private readonly processOnlinePayment: ProcessOnlinePayment,
+    @Inject(SyncOfflinePayment)
     private readonly syncOfflinePayment: SyncOfflinePayment,
+    @Inject(VoidPayment)
     private readonly voidPaymentUseCase: VoidPayment,
   ) {}
 

@@ -16,6 +16,7 @@
     "test:watch": "jest --watch",
     "test:cov": "jest --coverage",
     "test:integration": "jest --runInBand --testPathPattern=integration",
+    "simulate": "tsx scripts/simulate-school-day.ts",
     "migrate": "tsx scripts/migrate.ts",
     "seed": "tsx scripts/seed.ts"
   },
