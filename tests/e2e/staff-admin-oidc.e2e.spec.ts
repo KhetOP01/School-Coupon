@@ -8,6 +8,8 @@ import request from 'supertest';
 import { AppModule } from '../../src/app.module';
 import { ApiExceptionFilter } from '../../src/shared/api-exception.filter';
 import {
+  InvalidOidcResponseError,
+  OidcProviderUnavailableError,
   STAFF_OIDC_CLIENT,
   StaffAdminAuthConfig,
 } from '../../src/modules/school-configuration/auth.tokens';
@@ -68,7 +70,7 @@ describe('Staff OIDC sign-in', () => {
         process.env[name] = value;
       }
     }
-  });
+  }, 30_000);
 
   beforeEach(async () => {
     oidcClient.authorizationUrl.mockReset().mockImplementation(
@@ -84,7 +86,7 @@ describe('Staff OIDC sign-in', () => {
     await database.pool.query('TRUNCATE staff_admin_oidc_flows, staff_admin_sessions');
   });
 
-  it('AC1.5: starts Staff OIDC sign-in and sets a short-lived HttpOnly flow cookie', async () => {
+  it('AC8.1: starts Staff OIDC sign-in and sets a short-lived HttpOnly flow cookie', async () => {
     const response = await request(app.getHttpServer())
       .get('/admin/auth/oidc/start')
       .expect(302);
@@ -121,7 +123,7 @@ describe('Staff OIDC sign-in', () => {
     expect(storedFlows.rows[0].expires_at.getTime()).toBeGreaterThan(Date.now());
   });
 
-  it('AC1.5: creates a hash-only Staff session from a valid OIDC callback', async () => {
+  it('AC8.1: creates a hash-only Staff session from a valid OIDC callback', async () => {
     const startResponse = await request(app.getHttpServer())
       .get('/admin/auth/oidc/start')
       .expect(302);
@@ -173,7 +175,7 @@ describe('Staff OIDC sign-in', () => {
       .expect(({ body }) => expect(body.expiresAt).toBeDefined());
   });
 
-  it('AC1.5: denies an identity without Staff access and does not create a session', async () => {
+  it('AC8.2: denies an identity without Staff access and does not create a session', async () => {
     oidcClient.verifyCallback.mockResolvedValue({
       issuer: settings.STAFF_OIDC_ISSUER,
       subject: 'parent-1',
@@ -200,7 +202,7 @@ describe('Staff OIDC sign-in', () => {
     expect(storedSessions.rows).toHaveLength(0);
   });
 
-  it('AC1.5: rejects Admin API access without a session', async () => {
+  it('AC8.3: rejects Admin API access without a session', async () => {
     const response = await request(app.getHttpServer())
       .get('/admin/auth/session')
       .expect(401);
@@ -208,9 +210,113 @@ describe('Staff OIDC sign-in', () => {
     expect(response.body.code).toBe('AUTHENTICATION_REQUIRED');
   });
 
-  it('AC1.5: rejects expired and revoked Staff sessions', async () => {
-    const expiredToken = 'uc01-expired-session-token';
-    const revokedToken = 'uc01-revoked-session-token';
+  it('AC8.4: rejects malformed callbacks with 400 INVALID_OIDC_RESPONSE', async () => {
+    const startResponse = await request(app.getHttpServer())
+      .get('/admin/auth/oidc/start')
+      .expect(302);
+    const state = startResponse.headers['set-cookie'][0].match(
+      /^school_coupon_oidc_flow=([A-Za-z0-9_-]+)/,
+    )?.[1];
+
+    // Missing code
+    const resNoCode = await request(app.getHttpServer())
+      .get(`/admin/auth/oidc/callback?state=${state}`)
+      .set('Cookie', `school_coupon_oidc_flow=${state}`)
+      .expect(400);
+    expect(resNoCode.body.code).toBe('INVALID_OIDC_RESPONSE');
+
+    // Missing state
+    const resNoState = await request(app.getHttpServer())
+      .get(`/admin/auth/oidc/callback?code=local-code`)
+      .set('Cookie', `school_coupon_oidc_flow=${state}`)
+      .expect(400);
+    expect(resNoState.body.code).toBe('INVALID_OIDC_RESPONSE');
+
+    // State mismatch with flow cookie
+    const resMismatch = await request(app.getHttpServer())
+      .get(`/admin/auth/oidc/callback?code=local-code&state=${state}`)
+      .set('Cookie', 'school_coupon_oidc_flow=other-state')
+      .expect(400);
+    expect(resMismatch.body.code).toBe('INVALID_OIDC_RESPONSE');
+
+    const storedSessions = await database.pool.query('SELECT session_token_hash FROM staff_admin_sessions');
+    expect(storedSessions.rows).toHaveLength(0);
+  });
+
+  it('AC8.4: rejects reused or expired state with 401 AUTHENTICATION_REQUIRED', async () => {
+    // Calling callback with unknown/reused state
+    const response = await request(app.getHttpServer())
+      .get('/admin/auth/oidc/callback?code=local-code&state=nonexistent-state')
+      .set('Cookie', 'school_coupon_oidc_flow=nonexistent-state')
+      .expect(401);
+
+    expect(response.body.code).toBe('AUTHENTICATION_REQUIRED');
+    const storedSessions = await database.pool.query('SELECT session_token_hash FROM staff_admin_sessions');
+    expect(storedSessions.rows).toHaveLength(0);
+  });
+
+  it('AC8.4: rejects callback when ID token verification fails with 401 AUTHENTICATION_REQUIRED', async () => {
+    oidcClient.verifyCallback.mockRejectedValue(new InvalidOidcResponseError());
+
+    const startResponse = await request(app.getHttpServer())
+      .get('/admin/auth/oidc/start')
+      .expect(302);
+    const state = startResponse.headers['set-cookie'][0].match(
+      /^school_coupon_oidc_flow=([A-Za-z0-9_-]+)/,
+    )?.[1];
+
+    const callback = await request(app.getHttpServer())
+      .get(`/admin/auth/oidc/callback?code=local-code&state=${state}`)
+      .set('Cookie', `school_coupon_oidc_flow=${state}`)
+      .expect(401);
+
+    expect(callback.body.code).toBe('AUTHENTICATION_REQUIRED');
+    const storedSessions = await database.pool.query('SELECT session_token_hash FROM staff_admin_sessions');
+    expect(storedSessions.rows).toHaveLength(0);
+  });
+
+  it('AC8.5: handles user cancellation with 400 AUTHENTICATION_CANCELLED', async () => {
+    const response = await request(app.getHttpServer())
+      .get('/admin/auth/oidc/callback?error=access_denied&error_description=User+cancelled')
+      .expect(400);
+
+    expect(response.body.code).toBe('AUTHENTICATION_CANCELLED');
+    const storedSessions = await database.pool.query('SELECT session_token_hash FROM staff_admin_sessions');
+    expect(storedSessions.rows).toHaveLength(0);
+  });
+
+  it('AC8.5: returns 502 AUTHENTICATION_UNAVAILABLE when OIDC provider fails during start or callback', async () => {
+    // Failure at start
+    oidcClient.authorizationUrl.mockRejectedValue(new OidcProviderUnavailableError());
+    const startRes = await request(app.getHttpServer())
+      .get('/admin/auth/oidc/start')
+      .expect(502);
+    expect(startRes.body.code).toBe('AUTHENTICATION_UNAVAILABLE');
+
+    // Reset authorizationUrl for callback failure test
+    oidcClient.authorizationUrl.mockReset().mockImplementation(
+      async ({ state }: { state: string }) =>
+        new URL(`https://idp.example/authorize?state=${state}`),
+    );
+    const startResponse = await request(app.getHttpServer())
+      .get('/admin/auth/oidc/start')
+      .expect(302);
+    const state = startResponse.headers['set-cookie'][0].match(
+      /^school_coupon_oidc_flow=([A-Za-z0-9_-]+)/,
+    )?.[1];
+
+    // Failure at callback
+    oidcClient.verifyCallback.mockRejectedValue(new OidcProviderUnavailableError());
+    const callbackRes = await request(app.getHttpServer())
+      .get(`/admin/auth/oidc/callback?code=local-code&state=${state}`)
+      .set('Cookie', `school_coupon_oidc_flow=${state}`)
+      .expect(502);
+    expect(callbackRes.body.code).toBe('AUTHENTICATION_UNAVAILABLE');
+  });
+
+  it('AC8.6: rejects expired and revoked Staff sessions', async () => {
+    const expiredToken = 'uc08-expired-session-token';
+    const revokedToken = 'uc08-revoked-session-token';
     await database.pool.query(
       `INSERT INTO staff_admin_sessions
          (session_token_hash, provider_issuer, staff_subject, created_at, expires_at, revoked_at)
@@ -234,8 +340,8 @@ describe('Staff OIDC sign-in', () => {
     }
   });
 
-  it('AC1.5: revokes a Staff session on logout and rejects the old cookie', async () => {
-    const token = 'uc01-logout-session-token';
+  it('AC8.7: revokes a Staff session on logout and rejects the old cookie', async () => {
+    const token = 'uc08-logout-session-token';
     await database.pool.query(
       `INSERT INTO staff_admin_sessions
          (session_token_hash, provider_issuer, staff_subject, created_at, expires_at)
@@ -274,7 +380,7 @@ describe('OpenIdStaffClient', () => {
     privateKey = keyPair.privateKey;
     publicJwk = {
       ...(await jose.exportJWK(keyPair.publicKey)),
-      kid: 'uc01-local-oidc-key',
+      kid: 'uc08-local-oidc-key',
       alg: 'RS256',
       use: 'sig',
     };
@@ -317,9 +423,9 @@ describe('OpenIdStaffClient', () => {
             ? await openid.calculatePKCECodeChallenge(receivedCodeVerifier)
             : null;
           if (
-            parameters.get('client_id') !== 'school-coupon-uc01-test' ||
+            parameters.get('client_id') !== 'school-coupon-uc08-test' ||
             parameters.get('client_secret') !== 'local-only-test-secret' ||
-            parameters.get('code') !== 'uc01-local-code' ||
+            parameters.get('code') !== 'uc08-local-code' ||
             challenge !== expectedCodeChallenge ||
             !idToken
           ) {
@@ -353,10 +459,10 @@ describe('OpenIdStaffClient', () => {
     }
   });
 
-  it('AC1.5: verifies issuer, audience, nonce, signature, and PKCE with a local OIDC provider', async () => {
+  it('AC8.4: verifies issuer, audience, nonce, signature, and PKCE with a local OIDC provider', async () => {
     const config: StaffAdminAuthConfig = {
       issuer,
-      clientId: 'school-coupon-uc01-test',
+      clientId: 'school-coupon-uc08-test',
       clientSecret: 'local-only-test-secret',
       redirectUri: `${issuer}/admin/auth/oidc/callback`,
       staffClaimName: 'groups',
@@ -366,8 +472,8 @@ describe('OpenIdStaffClient', () => {
     const client = new OpenIdStaffClient(config);
     const codeVerifier = 'local-test-code-verifier-long-enough-for-pkce-12345';
     const authorizationUrl = await client.authorizationUrl({
-      state: 'uc01-local-state',
-      nonce: 'uc01-local-nonce',
+      state: 'uc08-local-state',
+      nonce: 'uc08-local-nonce',
       codeVerifier,
     });
     expectedCodeChallenge = authorizationUrl.searchParams.get('code_challenge');
@@ -376,7 +482,7 @@ describe('OpenIdStaffClient', () => {
       groups: ['staff'],
       nonce: authorizationUrl.searchParams.get('nonce'),
     })
-      .setProtectedHeader({ alg: 'RS256', kid: 'uc01-local-oidc-key' })
+      .setProtectedHeader({ alg: 'RS256', kid: 'uc08-local-oidc-key' })
       .setIssuer(issuer)
       .setAudience(config.clientId)
       .setSubject('local-staff-1')
@@ -385,7 +491,7 @@ describe('OpenIdStaffClient', () => {
       .sign(privateKey);
 
     const identity = await client.verifyCallback({
-      code: 'uc01-local-code',
+      code: 'uc08-local-code',
       state: authorizationUrl.searchParams.get('state') as string,
       nonce: authorizationUrl.searchParams.get('nonce') as string,
       codeVerifier,
