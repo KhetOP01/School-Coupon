@@ -10,7 +10,7 @@
     "start:admin": "next start apps/admin -p 3001",
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\" \"tests/**/*.ts\" \"scripts/**/*.ts\" \"apps/admin/app/**/*.{ts,tsx}\" \"apps/admin/next.config.ts\"",
     "lint": "eslint \"src/**/*.ts\" \"test/**/*.ts\" \"tests/**/*.ts\" \"scripts/**/*.ts\" \"apps/admin/app/**/*.{ts,tsx}\" \"apps/admin/next.config.ts\"",
-    "start": "node dist/main.js",
+    "start": "node dist/src/main.js",
     "start:dev": "tsx watch src/main.ts",
     "test": "node --experimental-vm-modules ./node_modules/jest/bin/jest.js --runInBand",
     "test:watch": "jest --watch",

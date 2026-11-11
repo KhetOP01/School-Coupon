@@ -1,19 +1,78 @@
-name: CI
+name: School Coupon CI/CD Pipeline
 
 on:
   push:
+    branches:
+      - main
   pull_request:
+    branches:
+      - main
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
-  verify:
+  test-and-verify:
+    name: Lint, Build, Test & E2E Simulation
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 22
+        uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: npm
-      - run: npm ci
-      - run: npm run lint
-      - run: npm test -- --runInBand
-      - run: npm run build
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run code linter
+        run: npm run lint
+
+      - name: Build NestJS backend
+        run: npm run build
+
+      - name: Build Next.js admin dashboard
+        run: npm run build:admin
+
+      - name: Run complete test suite (Unit, Integration & E2E)
+        run: npm test
+
+      - name: Run Full School Day Simulation (UC-01 to UC-08)
+        run: npm run simulate
+
+  docker-build-check:
+    name: Docker Images Build Verification
+    needs: test-and-verify
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build API image (Dockerfile.api)
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./Dockerfile.api
+          push: false
+          tags: school-coupon-api:ci
+          load: true
+
+      - name: Build Admin image (Dockerfile.admin)
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./Dockerfile.admin
+          push: false
+          tags: school-coupon-admin:ci
+          load: true
+
+      - name: Validate Nginx configuration syntax
+        run: |
+          docker run --rm -v ${{ github.workspace }}/nginx/nginx.conf:/etc/nginx/nginx.conf:ro nginx:alpine nginx -t
