@@ -330,7 +330,6 @@ export default function SettlementApprovalForm() {
                   <th style={{ padding: '0.7rem 0.6rem', fontWeight: 600 }}>ยอดขาย / ค่าธรรมเนียม</th>
                   <th style={{ padding: '0.7rem 0.6rem', fontWeight: 600 }}>ยอดโอนสุทธิ</th>
                   <th style={{ padding: '0.7rem 0.6rem', fontWeight: 600 }}>สถานะ</th>
-                  <th style={{ padding: '0.7rem 0.6rem', textAlign: 'center', fontWeight: 600 }}>เลือก</th>
                 </tr>
               </thead>
               <tbody>
@@ -368,29 +367,6 @@ export default function SettlementApprovalForm() {
                       </td>
                       <td style={{ padding: '0.75rem 0.6rem' }}>
                         <SettlementStatusBadge status={item.status} />
-                      </td>
-                      <td style={{ padding: '0.75rem 0.6rem', textAlign: 'center' }}>
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setSettlementId(item.id);
-                            setMessage(null);
-                            setResult(null);
-                          }}
-                          style={{
-                            padding: '0.32rem 0.7rem',
-                            borderRadius: '7px',
-                            border: isSelected ? '1px solid #2563eb' : '1px solid #bfdbfe',
-                            background: isSelected ? '#2563eb' : '#eff6ff',
-                            color: isSelected ? '#ffffff' : '#1d4ed8',
-                            fontSize: '0.76rem',
-                            fontWeight: 600,
-                            cursor: 'pointer',
-                          }}
-                        >
-                          {isSelected ? 'เลือกอยู่' : 'เลือก'}
-                        </button>
                       </td>
                     </tr>
                   );

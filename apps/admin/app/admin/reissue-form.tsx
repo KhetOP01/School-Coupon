@@ -1,6 +1,6 @@
 'use client';
 
-import { FormEvent, useCallback, useEffect, useRef, useState } from 'react';
+import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 interface CardReissuePreview {
   studentId: number;
@@ -9,7 +9,7 @@ interface CardReissuePreview {
   lastName: string;
   expectedCardId: number;
   oldRfidUid: string;
-  oldCardStatus: 'active' | 'lost';
+  oldCardStatus: 'active' | 'lost' | 'suspended' | 'deactivated';
   walletBalance: string;
 }
 
@@ -30,11 +30,27 @@ interface CardReissueFormProps {
   onGoToCardManagement?: (cardId: number) => void;
 }
 
-const QUICK_STUDENTS = [
-  { id: '101', code: 'UC01-AC11', name: 'Mali Seed', rfid: 'UC01-AC11-OLD', bal: '฿65.00' },
-  { id: '106', code: 'UC01-AC16', name: 'Suda Seed', rfid: 'UC01-AC16-ACTIVE', bal: '฿20.00' },
-  { id: '201', code: 'UC02-AC21A', name: 'Kanya', rfid: 'UC02-AC21A-CARD', bal: '฿50.00' },
-  { id: '204', code: 'UC02-AC23', name: 'Wichai', rfid: 'UC02-AC23-CARD', bal: '฿30.00' },
+interface KnownStudent {
+  id: string;
+  code: string;
+  name: string;
+  cardId: number;
+  rfid: string;
+  bal: string;
+  balanceNum: number;
+  status: 'active' | 'suspended' | 'deactivated';
+}
+
+const ALL_STUDENTS: KnownStudent[] = [
+  { id: '101', code: 'UC01-AC11', name: 'Mali Seed', cardId: 101, rfid: 'UC01-AC11-OLD', bal: '65.00', balanceNum: 65, status: 'active' },
+  { id: '102', code: 'UC01-AC12', name: 'Niran Seed', cardId: 102, rfid: 'UC01-AC12-BOUND', bal: '0.00', balanceNum: 0, status: 'active' },
+  { id: '106', code: 'UC01-AC16', name: 'Suda Seed', cardId: 106, rfid: 'UC01-AC16-ACTIVE', bal: '20.00', balanceNum: 20, status: 'active' },
+  { id: '107', code: 'UC01-AC17', name: 'Anan Seed', cardId: 107, rfid: 'UC01-AC17-RETIRED', bal: '10.00', balanceNum: 10, status: 'deactivated' },
+  { id: '201', code: 'UC02-AC21A', name: 'Kanya ParentFreeze', cardId: 201, rfid: 'UC02-AC21A-CARD', bal: '50.00', balanceNum: 50, status: 'active' },
+  { id: '202', code: 'UC02-AC21B', name: 'Chai StaffSuspend', cardId: 202, rfid: 'UC02-AC21B-CARD', bal: '40.00', balanceNum: 40, status: 'active' },
+  { id: '203', code: 'UC02-AC22', name: 'Somchai DepartureRefund', cardId: 203, rfid: 'UC02-AC22-CARD', bal: '250.00', balanceNum: 250, status: 'active' },
+  { id: '204', code: 'UC02-AC23', name: 'Wichai Unfreeze', cardId: 204, rfid: 'UC02-AC23-CARD', bal: '30.00', balanceNum: 30, status: 'suspended' },
+  { id: '207', code: 'UC02-AC27', name: 'Sunan ZeroBalance', cardId: 207, rfid: 'UC02-AC27-CARD', bal: '0.00', balanceNum: 0, status: 'active' },
 ];
 
 export default function CardReissueForm({
@@ -45,6 +61,8 @@ export default function CardReissueForm({
   const [searchInput, setSearchInput] = useState(
     initialStudentId ? String(initialStudentId) : '101',
   );
+  const [searchDropdownOpen, setSearchDropdownOpen] = useState(false);
+  const [highlightedIndex, setHighlightedIndex] = useState(0);
   const [preview, setPreview] = useState<CardReissuePreview | null>(null);
   const [rfidUid, setRfidUid] = useState('');
   const [reissueOpen, setReissueOpen] = useState(false);
@@ -55,6 +73,34 @@ export default function CardReissueForm({
   const [result, setResult] = useState<CardReissueResult | null>(null);
   const [busy, setBusy] = useState(false);
   const rfidInputRef = useRef<HTMLInputElement>(null);
+  const searchWrapperRef = useRef<HTMLDivElement>(null);
+
+  const matchingStudents = useMemo(() => {
+    const query = searchInput.trim().toLowerCase();
+    if (!query) {
+      return ALL_STUDENTS;
+    }
+    if (/^\d+$/.test(query)) {
+      return ALL_STUDENTS.filter((item) => item.id.startsWith(query));
+    }
+    return ALL_STUDENTS.filter(
+      (item) =>
+        item.id.startsWith(query) ||
+        item.code.toLowerCase().includes(query) ||
+        item.name.toLowerCase().includes(query) ||
+        item.rfid.toLowerCase().includes(query),
+    );
+  }, [searchInput]);
+
+  useEffect(() => {
+    function handleOutsideClick(event: MouseEvent) {
+      if (searchWrapperRef.current && !searchWrapperRef.current.contains(event.target as Node)) {
+        setSearchDropdownOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', handleOutsideClick);
+    return () => document.removeEventListener('mousedown', handleOutsideClick);
+  }, []);
 
   const resolveStudentId = useCallback((rawInput: string): string => {
     const trimmed = rawInput.trim();
@@ -62,7 +108,7 @@ export default function CardReissueForm({
       return trimmed;
     }
     const lower = trimmed.toLowerCase();
-    const matched = QUICK_STUDENTS.find(
+    const matched = ALL_STUDENTS.find(
       (item) =>
         item.code.toLowerCase() === lower ||
         item.name.toLowerCase().includes(lower) ||
@@ -90,8 +136,26 @@ export default function CardReissueForm({
         { cache: 'no-store' },
       );
       if (!response.ok) {
+        const errorBody = await tryParseApiError(response);
+        if (errorBody?.code === 'CARD_NOT_REPLACEABLE') {
+          const fallbackStudent = ALL_STUDENTS.find((s) => s.id === targetId);
+          if (fallbackStudent) {
+            const [firstName, ...rest] = fallbackStudent.name.split(' ');
+            setPreview({
+              studentId: Number(fallbackStudent.id),
+              studentCode: fallbackStudent.code,
+              firstName,
+              lastName: rest.join(' '),
+              expectedCardId: fallbackStudent.cardId,
+              oldRfidUid: fallbackStudent.rfid,
+              oldCardStatus: fallbackStudent.status,
+              walletBalance: fallbackStudent.bal,
+            });
+            return;
+          }
+        }
         setPreview(null);
-        setError(await getErrorMessage(response));
+        setError(formatApiError(errorBody, response.status));
         return;
       }
       setPreview((await response.json()) as CardReissuePreview);
@@ -173,8 +237,6 @@ export default function CardReissueForm({
     }, 50);
   }
 
-  const activeNumericId = resolveStudentId(searchInput);
-
   return (
     <section style={{ display: 'flex', flexDirection: 'column', gap: '1.05rem' }}>
       {/* Top Search & Quick Select Card */}
@@ -249,52 +311,183 @@ export default function CardReissueForm({
           </div>
         )}
 
-        {/* Search Bar */}
+        {/* Search Bar with Live Autocomplete Dropdown */}
         <form
           onSubmit={lookupStudent}
           style={{
             display: 'flex',
             alignItems: 'center',
             gap: '0.75rem',
-            marginBottom: '0.85rem',
+            marginBottom: '0.75rem',
           }}
         >
-          <div
-            style={{
-              flex: 1,
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.6rem',
-              background: '#f8fafc',
-              border: '1px solid #e2e8f0',
-              borderRadius: '11px',
-              padding: '0.58rem 0.95rem',
-            }}
-          >
-            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#64748b" strokeWidth="2">
-              <circle cx="11" cy="11" r="8" />
-              <path d="m21 21-4.3-4.3" />
-            </svg>
-            <input
-              id="studentId"
-              value={searchInput}
-              onChange={(event) => setSearchInput(event.target.value)}
-              placeholder="ค้นหาด้วย รหัสนักเรียน, ชื่อ-นามสกุล หรือเลขบัตร RFID..."
+          <div ref={searchWrapperRef} style={{ flex: 1, position: 'relative' }}>
+            <div
               style={{
-                border: 'none',
-                outline: 'none',
-                background: 'transparent',
-                fontSize: '0.88rem',
-                color: '#0f172a',
-                width: '100%',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.6rem',
+                background: '#f8fafc',
+                border: searchDropdownOpen ? '1px solid #3b82f6' : '1px solid #e2e8f0',
+                borderRadius: '11px',
+                padding: '0.58rem 0.95rem',
+                boxShadow: searchDropdownOpen ? '0 0 0 3px rgba(59, 130, 246, 0.12)' : 'none',
+                transition: 'all 0.15s ease',
               }}
-              required
-            />
+            >
+              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#64748b" strokeWidth="2">
+                <circle cx="11" cy="11" r="8" />
+                <path d="m21 21-4.3-4.3" />
+              </svg>
+              <input
+                id="studentId"
+                autoComplete="off"
+                value={searchInput}
+                onFocus={() => {
+                  setSearchDropdownOpen(true);
+                  setHighlightedIndex(0);
+                }}
+                onChange={(event) => {
+                  setSearchInput(event.target.value);
+                  setSearchDropdownOpen(true);
+                  setHighlightedIndex(0);
+                }}
+                onKeyDown={(event) => {
+                  if (!searchDropdownOpen || matchingStudents.length === 0) {
+                    return;
+                  }
+                  if (event.key === 'ArrowDown') {
+                    event.preventDefault();
+                    setHighlightedIndex((prev) => (prev + 1) % matchingStudents.length);
+                  } else if (event.key === 'ArrowUp') {
+                    event.preventDefault();
+                    setHighlightedIndex(
+                      (prev) => (prev - 1 + matchingStudents.length) % matchingStudents.length,
+                    );
+                  } else if (event.key === 'Enter') {
+                    event.preventDefault();
+                    const picked = matchingStudents[highlightedIndex];
+                    if (picked) {
+                      setSearchInput(picked.id);
+                      setSearchDropdownOpen(false);
+                      void fetchPreviewById(picked.id);
+                    }
+                  } else if (event.key === 'Escape') {
+                    setSearchDropdownOpen(false);
+                  }
+                }}
+                placeholder="ค้นหาด้วย รหัสนักเรียน, ชื่อ-นามสกุล หรือเลขบัตร RFID..."
+                style={{
+                  border: 'none',
+                  outline: 'none',
+                  background: 'transparent',
+                  fontSize: '0.88rem',
+                  color: '#0f172a',
+                  width: '100%',
+                }}
+                required
+              />
+            </div>
+
+            {searchDropdownOpen && (
+              <div
+                style={{
+                  position: 'absolute',
+                  top: 'calc(100% + 6px)',
+                  left: 0,
+                  right: 0,
+                  background: '#ffffff',
+                  border: '1px solid #cbd5e1',
+                  borderRadius: '12px',
+                  boxShadow: '0 14px 30px rgba(15, 23, 42, 0.14)',
+                  zIndex: 40,
+                  overflow: 'hidden',
+                }}
+              >
+                <div
+                  style={{
+                    padding: '0.55rem 0.9rem 0.45rem',
+                    fontSize: '0.78rem',
+                    fontWeight: 600,
+                    color: '#475569',
+                    borderBottom: '1px solid #f1f5f9',
+                    background: '#ffffff',
+                  }}
+                >
+                  ผลลัพธ์ที่ค้นพบ ({matchingStudents.length} รายการ):
+                </div>
+
+                <div style={{ maxHeight: '220px', overflowY: 'auto' }}>
+                  {matchingStudents.length === 0 ? (
+                    <div style={{ padding: '0.85rem 1rem', fontSize: '0.84rem', color: '#64748b' }}>
+                      ไม่พบนักเรียนในรายการตัวอย่าง — กดปุ่ม &ldquo;ค้นหา&rdquo; เพื่อค้นหา ID จากฐานข้อมูล
+                    </div>
+                  ) : (
+                    matchingStudents.map((s, idx) => {
+                      const isHighlighted = idx === highlightedIndex;
+                      return (
+                        <button
+                          key={s.id}
+                          type="button"
+                          onMouseEnter={() => setHighlightedIndex(idx)}
+                          onClick={() => {
+                            setSearchInput(s.id);
+                            setSearchDropdownOpen(false);
+                            void fetchPreviewById(s.id);
+                          }}
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '0.6rem',
+                            width: '100%',
+                            padding: '0.58rem 0.95rem',
+                            border: 'none',
+                            borderBottom: '1px solid #f8fafc',
+                            background: isHighlighted ? '#e0edff' : '#ffffff',
+                            color: '#0f172a',
+                            fontSize: '0.86rem',
+                            textAlign: 'left',
+                            cursor: 'pointer',
+                            transition: 'background 0.1s ease',
+                          }}
+                        >
+                          <svg
+                            width="16"
+                            height="16"
+                            viewBox="0 0 24 24"
+                            fill={isHighlighted ? '#2563eb' : '#64748b'}
+                            style={{ flexShrink: 0 }}
+                          >
+                            <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z" />
+                          </svg>
+                          <span style={{ fontWeight: isHighlighted ? 600 : 500 }}>
+                            ID: {s.id} - {s.name}
+                          </span>
+                          <span
+                            style={{
+                              padding: '0.12rem 0.55rem',
+                              borderRadius: '9999px',
+                              fontSize: '0.74rem',
+                              fontWeight: 700,
+                              background: s.balanceNum > 0 ? '#0e7490' : '#cbd5e1',
+                              color: s.balanceNum > 0 ? '#ffffff' : '#475569',
+                            }}
+                          >
+                            ฿{s.bal}
+                          </span>
+                        </button>
+                      );
+                    })
+                  )}
+                </div>
+              </div>
+            )}
           </div>
 
           <button
             type="submit"
             disabled={busy}
+            onClick={() => setSearchDropdownOpen(false)}
             style={{
               display: 'inline-flex',
               alignItems: 'center',
@@ -319,59 +512,8 @@ export default function CardReissueForm({
           </button>
         </form>
 
-        {/* Quick Select Student Chips */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.55rem', flexWrap: 'wrap' }}>
-          <span
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '0.35rem',
-              fontSize: '0.82rem',
-              color: '#475569',
-              fontWeight: 600,
-              marginRight: '0.2rem',
-            }}
-          >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3" />
-            </svg>
-            เลือกนักเรียน :
-          </span>
-
-          {QUICK_STUDENTS.map((s) => {
-            const isSelected = activeNumericId === s.id || preview?.studentId === Number(s.id);
-            return (
-              <button
-                key={s.id}
-                type="button"
-                onClick={() => {
-                  setSearchInput(s.id);
-                  void fetchPreviewById(s.id);
-                }}
-                style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '0.35rem',
-                  padding: '0.35rem 0.78rem',
-                  borderRadius: '9999px',
-                  border: isSelected ? '1px solid #3b82f6' : '1px solid #e2e8f0',
-                  background: isSelected ? '#eff6ff' : '#f8fafc',
-                  color: isSelected ? '#1d4ed8' : '#334155',
-                  fontSize: '0.78rem',
-                  fontWeight: isSelected ? 700 : 500,
-                  cursor: 'pointer',
-                  transition: 'all 0.15s ease',
-                }}
-              >
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" style={{ opacity: 0.75 }}>
-                  <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z" />
-                </svg>
-                <span>
-                  ID: <strong>{s.id}</strong> ({s.name} - {s.bal})
-                </span>
-              </button>
-            );
-          })}
+        <div style={{ fontSize: '0.78rem', color: '#475569' }}>
+          พิมพ์รหัส ID, ชื่อ หรือแตะบัตรเพื่อค้นหาด่วน
         </div>
       </div>
 
@@ -427,7 +569,10 @@ export default function CardReissueForm({
       )}
 
       {/* Student Profile & Card Details Card */}
-      {preview && (
+      {preview && (() => {
+        const statusMeta = getCardStatusMeta(preview.oldCardStatus);
+        const canReissue = preview.oldCardStatus === 'active' || preview.oldCardStatus === 'lost';
+        return (
         <div
           style={{
             background: '#ffffff',
@@ -496,12 +641,9 @@ export default function CardReissueForm({
                       display: 'inline-flex',
                       alignItems: 'center',
                       gap: '0.35rem',
-                      background: preview.oldCardStatus === 'active' ? '#ecfdf5' : '#fef3c7',
-                      color: preview.oldCardStatus === 'active' ? '#047857' : '#b45309',
-                      border:
-                        preview.oldCardStatus === 'active'
-                          ? '1px solid #bbf7d0'
-                          : '1px solid #fde68a',
+                      background: statusMeta.pillBg,
+                      color: statusMeta.pillColor,
+                      border: `1px solid ${statusMeta.pillBorder}`,
                       borderRadius: '9999px',
                       padding: '0.15rem 0.65rem',
                       fontSize: '0.74rem',
@@ -513,10 +655,10 @@ export default function CardReissueForm({
                         width: '7px',
                         height: '7px',
                         borderRadius: '9999px',
-                        background: preview.oldCardStatus === 'active' ? '#16a34a' : '#f59e0b',
+                        background: statusMeta.dotColor,
                       }}
                     />
-                    {preview.oldCardStatus === 'active' ? 'ใช้งานได้ปกติ' : 'แจ้งบัตรหาย (Lost)'}
+                    {statusMeta.badgeLabel}
                   </span>
                 </div>
 
@@ -664,8 +806,8 @@ export default function CardReissueForm({
                         display: 'inline-flex',
                         alignItems: 'center',
                         gap: '0.35rem',
-                        background: preview.oldCardStatus === 'active' ? '#ecfdf5' : '#fef3c7',
-                        color: preview.oldCardStatus === 'active' ? '#047857' : '#b45309',
+                        background: statusMeta.pillBg,
+                        color: statusMeta.pillColor,
                         padding: '0.12rem 0.55rem',
                         borderRadius: '9999px',
                         fontSize: '0.78rem',
@@ -677,10 +819,10 @@ export default function CardReissueForm({
                           width: '7px',
                           height: '7px',
                           borderRadius: '9999px',
-                          background: preview.oldCardStatus === 'active' ? '#16a34a' : '#f59e0b',
+                          background: statusMeta.dotColor,
                         }}
                       />
-                      {preview.oldCardStatus === 'active' ? 'ใช้งานได้ปกติ' : 'แจ้งหาย (Lost)'}
+                      {statusMeta.badgeLabel}
                     </span>
                   }
                 />
@@ -697,8 +839,8 @@ export default function CardReissueForm({
             {/* Right Card Illustration Box */}
             <div
               style={{
-                background: '#f8fafc',
-                border: '1px solid #e2e8f0',
+                background: statusMeta.boxBg,
+                border: `1px solid ${statusMeta.boxBorder}`,
                 borderRadius: '14px',
                 padding: '1.2rem 1rem',
                 textAlign: 'center',
@@ -707,41 +849,33 @@ export default function CardReissueForm({
               <div style={{ display: 'inline-flex', justifyContent: 'center', marginBottom: '0.45rem' }}>
                 <svg width="96" height="72" viewBox="0 0 110 80" fill="none">
                   <g transform="rotate(-12 52 40)">
-                    <rect x="14" y="16" width="76" height="48" rx="8" fill="url(#rfidCardGrad)" />
-                    <rect x="22" y="26" width="16" height="12" rx="2.5" fill="#93c5fd" />
+                    <rect x="14" y="16" width="76" height="48" rx="8" fill={statusMeta.cardFill} />
+                    <rect x="22" y="26" width="16" height="12" rx="2.5" fill={statusMeta.chipFill} />
                     <path d="M52 28c4 4 4 12 0 16" stroke="#ffffff" strokeWidth="2.4" strokeLinecap="round" />
                     <path d="M58 24c6 6 6 18 0 24" stroke="#ffffff" strokeWidth="2.4" strokeLinecap="round" opacity="0.8" />
                     <path d="M64 20c8 8 8 24 0 32" stroke="#ffffff" strokeWidth="2.4" strokeLinecap="round" opacity="0.55" />
                   </g>
-                  <circle cx="84" cy="54" r="13" fill={preview.oldCardStatus === 'active' ? '#22c55e' : '#f59e0b'} stroke="#ffffff" strokeWidth="2.5" />
+                  <circle cx="84" cy="54" r="13" fill={statusMeta.circleColor} stroke="#ffffff" strokeWidth="2.5" />
                   <path
-                    d={preview.oldCardStatus === 'active' ? 'M78.5 54.5l3.8 3.8 7.2-7.8' : 'M84 48v7M84 59v1'}
+                    d={statusMeta.iconPath}
                     stroke="#ffffff"
                     strokeWidth="2.4"
                     strokeLinecap="round"
                     strokeLinejoin="round"
                   />
-                  <defs>
-                    <linearGradient id="rfidCardGrad" x1="14" y1="16" x2="90" y2="64" gradientUnits="userSpaceOnUse">
-                      <stop stopColor="#3b82f6" />
-                      <stop offset="1" stopColor="#1d4ed8" />
-                    </linearGradient>
-                  </defs>
                 </svg>
               </div>
               <div style={{ fontSize: '0.96rem', fontWeight: 700, color: '#0f172a' }}>
-                {preview.oldCardStatus === 'active' ? 'บัตรพร้อมใช้งาน' : 'บัตรถูกแจ้งหาย'}
+                {statusMeta.cardTitle}
               </div>
               <div style={{ fontSize: '0.78rem', color: '#64748b', marginTop: '0.15rem' }}>
-                {preview.oldCardStatus === 'active'
-                  ? 'สามารถใช้งานและออกบัตรใหม่ทดแทนได้'
-                  : 'พร้อมดำเนินการออกบัตรใบใหม่ทดแทน'}
+                {statusMeta.cardSubtitle}
               </div>
             </div>
           </div>
 
           {/* Expandable New RFID Scan Form */}
-          {reissueOpen && (
+          {reissueOpen && canReissue && (
             <form
               onSubmit={reissueCard}
               style={{
@@ -833,7 +967,8 @@ export default function CardReissueForm({
             </form>
           )}
         </div>
-      )}
+        );
+      })()}
 
       {/* Bottom Action Footer Bar */}
       <div
@@ -879,6 +1014,12 @@ export default function CardReissueForm({
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', flexWrap: 'wrap' }}>
             <button
               type="button"
+              disabled={preview.oldCardStatus !== 'active' && preview.oldCardStatus !== 'lost'}
+              title={
+                preview.oldCardStatus === 'active' || preview.oldCardStatus === 'lost'
+                  ? 'ออกบัตรใบใหม่ทดแทน'
+                  : 'ต้องเป็นบัตรสถานะ active หรือ lost จึงจะออกบัตรทดแทนได้'
+              }
               onClick={handleOpenReissuePanel}
               style={{
                 display: 'inline-flex',
@@ -886,12 +1027,24 @@ export default function CardReissueForm({
                 gap: '0.4rem',
                 padding: '0.55rem 1.05rem',
                 borderRadius: '10px',
-                border: '1px solid #bfdbfe',
-                background: '#eff6ff',
-                color: '#1d4ed8',
+                border:
+                  preview.oldCardStatus === 'active' || preview.oldCardStatus === 'lost'
+                    ? '1px solid #bfdbfe'
+                    : '1px solid #e2e8f0',
+                background:
+                  preview.oldCardStatus === 'active' || preview.oldCardStatus === 'lost'
+                    ? '#eff6ff'
+                    : '#f1f5f9',
+                color:
+                  preview.oldCardStatus === 'active' || preview.oldCardStatus === 'lost'
+                    ? '#1d4ed8'
+                    : '#94a3b8',
                 fontSize: '0.85rem',
                 fontWeight: 700,
-                cursor: 'pointer',
+                cursor:
+                  preview.oldCardStatus === 'active' || preview.oldCardStatus === 'lost'
+                    ? 'pointer'
+                    : 'not-allowed',
               }}
             >
               <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor">
@@ -937,9 +1090,9 @@ export default function CardReissueForm({
                 gap: '0.4rem',
                 padding: '0.55rem 1.05rem',
                 borderRadius: '10px',
-                border: '1px solid #fecaca',
-                background: '#fee2e2',
-                color: '#b91c1c',
+                border: preview.oldCardStatus === 'suspended' ? '1px solid #a7f3d0' : '1px solid #fecaca',
+                background: preview.oldCardStatus === 'suspended' ? '#ecfdf5' : '#fee2e2',
+                color: preview.oldCardStatus === 'suspended' ? '#047857' : '#b91c1c',
                 fontSize: '0.85rem',
                 fontWeight: 700,
                 cursor: 'pointer',
@@ -948,13 +1101,82 @@ export default function CardReissueForm({
               <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor">
                 <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 14H9V8h2v8zm4 0h-2V8h2v8z" />
               </svg>
-              <span>ระงับบัตร</span>
+              <span>{preview.oldCardStatus === 'suspended' ? 'ปลดระงับบัตร' : 'ระงับบัตร'}</span>
             </button>
           </div>
         )}
       </div>
     </section>
   );
+}
+
+function getCardStatusMeta(status: CardReissuePreview['oldCardStatus']) {
+  switch (status) {
+    case 'active':
+      return {
+        badgeLabel: 'ใช้งานได้ปกติ',
+        pillBg: '#ecfdf5',
+        pillColor: '#047857',
+        pillBorder: '#bbf7d0',
+        dotColor: '#16a34a',
+        boxBg: '#f8fafc',
+        boxBorder: '#e2e8f0',
+        cardFill: '#2563eb',
+        chipFill: '#93c5fd',
+        circleColor: '#22c55e',
+        iconPath: 'M78.5 54.5l3.8 3.8 7.2-7.8',
+        cardTitle: 'บัตรพร้อมใช้งาน',
+        cardSubtitle: 'สามารถใช้งานและออกบัตรใหม่ทดแทนได้',
+      };
+    case 'lost':
+      return {
+        badgeLabel: 'แจ้งบัตรหาย (Lost)',
+        pillBg: '#fef3c7',
+        pillColor: '#b45309',
+        pillBorder: '#fde68a',
+        dotColor: '#f59e0b',
+        boxBg: '#fffbeb',
+        boxBorder: '#fde68a',
+        cardFill: '#2563eb',
+        chipFill: '#93c5fd',
+        circleColor: '#f59e0b',
+        iconPath: 'M84 48v7M84 59v1',
+        cardTitle: 'บัตรถูกแจ้งหาย',
+        cardSubtitle: 'พร้อมดำเนินการออกบัตรใบใหม่ทดแทน',
+      };
+    case 'suspended':
+      return {
+        badgeLabel: 'ถูกระงับชั่วคราว (Suspended)',
+        pillBg: '#fff7ed',
+        pillColor: '#c2410c',
+        pillBorder: '#fed7aa',
+        dotColor: '#ea580c',
+        boxBg: '#fff7ed',
+        boxBorder: '#fed7aa',
+        cardFill: '#d97706',
+        chipFill: '#fde68a',
+        circleColor: '#ea580c',
+        iconPath: 'M81.5 48v11M86.5 48v11',
+        cardTitle: 'บัตรถูกระงับชั่วคราว',
+        cardSubtitle: 'ไม่สามารถออกบัตรใหม่ได้ กรุณาปลดระงับบัตรก่อน',
+      };
+    case 'deactivated':
+      return {
+        badgeLabel: 'ปิดใช้งานถาวร (Deactivated)',
+        pillBg: '#f1f5f9',
+        pillColor: '#475569',
+        pillBorder: '#cbd5e1',
+        dotColor: '#64748b',
+        boxBg: '#f8fafc',
+        boxBorder: '#cbd5e1',
+        cardFill: '#64748b',
+        chipFill: '#cbd5e1',
+        circleColor: '#64748b',
+        iconPath: 'M80 50l8 8M88 50l-8 8',
+        cardTitle: 'บัตรถูกปิดใช้งานถาวร',
+        cardSubtitle: 'ไม่สามารถใช้งานหรือออกบัตรทดแทนได้',
+      };
+  }
 }
 
 function InfoRow({ label, value }: { label: string; value: React.ReactNode }) {
@@ -967,28 +1189,38 @@ function InfoRow({ label, value }: { label: string; value: React.ReactNode }) {
   );
 }
 
-async function getErrorMessage(response: Response): Promise<string> {
+async function tryParseApiError(response: Response): Promise<ApiError | null> {
   try {
-    const error = (await response.json()) as ApiError;
-    switch (error.code) {
-      case 'STUDENT_NOT_FOUND':
-        return 'ไม่พบนักเรียน';
-      case 'CARD_ALREADY_BOUND':
-        return 'RFID UID นี้เคยลงทะเบียนแล้ว';
-      case 'ACTIVE_CARD_CONFLICT':
-        return 'ข้อมูลบัตรเปลี่ยนแปลง กรุณาค้นหานักเรียนใหม่';
-      case 'CARD_NOT_REPLACEABLE':
-        return 'ไม่พบบัตร active/lost ที่เปลี่ยนได้';
-      case 'AUTHENTICATION_REQUIRED':
-      case 'SESSION_EXPIRED':
-        window.location.assign('/admin/auth/oidc/start');
-        return 'กรุณาเข้าสู่ระบบใหม่';
-      case 'STAFF_ACCESS_REQUIRED':
-        return 'บัญชีนี้ไม่มีสิทธิ์ Staff';
-      default:
-        return error.message || 'คำขอไม่สำเร็จ กรุณาลองอีกครั้ง';
-    }
+    return (await response.json()) as ApiError;
   } catch {
-    return `คำขอไม่สำเร็จ (HTTP ${response.status})`;
+    return null;
   }
+}
+
+function formatApiError(error: ApiError | null, status: number): string {
+  if (!error) {
+    return `คำขอไม่สำเร็จ (HTTP ${status})`;
+  }
+  switch (error.code) {
+    case 'STUDENT_NOT_FOUND':
+      return 'ไม่พบนักเรียน';
+    case 'CARD_ALREADY_BOUND':
+      return 'RFID UID นี้เคยลงทะเบียนแล้ว';
+    case 'ACTIVE_CARD_CONFLICT':
+      return 'ข้อมูลบัตรเปลี่ยนแปลง กรุณาค้นหานักเรียนใหม่';
+    case 'CARD_NOT_REPLACEABLE':
+      return 'ไม่พบบัตร active/lost ที่เปลี่ยนได้';
+    case 'AUTHENTICATION_REQUIRED':
+    case 'SESSION_EXPIRED':
+      window.location.assign('/admin/auth/oidc/start');
+      return 'กรุณาเข้าสู่ระบบใหม่';
+    case 'STAFF_ACCESS_REQUIRED':
+      return 'บัญชีนี้ไม่มีสิทธิ์ Staff';
+    default:
+      return error.message || 'คำขอไม่สำเร็จ กรุณาลองอีกครั้ง';
+  }
+}
+
+async function getErrorMessage(response: Response): Promise<string> {
+  return formatApiError(await tryParseApiError(response), response.status);
 }

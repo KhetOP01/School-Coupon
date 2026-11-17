@@ -1,6 +1,6 @@
 'use client';
 
-import { FormEvent, useState } from 'react';
+import { FormEvent, useMemo, useState } from 'react';
 
 interface CardResult {
   cardId: number;
@@ -19,16 +19,43 @@ interface ApiError {
   message: string;
 }
 
-const QUICK_CARDS = [
-  { id: '201', desc: 'Card #201 (Active - ลองกดระงับ)' },
-  { id: '202', desc: 'Card #202 (Active - ลองกดระงับ)' },
-  { id: '204', desc: 'Card #204 (Suspended - ลองกดปลดระงับ)' },
+interface CardItem {
+  id: string;
+  rfidUid: string;
+  studentName: string;
+  status: 'active' | 'suspended' | 'deactivated';
+  hint?: string;
+}
+
+interface RefundStudentItem {
+  id: string;
+  shortName: string;
+  fullName: string;
+  balance: string;
+}
+
+const INITIAL_CARDS: CardItem[] = [
+  { id: '101', rfidUid: 'UC01-AC11-OLD', studentName: 'Mali Seed', status: 'active' },
+  { id: '102', rfidUid: 'UC01-AC12-BOUND', studentName: 'Niran Seed', status: 'active' },
+  { id: '106', rfidUid: 'UC01-AC16-ACTIVE', studentName: 'Suda Seed', status: 'active' },
+  { id: '107', rfidUid: 'UC01-AC17-RETIRED', studentName: 'Anan Seed', status: 'deactivated' },
+  { id: '201', rfidUid: 'UC02-AC21A-CARD', studentName: 'Kanya ParentFreeze', status: 'active', hint: '(ลองกดระงับ)' },
+  { id: '202', rfidUid: 'UC02-AC21B-CARD', studentName: 'Chai StaffSuspend', status: 'active' },
+  { id: '203', rfidUid: 'UC02-AC22-CARD', studentName: 'Somchai DepartureRefund', status: 'active' },
+  { id: '204', rfidUid: 'UC02-AC23-CARD', studentName: 'Wichai Unfreeze', status: 'suspended' },
+  { id: '207', rfidUid: 'UC02-AC27-CARD', studentName: 'Sunan ZeroBalance', status: 'active' },
 ];
 
-const QUICK_REFUND_STUDENTS = [
-  { id: '203', desc: 'Student #203 (Somchai • ยอด ฿250.00)' },
-  { id: '207', desc: 'Student #207 (Sunan • ยอด ฿0.00)' },
-  { id: '101', desc: 'Student #101 (Mali • ยอด ฿65.00)' },
+const INITIAL_REFUND_STUDENTS: RefundStudentItem[] = [
+  { id: '101', shortName: 'Mali', fullName: 'Mali Seed', balance: '65.00' },
+  { id: '102', shortName: 'Niran', fullName: 'Niran Seed', balance: '0.00' },
+  { id: '106', shortName: 'Suda', fullName: 'Suda Seed', balance: '20.00' },
+  { id: '107', shortName: 'Anan', fullName: 'Anan Seed', balance: '10.00' },
+  { id: '201', shortName: 'Kanya', fullName: 'Kanya ParentFreeze', balance: '50.00' },
+  { id: '202', shortName: 'Chai', fullName: 'Chai StaffSuspend', balance: '40.00' },
+  { id: '203', shortName: 'Somchai', fullName: 'Somchai DepartureRefund', balance: '250.00' },
+  { id: '204', shortName: 'Wichai', fullName: 'Wichai Unfreeze', balance: '30.00' },
+  { id: '207', shortName: 'Sunan', fullName: 'Sunan ZeroBalance', balance: '0.00' },
 ];
 
 export default function CardManagementForm({
@@ -38,12 +65,47 @@ export default function CardManagementForm({
   initialCardId?: number;
   initialStudentId?: number;
 }) {
-  const [cardId, setCardId] = useState(initialCardId ? String(initialCardId) : '201');
+  const [cards, setCards] = useState<CardItem[]>(INITIAL_CARDS);
+  const [refundStudents, setRefundStudents] = useState<RefundStudentItem[]>(INITIAL_REFUND_STUDENTS);
+  const [cardId, setCardId] = useState(initialCardId ? String(initialCardId) : '');
+  const [cardFilter, setCardFilter] = useState('');
   const [studentId, setStudentId] = useState(initialStudentId ? String(initialStudentId) : '');
-  const [copiedCardId, setCopiedCardId] = useState(false);
+  const [studentFilter, setStudentFilter] = useState('');
   const [busy, setBusy] = useState(false);
   const [cardMessage, setCardMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [refundMessage, setRefundMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+
+  const filteredCards = useMemo(() => {
+    const query = cardFilter.trim().toLowerCase();
+    if (!query) {
+      return cards;
+    }
+    if (/^\d+$/.test(query)) {
+      return cards.filter((c) => c.id.startsWith(query));
+    }
+    return cards.filter(
+      (c) =>
+        c.id.startsWith(query) ||
+        c.rfidUid.toLowerCase().includes(query) ||
+        c.studentName.toLowerCase().includes(query),
+    );
+  }, [cards, cardFilter]);
+
+  const filteredRefundStudents = useMemo(() => {
+    const query = studentFilter.trim().toLowerCase();
+    if (!query) {
+      return refundStudents;
+    }
+    if (/^\d+$/.test(query)) {
+      return refundStudents.filter((s) => s.id.startsWith(query));
+    }
+    return refundStudents.filter(
+      (s) =>
+        s.id.startsWith(query) ||
+        s.shortName.toLowerCase().includes(query) ||
+        s.fullName.toLowerCase().includes(query),
+    );
+  }, [refundStudents, studentFilter]);
 
   async function handleFreeze(action: 'freeze' | 'unfreeze') {
     if (!/^[1-9]\d*$/.test(cardId.trim())) {
@@ -62,6 +124,10 @@ export default function CardManagementForm({
         return;
       }
       const data = (await response.json()) as CardResult;
+      const nextStatus = action === 'freeze' ? 'suspended' : 'active';
+      setCards((prev) =>
+        prev.map((c) => (c.id === String(data.cardId) ? { ...c, status: nextStatus } : c)),
+      );
       const actionText = action === 'freeze' ? 'ระงับบัตรชั่วคราว (Suspended)' : 'ปลดการระงับบัตร (Active)';
       setCardMessage({
         type: 'success',
@@ -74,22 +140,36 @@ export default function CardManagementForm({
     }
   }
 
+  function resolveRefundStudentId(rawValue: string): string {
+    const trimmed = rawValue.trim();
+    if (/^[1-9]\d*$/.test(trimmed)) {
+      return trimmed;
+    }
+    const lower = trimmed.toLowerCase();
+    const matched = refundStudents.find(
+      (s) =>
+        s.shortName.toLowerCase() === lower ||
+        s.fullName.toLowerCase().includes(lower),
+    );
+    return matched ? matched.id : trimmed;
+  }
+
   async function handleRefund(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    const trimmedStudentId = studentId.trim();
-    if (!/^[1-9]\d*$/.test(trimmedStudentId)) {
+    const resolvedStudentId = resolveRefundStudentId(studentId);
+    if (!/^[1-9]\d*$/.test(resolvedStudentId)) {
       setRefundMessage({ type: 'error', text: 'กรุณาระบุ Student ID เป็นตัวเลขจำนวนเต็มบวก' });
       return;
     }
 
-    if (!confirm(`คุณต้องการยืนยันการคืนเงินทั้งหมดและปิดบัตรนักเรียนรหัส ${trimmedStudentId} ถาวรหรือไม่?`)) {
+    if (!confirm(`คุณต้องการยืนยันการคืนเงินทั้งหมดและปิดบัตรนักเรียนรหัส ${resolvedStudentId} ถาวรหรือไม่?`)) {
       return;
     }
 
     setBusy(true);
     setRefundMessage(null);
     try {
-      const response = await fetch(`/admin/students/${encodeURIComponent(trimmedStudentId)}/refund`, {
+      const response = await fetch(`/admin/students/${encodeURIComponent(resolvedStudentId)}/refund`, {
         method: 'POST',
       });
       if (!response.ok) {
@@ -97,6 +177,12 @@ export default function CardManagementForm({
         return;
       }
       const data = (await response.json()) as RefundResult;
+      setRefundStudents((prev) =>
+        prev.map((s) => (s.id === String(data.studentId) ? { ...s, balance: '0.00' } : s)),
+      );
+      setCards((prev) =>
+        prev.map((c) => (c.id === String(data.studentId) ? { ...c, status: 'deactivated' } : c)),
+      );
       setRefundMessage({
         type: 'success',
         text: `คืนเงินสำเร็จ: ยอดเงินที่คืน ฿${data.refundedAmount} บาท, ยอดคงเหลือใน Wallet กลายเป็น ฿0.00 บาท, สถานะบัตรเปลี่ยนเป็น ${data.cardStatus}`,
@@ -105,19 +191,6 @@ export default function CardManagementForm({
       setRefundMessage({ type: 'error', text: 'ไม่สามารถเชื่อมต่อระบบได้ กรุณาลองอีกครั้ง' });
     } finally {
       setBusy(false);
-    }
-  }
-
-  async function copyCardId() {
-    if (!cardId.trim()) {
-      return;
-    }
-    try {
-      await navigator.clipboard.writeText(cardId.trim());
-      setCopiedCardId(true);
-      setTimeout(() => setCopiedCardId(false), 1800);
-    } catch {
-      // Clipboard API may be unavailable in restricted contexts
     }
   }
 
@@ -201,7 +274,7 @@ export default function CardManagementForm({
             border: '1px solid #e2e8f0',
             borderRadius: '16px',
             padding: '1.35rem',
-            background: 'linear-gradient(155deg, #ffffff 60%, #edf4ff 100%)',
+            background: '#ffffff',
             boxShadow: '0 6px 24px rgba(15, 23, 42, 0.05)',
             display: 'flex',
             flexDirection: 'column',
@@ -209,7 +282,7 @@ export default function CardManagementForm({
             gap: '1rem',
           }}
         >
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.95rem' }}>
             {/* Card Header */}
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem' }}>
               <div
@@ -226,170 +299,154 @@ export default function CardManagementForm({
                   flexShrink: 0,
                 }}
               >
-                <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor">
+                <svg width="21" height="21" viewBox="0 0 24 24" fill="currentColor">
                   <path d="M20 4H4c-1.11 0-2 .89-2 2v12c0 1.11.89 2 2 2h16c1.11 0 2-.89 2-2V6c0-1.1-.89-2-2-2zm0 14H4v-6h16v6zm0-10H4V6h16v2z" />
                 </svg>
               </div>
               <div>
-                <h3 style={{ fontSize: '1.08rem', fontWeight: 700, margin: 0, color: '#0f172a' }}>
+                <h3 style={{ fontSize: '1.05rem', fontWeight: 700, margin: 0, color: '#0f172a' }}>
                   ระงับ / ปลดระงับบัตรชั่วคราว (UC-02)
                 </h3>
-                <p style={{ color: '#64748b', fontSize: '0.81rem', margin: '0.18rem 0 0 0' }}>
+                <p style={{ color: '#64748b', fontSize: '0.8rem', margin: '0.18rem 0 0 0' }}>
                   ใช้เมื่อผู้ปกครองแจ้งขอระงับบัตร หรือพบว่านักเรียนลืมบัตรไว้
                 </p>
               </div>
             </div>
 
-            {/* Selection Box */}
-            <div
-              style={{
-                background: '#f3f7fd',
-                padding: '0.85rem 0.95rem',
-                borderRadius: '12px',
-                border: '1px solid #e2e8f0',
-              }}
-            >
-              <div
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '0.45rem',
-                  fontSize: '0.82rem',
-                  fontWeight: 700,
-                  color: '#1e293b',
-                  marginBottom: '0.6rem',
-                }}
-              >
-                <span
-                  style={{
-                    width: '16px',
-                    height: '16px',
-                    borderRadius: '9999px',
-                    background: '#2563eb',
-                    color: '#ffffff',
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    fontSize: '0.65rem',
-                    fontWeight: 700,
-                  }}
-                >
-                  i
-                </span>
-                <span>ตัวเลือกการดำเนินการ (บัตรตัวอย่าง)</span>
-              </div>
-
-              <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-                {QUICK_CARDS.map((c) => {
-                  const selected = cardId.trim() === c.id;
-                  return (
-                    <button
-                      key={c.id}
-                      type="button"
-                      onClick={() => {
-                        setCardId(c.id);
-                        setCardMessage(null);
-                      }}
-                      style={{
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        gap: '0.4rem',
-                        background: selected ? '#eff6ff' : '#ffffff',
-                        border: `1.5px solid ${selected ? '#3b82f6' : '#cbd5e1'}`,
-                        padding: '0.42rem 0.72rem',
-                        borderRadius: '9px',
-                        fontSize: '0.78rem',
-                        cursor: 'pointer',
-                        color: selected ? '#1d4ed8' : '#334155',
-                        fontWeight: selected ? 700 : 500,
-                        boxShadow: selected ? '0 2px 8px rgba(37, 99, 235, 0.12)' : 'none',
-                      }}
-                    >
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" style={{ opacity: 0.8 }}>
-                        <path d="M20 4H4c-1.11 0-2 .89-2 2v12c0 1.11.89 2 2 2h16c1.11 0 2-.89 2-2V6c0-1.1-.89-2-2-2zm0 14H4v-6h16v6zm0-10H4V6h16v2z" />
-                      </svg>
-                      <span>{c.desc}</span>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-
-            {/* Card ID Input */}
+            {/* Search Card ID Input */}
             <div>
               <label
                 htmlFor="freeze-card-id"
                 style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '0.45rem',
+                  display: 'block',
                   fontWeight: 700,
                   fontSize: '0.86rem',
                   color: '#0f172a',
-                  marginBottom: '0.45rem',
+                  marginBottom: '0.4rem',
                 }}
               >
-                <span
-                  style={{
-                    width: '18px',
-                    height: '18px',
-                    borderRadius: '9999px',
-                    background: '#2563eb',
-                    color: '#ffffff',
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    fontSize: '0.68rem',
-                  }}
-                >
-                  🪪
-                </span>
-                <span>Card ID (รหัสบัตรในระบบ)</span>
+                ค้นหารหัสบัตร (Card ID)
               </label>
 
               <div
                 style={{
                   display: 'flex',
                   alignItems: 'center',
-                  background: '#f8fafc',
+                  background: '#ffffff',
                   border: '1px solid #cbd5e1',
                   borderRadius: '10px',
-                  overflow: 'hidden',
+                  paddingLeft: '0.8rem',
                 }}
               >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#64748b" strokeWidth="2">
+                  <circle cx="11" cy="11" r="8" />
+                  <path d="m21 21-4.3-4.3" />
+                </svg>
                 <input
                   id="freeze-card-id"
                   type="text"
                   value={cardId}
-                  onChange={(e) => setCardId(e.target.value)}
-                  placeholder="เช่น 201, 202, 204"
+                  onChange={(e) => {
+                    setCardId(e.target.value);
+                    setCardFilter(e.target.value);
+                  }}
+                  placeholder="กรอกรหัสบัตร เช่น 201, 202, 204"
                   style={{
                     flex: 1,
-                    padding: '0.62rem 0.85rem',
+                    padding: '0.6rem 0.7rem',
                     border: 'none',
                     outline: 'none',
                     background: 'transparent',
-                    fontSize: '0.92rem',
-                    fontWeight: 600,
+                    fontSize: '0.9rem',
+                    fontWeight: 500,
                     color: '#0f172a',
                   }}
                 />
-                <button
-                  type="button"
-                  onClick={() => void copyCardId()}
-                  title="คัดลอก Card ID"
-                  style={{
-                    padding: '0.62rem 0.8rem',
-                    border: 'none',
-                    borderLeft: '1px solid #e2e8f0',
-                    background: copiedCardId ? '#ecfdf5' : '#f1f5f9',
-                    color: copiedCardId ? '#059669' : '#475569',
-                    cursor: 'pointer',
-                    fontSize: '0.85rem',
-                  }}
-                >
-                  {copiedCardId ? '✓' : '❐'}
-                </button>
+              </div>
+            </div>
+
+            {/* Blue Search Results Box */}
+            <div
+              style={{
+                background: '#e8f3ff',
+                border: '1px solid #93c5fd',
+                borderRadius: '12px',
+                padding: '0.85rem 0.9rem',
+              }}
+            >
+              <div
+                style={{
+                  fontSize: '0.84rem',
+                  fontWeight: 700,
+                  color: '#0f172a',
+                  marginBottom: '0.6rem',
+                }}
+              >
+                ส่วนผลลัพธ์การค้นหา
+              </div>
+
+              <div
+                style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '0.45rem',
+                  maxHeight: '185px',
+                  overflowY: 'auto',
+                  paddingRight: '0.2rem',
+                }}
+              >
+                {filteredCards.length === 0 ? (
+                  <div style={{ fontSize: '0.8rem', color: '#475569', padding: '0.5rem 0.25rem' }}>
+                    ไม่พบรหัสบัตรในรายการตัวอย่าง
+                  </div>
+                ) : (
+                  filteredCards.map((c) => {
+                    const selected = cardId.trim() === c.id;
+                    return (
+                      <button
+                        key={c.id}
+                        type="button"
+                        onClick={() => {
+                          setCardId(c.id);
+                          setCardFilter('');
+                          setCardMessage(null);
+                        }}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '0.55rem',
+                          width: '100%',
+                          textAlign: 'left',
+                          background: selected ? '#ffffff' : 'rgba(255, 255, 255, 0.55)',
+                          border: selected ? '1.5px solid #2563eb' : '1px solid transparent',
+                          padding: '0.5rem 0.72rem',
+                          borderRadius: '9px',
+                          fontSize: '0.82rem',
+                          cursor: 'pointer',
+                          color: '#0f172a',
+                          fontWeight: selected ? 600 : 500,
+                        }}
+                      >
+                        <span
+                          style={{
+                            width: '16px',
+                            height: '16px',
+                            borderRadius: '9999px',
+                            border: selected ? '5px solid #2563eb' : '1.5px solid #94a3b8',
+                            background: '#ffffff',
+                            boxSizing: 'border-box',
+                            flexShrink: 0,
+                          }}
+                        />
+                        <span>Card #{c.id}</span>
+                        <CardStatusPill status={c.status} detailed={selected || c.status === 'suspended'} />
+                        {c.hint && selected && (
+                          <span style={{ fontSize: '0.76rem', color: '#475569' }}>{c.hint}</span>
+                        )}
+                      </button>
+                    );
+                  })
+                )}
               </div>
             </div>
           </div>
@@ -478,7 +535,7 @@ export default function CardManagementForm({
             border: '1px solid #e2e8f0',
             borderRadius: '16px',
             padding: '1.35rem',
-            background: 'linear-gradient(155deg, #ffffff 60%, #fff4e8 100%)',
+            background: '#ffffff',
             boxShadow: '0 6px 24px rgba(15, 23, 42, 0.05)',
             display: 'flex',
             flexDirection: 'column',
@@ -486,7 +543,11 @@ export default function CardManagementForm({
             gap: '1rem',
           }}
         >
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+          <form
+            id="departure-refund-form"
+            onSubmit={handleRefund}
+            style={{ display: 'flex', flexDirection: 'column', gap: '0.95rem' }}
+          >
             {/* Card Header */}
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem' }}>
               <div
@@ -503,204 +564,274 @@ export default function CardManagementForm({
                   flexShrink: 0,
                 }}
               >
-                <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor">
+                <svg width="21" height="21" viewBox="0 0 24 24" fill="currentColor">
                   <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15v1h-2v-1H9v-2h4c.55 0 1-.45 1-1s-.45-1-1-1h-2c-1.66 0-3-1.34-3-3 0-1.3.84-2.4 2-2.82V6h2v1h2v2h-4c-.55 0-1 .45-1 1s.45 1 1 1h2c1.66 0 3 1.34 3 3 0 1.3-.84 2.4-2 2.82z" />
                 </svg>
               </div>
               <div>
-                <h3 style={{ fontSize: '1.08rem', fontWeight: 700, margin: 0, color: '#0f172a' }}>
+                <h3 style={{ fontSize: '1.05rem', fontWeight: 700, margin: 0, color: '#0f172a' }}>
                   คืนเงินนักเรียนย้ายออก (Departure Refund)
                 </h3>
-                <p style={{ color: '#64748b', fontSize: '0.81rem', margin: '0.18rem 0 0 0' }}>
+                <p style={{ color: '#64748b', fontSize: '0.8rem', margin: '0.18rem 0 0 0' }}>
                   บันทึกการคืนเงินคงเหลือทั้งหมดให้แก่นักเรียน พร้อมปิดใช้งานบัตรถาวรเมื่อย้ายออก
                 </p>
               </div>
             </div>
 
-            {/* Warm Cream Student Quick-Pick Panel */}
-            <div
-              style={{
-                background: '#fefaf0',
-                padding: '0.85rem 0.95rem',
-                borderRadius: '12px',
-                border: '1px solid #fde68a',
-              }}
-            >
+            {/* Search Student Input */}
+            <div>
+              <label
+                htmlFor="refund-student-id"
+                style={{
+                  display: 'block',
+                  fontWeight: 700,
+                  fontSize: '0.86rem',
+                  color: '#0f172a',
+                  marginBottom: '0.4rem',
+                }}
+              >
+                ค้นหารายชื่อ หรือรหัส (ID)
+              </label>
+
               <div
                 style={{
                   display: 'flex',
                   alignItems: 'center',
-                  gap: '0.45rem',
-                  fontSize: '0.82rem',
-                  fontWeight: 700,
-                  color: '#92400e',
-                  marginBottom: '0.55rem',
+                  background: '#ffffff',
+                  border: '1px solid #cbd5e1',
+                  borderRadius: '10px',
+                  paddingLeft: '0.8rem',
                 }}
               >
-                <span
-                  style={{
-                    width: '16px',
-                    height: '16px',
-                    borderRadius: '9999px',
-                    background: '#f59e0b',
-                    color: '#ffffff',
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    fontSize: '0.65rem',
-                    fontWeight: 700,
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#64748b" strokeWidth="2">
+                  <circle cx="11" cy="11" r="8" />
+                  <path d="m21 21-4.3-4.3" />
+                </svg>
+                <input
+                  id="refund-student-id"
+                  type="text"
+                  value={studentId}
+                  onChange={(e) => {
+                    setStudentId(e.target.value);
+                    setStudentFilter(e.target.value);
                   }}
-                >
-                  i
-                </span>
-                <span>เลือกนักเรียนตัวอย่าง (คืนเงินยอดคงเหลือทั้งหมด)</span>
-              </div>
-
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.42rem' }}>
-                {QUICK_REFUND_STUDENTS.map((s) => {
-                  const selected = studentId.trim() === s.id;
-                  return (
-                    <button
-                      key={s.id}
-                      type="button"
-                      onClick={() => {
-                        setStudentId(s.id);
-                        setRefundMessage(null);
-                      }}
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '0.6rem',
-                        width: '100%',
-                        textAlign: 'left',
-                        background: '#ffffff',
-                        border: `1.5px solid ${selected ? '#2563eb' : '#e2e8f0'}`,
-                        padding: '0.48rem 0.75rem',
-                        borderRadius: '9px',
-                        fontSize: '0.81rem',
-                        cursor: 'pointer',
-                        color: selected ? '#0f172a' : '#475569',
-                        fontWeight: selected ? 700 : 500,
-                      }}
-                    >
-                      <span
-                        style={{
-                          width: '16px',
-                          height: '16px',
-                          borderRadius: '9999px',
-                          border: selected ? '5px solid #2563eb' : '1.5px solid #cbd5e1',
-                          background: '#ffffff',
-                          boxSizing: 'border-box',
-                          flexShrink: 0,
-                        }}
-                      />
-                      <span>{s.desc}</span>
-                    </button>
-                  );
-                })}
+                  placeholder="กรอกรหัสนักเรียน เช่น 203, 207, Mali"
+                  style={{
+                    flex: 1,
+                    padding: '0.6rem 0.7rem',
+                    border: 'none',
+                    outline: 'none',
+                    background: 'transparent',
+                    fontSize: '0.9rem',
+                    color: '#0f172a',
+                  }}
+                />
               </div>
             </div>
 
-            {/* Student ID Input + Submit */}
-            <form onSubmit={handleRefund} style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
-              <div>
-                <label
-                  htmlFor="refund-student-id"
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '0.45rem',
-                    fontWeight: 700,
-                    fontSize: '0.86rem',
-                    color: '#0f172a',
-                    marginBottom: '0.45rem',
-                  }}
-                >
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="#2563eb">
-                    <path d="M20 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zM9 8.5c1.1 0 2 .9 2 2s-.9 2-2 2-2-.9-2-2 .9-2 2-2zM13 16H5v-1c0-1.33 2.67-2 4-2s4 .67 4 2v1zm6-1h-5v-1.5h5V15zm0-3h-5v-1.5h5V12z" />
-                  </svg>
-                  <span>Student ID (รหัสนักเรียนในระบบ)</span>
-                </label>
-
-                <div
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    background: '#f8fafc',
-                    border: '1px solid #cbd5e1',
-                    borderRadius: '10px',
-                    paddingRight: '0.75rem',
-                  }}
-                >
-                  <input
-                    id="refund-student-id"
-                    type="text"
-                    value={studentId}
-                    onChange={(e) => setStudentId(e.target.value)}
-                    placeholder="กรอกรหัสนักเรียน เช่น 203, 207"
-                    style={{
-                      flex: 1,
-                      padding: '0.62rem 0.85rem',
-                      border: 'none',
-                      outline: 'none',
-                      background: 'transparent',
-                      fontSize: '0.9rem',
-                      color: '#0f172a',
-                    }}
-                  />
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#64748b" strokeWidth="2">
-                    <circle cx="11" cy="11" r="8" />
-                    <path d="m21 21-4.3-4.3" />
-                  </svg>
-                </div>
-              </div>
-
-              <button
-                type="submit"
-                disabled={busy}
-                style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: '0.5rem',
-                  padding: '0.72rem 1rem',
-                  background: 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)',
-                  color: '#ffffff',
-                  border: 'none',
-                  borderRadius: '10px',
-                  cursor: busy ? 'not-allowed' : 'pointer',
-                  fontWeight: 700,
-                  fontSize: '0.88rem',
-                  boxShadow: '0 4px 12px rgba(239, 68, 68, 0.25)',
-                }}
-              >
-                <svg width="17" height="17" viewBox="0 0 24 24" fill="currentColor">
-                  <path d="M21 18v1c0 1.1-.9 2-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h14c1.1 0 2 .9 2 2v1h-9a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h9zm-9-2h10V8H12v8zm4-2.5c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5z" />
-                </svg>
-                <span>ดำเนินการคืนเงินและยกเลิกบัตร (Refund)</span>
-              </button>
-            </form>
-          </div>
-
-          {refundMessage && (
+            {/* Warm Cream Student Results Box */}
             <div
-              role={refundMessage.type === 'error' ? 'alert' : 'status'}
               style={{
-                padding: '0.75rem 0.9rem',
-                borderRadius: '10px',
-                background: refundMessage.type === 'success' ? '#ecfdf5' : '#fef2f2',
-                color: refundMessage.type === 'success' ? '#065f46' : '#991b1b',
-                border: `1px solid ${refundMessage.type === 'success' ? '#a7f3d0' : '#fecaca'}`,
-                fontSize: '0.84rem',
-                fontWeight: 600,
+                background: '#fef7db',
+                padding: '0.85rem 0.9rem',
+                borderRadius: '12px',
+                border: '1px solid #f5d167',
               }}
             >
-              {refundMessage.text}
+              <div
+                style={{
+                  fontSize: '0.84rem',
+                  fontWeight: 700,
+                  color: '#0f172a',
+                  marginBottom: '0.6rem',
+                }}
+              >
+                ส่วนผลลัพธ์ข้อมูล
+              </div>
+
+              <div
+                style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '0.45rem',
+                  maxHeight: '185px',
+                  overflowY: 'auto',
+                  paddingRight: '0.2rem',
+                }}
+              >
+                {filteredRefundStudents.length === 0 ? (
+                  <div style={{ fontSize: '0.8rem', color: '#78350f', padding: '0.5rem 0.25rem' }}>
+                    ไม่พบนักเรียนในรายการตัวอย่าง
+                  </div>
+                ) : (
+                  filteredRefundStudents.map((s) => {
+                    const selected = studentId.trim() === s.id;
+                    return (
+                      <button
+                        key={s.id}
+                        type="button"
+                        onClick={() => {
+                          setStudentId(s.id);
+                          setStudentFilter('');
+                          setRefundMessage(null);
+                        }}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          gap: '0.6rem',
+                          width: '100%',
+                          textAlign: 'left',
+                          background: selected ? '#fffbeb' : '#ffffff',
+                          border: `1.5px solid ${selected ? '#d97706' : '#e2e8f0'}`,
+                          padding: '0.48rem 0.75rem',
+                          borderRadius: '9px',
+                          fontSize: '0.81rem',
+                          cursor: 'pointer',
+                          color: '#0f172a',
+                          fontWeight: selected ? 600 : 500,
+                        }}
+                      >
+                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.55rem' }}>
+                          <span
+                            style={{
+                              width: '16px',
+                              height: '16px',
+                              borderRadius: '9999px',
+                              border: selected ? '5px solid #d97706' : '1.5px solid #cbd5e1',
+                              background: '#ffffff',
+                              boxSizing: 'border-box',
+                              flexShrink: 0,
+                            }}
+                          />
+                          <span>
+                            Student #{s.id} ({s.shortName})
+                          </span>
+                        </span>
+                        <span
+                          style={{
+                            color: selected ? '#b45309' : '#475569',
+                            fontWeight: selected ? 700 : 600,
+                            whiteSpace: 'nowrap',
+                          }}
+                        >
+                          ยอดเงินคืน ฿{s.balance}
+                        </span>
+                      </button>
+                    );
+                  })
+                )}
+              </div>
             </div>
-          )}
+          </form>
+
+          <div>
+            <button
+              type="submit"
+              form="departure-refund-form"
+              disabled={busy}
+              style={{
+                width: '100%',
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '0.5rem',
+                padding: '0.72rem 1rem',
+                background: 'linear-gradient(135deg, #dc2626 0%, #b91c1c 100%)',
+                color: '#ffffff',
+                border: 'none',
+                borderRadius: '10px',
+                cursor: busy ? 'not-allowed' : 'pointer',
+                fontWeight: 700,
+                fontSize: '0.88rem',
+                boxShadow: '0 4px 12px rgba(220, 38, 38, 0.25)',
+              }}
+            >
+              <svg width="17" height="17" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M21 18v1c0 1.1-.9 2-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h14c1.1 0 2 .9 2 2v1h-9a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h9zm-9-2h10V8H12v8zm4-2.5c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5z" />
+              </svg>
+              <span>ดำเนินการคืนเงินและยกเลิกบัตร (Refund)</span>
+            </button>
+
+            {refundMessage && (
+              <div
+                role={refundMessage.type === 'error' ? 'alert' : 'status'}
+                style={{
+                  marginTop: '0.85rem',
+                  padding: '0.75rem 0.9rem',
+                  borderRadius: '10px',
+                  background: refundMessage.type === 'success' ? '#ecfdf5' : '#fef2f2',
+                  color: refundMessage.type === 'success' ? '#065f46' : '#991b1b',
+                  border: `1px solid ${refundMessage.type === 'success' ? '#a7f3d0' : '#fecaca'}`,
+                  fontSize: '0.84rem',
+                  fontWeight: 600,
+                }}
+              >
+                {refundMessage.text}
+              </div>
+            )}
+          </div>
         </section>
       </div>
     </div>
+  );
+}
+
+function CardStatusPill({
+  status,
+  detailed,
+}: {
+  status: CardItem['status'];
+  detailed?: boolean;
+}) {
+  if (status === 'active') {
+    return (
+      <span
+        style={{
+          padding: '0.12rem 0.55rem',
+          borderRadius: '9999px',
+          background: '#16a34a',
+          color: '#ffffff',
+          fontSize: '0.73rem',
+          fontWeight: 700,
+          whiteSpace: 'nowrap',
+        }}
+      >
+        {detailed ? 'Active (ใช้งานอยู่)' : 'Active'}
+      </span>
+    );
+  }
+  if (status === 'suspended') {
+    return (
+      <span
+        style={{
+          padding: '0.12rem 0.55rem',
+          borderRadius: '9999px',
+          background: '#ea580c',
+          color: '#ffffff',
+          fontSize: '0.73rem',
+          fontWeight: 700,
+          whiteSpace: 'nowrap',
+        }}
+      >
+        Suspended (ระงับชั่วคราว)
+      </span>
+    );
+  }
+  return (
+    <span
+      style={{
+        padding: '0.12rem 0.55rem',
+        borderRadius: '9999px',
+        background: '#64748b',
+        color: '#ffffff',
+        fontSize: '0.73rem',
+        fontWeight: 700,
+        whiteSpace: 'nowrap',
+      }}
+    >
+      Deactivated
+    </span>
   );
 }
 
