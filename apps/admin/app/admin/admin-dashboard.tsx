@@ -179,20 +179,15 @@ export default function AdminDashboard({ sessionExpiry }: { sessionExpiry?: stri
                 >
                   <div
                     style={{
-                      width: '34px',
-                      height: '34px',
-                      borderRadius: '9px',
-                      background: isActive
-                        ? 'rgba(255, 255, 255, 0.2)'
-                        : isHovered
-                          ? 'rgba(255, 255, 255, 0.12)'
-                          : 'transparent',
+                      width: '28px',
+                      height: '28px',
+                      background: 'transparent',
                       color: isActive || isHovered ? '#ffffff' : '#cbd5e1',
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
                       flexShrink: 0,
-                      transition: 'all 0.15s ease',
+                      transition: 'color 0.15s ease',
                     }}
                   >
                     {tab.icon}
