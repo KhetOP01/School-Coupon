@@ -17,7 +17,9 @@ export default function AdminDashboard({ sessionExpiry }: { sessionExpiry?: stri
     } catch {
       // Ignore network errors on logout
     }
-    window.location.href = '/admin/auth/oidc/start';
+    document.cookie = 'school_coupon_admin_session=; Path=/; Max-Age=0;';
+    document.cookie = 'school_coupon_admin_session=; Path=/admin; Max-Age=0;';
+    window.location.href = '/admin/login?logged_out=1';
   }
 
   const tabButtonStyle = (isActive: boolean) => ({

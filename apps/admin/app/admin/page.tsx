@@ -13,10 +13,10 @@ export default async function AdminPage() {
   });
 
   if (response.status === 401) {
-    redirect('/admin/auth/oidc/start');
+    redirect('/admin/login');
   }
   if (!response.ok) {
-    throw new Error(`Staff session check failed with HTTP ${response.status}.`);
+    redirect('/admin/login?error=session_error');
   }
 
   const session = (await response.json()) as { expiresAt?: string };
