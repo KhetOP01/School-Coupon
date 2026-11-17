@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { registerRootComponent } from 'expo';
 import {
   SafeAreaView,
   View,
@@ -165,3 +166,6 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
 });
+
+registerRootComponent(App);
+

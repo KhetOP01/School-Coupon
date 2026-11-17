@@ -1,0 +1,15 @@
+{
+  "expo": {
+    "name": "School Coupon POS",
+    "slug": "school-coupon-merchant",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "android": {
+      "package": "com.schoolcoupon.merchant"
+    },
+    "plugins": [
+      "expo-asset"
+    ]
+  }
+}

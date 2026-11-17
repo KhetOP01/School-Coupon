@@ -11,7 +11,7 @@ export class ParentApiClient {
   private parentId: string;
 
   constructor(options?: { baseUrl?: string; parentId?: string }) {
-    this.baseUrl = options?.baseUrl ?? 'http://10.0.2.2:3000'; // Default Android emulator host
+    this.baseUrl = options?.baseUrl ?? 'http://10.0.2.2'; // Default Android emulator host
     this.parentId = options?.parentId ?? 'parent-1';
   }
 

@@ -4,9 +4,10 @@ import { useState } from 'react';
 import CardReissueForm from './reissue-form';
 import CardManagementForm from './card-management-form';
 import SettlementApprovalForm from './settlement-approval-form';
+import StudentDirectory from './student-directory';
 
 export default function AdminDashboard({ sessionExpiry }: { sessionExpiry?: string }) {
-  const [activeTab, setActiveTab] = useState<'reissue' | 'cards' | 'settlements'>('reissue');
+  const [activeTab, setActiveTab] = useState<'directory' | 'reissue' | 'cards' | 'settlements'>('directory');
   const [loggingOut, setLoggingOut] = useState(false);
 
   async function handleLogout() {
@@ -78,7 +79,14 @@ export default function AdminDashboard({ sessionExpiry }: { sessionExpiry?: stri
       </header>
 
       {/* Tabs */}
-      <nav style={{ display: 'flex', borderBottom: '1px solid #e2e8f0', marginBottom: '1.5rem', gap: '0.5rem' }}>
+      <nav style={{ display: 'flex', borderBottom: '1px solid #e2e8f0', marginBottom: '1.5rem', gap: '0.5rem', overflowX: 'auto' }}>
+        <button
+          type="button"
+          onClick={() => setActiveTab('directory')}
+          style={tabButtonStyle(activeTab === 'directory')}
+        >
+          👥 ทะเบียนนักเรียน (Directory)
+        </button>
         <button
           type="button"
           onClick={() => setActiveTab('reissue')}
@@ -104,6 +112,22 @@ export default function AdminDashboard({ sessionExpiry }: { sessionExpiry?: stri
 
       {/* Tab Panels */}
       <main>
+        {activeTab === 'directory' && (
+          <div>
+            <div style={{ marginBottom: '1rem' }}>
+              <h2 style={{ fontSize: '1.25rem', margin: 0 }}>ทะเบียนนักเรียนและข้อมูลสำหรับทดสอบระบบ</h2>
+              <p style={{ color: '#64748b', fontSize: '0.875rem', marginTop: '0.25rem' }}>
+                ดูรายชื่อนักเรียน ยอดเงิน Wallet และสถานะบัตรทั้งหมด พร้อมปุ่มลัดเพื่อนำรหัสไปทดสอบฟังก์ชันต่างๆ
+              </p>
+            </div>
+            <StudentDirectory
+              onSelectReissue={() => setActiveTab('reissue')}
+              onSelectCard={() => setActiveTab('cards')}
+              onSelectRefund={() => setActiveTab('cards')}
+            />
+          </div>
+        )}
+
         {activeTab === 'reissue' && (
           <div>
             <div style={{ marginBottom: '1rem' }}>

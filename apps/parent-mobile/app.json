@@ -1,0 +1,15 @@
+{
+  "expo": {
+    "name": "School Coupon Parent",
+    "slug": "school-coupon-parent",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "android": {
+      "package": "com.schoolcoupon.parent"
+    },
+    "plugins": [
+      "expo-asset"
+    ]
+  }
+}

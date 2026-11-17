@@ -116,6 +116,48 @@ export default function CardReissueForm() {
 
   return (
     <section>
+      {/* Quick Test Students Chips */}
+      <div style={{ marginBottom: '1.25rem', background: '#f8fafc', padding: '0.85rem 1rem', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
+        <div style={{ fontSize: '0.85rem', fontWeight: 600, color: '#334155', marginBottom: '0.4rem' }}>
+          💡 คลิกเลือกรหัสนักเรียนตัวอย่างเพื่อทดสอบทันที:
+        </div>
+        <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+          {[
+            { id: '101', name: 'Mali Seed', bal: '฿65.00', status: 'บัตรเดิมปกติ' },
+            { id: '106', name: 'Suda Seed', bal: '฿20.00', status: 'บัตรเดิมปกติ' },
+            { id: '201', name: 'Kanya', bal: '฿50.00', status: 'บัตรเดิมปกติ' },
+            { id: '204', name: 'Wichai', bal: '฿30.00', status: 'บัตรเดิมถูกระงับ' },
+          ].map((s) => (
+            <button
+              key={s.id}
+              type="button"
+              onClick={() => {
+                setStudentId(s.id);
+                setError('');
+                setResult(null);
+                setPreview(null);
+              }}
+              style={{
+                background: studentId === s.id ? '#eff6ff' : '#ffffff',
+                border: `1px solid ${studentId === s.id ? '#3b82f6' : '#cbd5e1'}`,
+                padding: '0.35rem 0.65rem',
+                borderRadius: '6px',
+                fontSize: '0.8rem',
+                cursor: 'pointer',
+                color: studentId === s.id ? '#1d4ed8' : '#1e293b',
+                fontWeight: studentId === s.id ? 700 : 500,
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '0.35rem',
+              }}
+            >
+              <span>ID: <strong>{s.id}</strong></span>
+              <span style={{ color: '#64748b' }}>({s.name} • {s.bal})</span>
+            </button>
+          ))}
+        </div>
+      </div>
+
       <form onSubmit={lookupStudent}>
         <label htmlFor="studentId">Student ID</label>
         <input
@@ -147,11 +189,29 @@ export default function CardReissueForm() {
             <dt>ยอด Wallet</dt>
             <dd>{preview.walletBalance} บาท</dd>
           </dl>
-          <label htmlFor="rfidUid">สแกน RFID UID ใหม่</label>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <label htmlFor="rfidUid">สแกน RFID UID ใหม่</label>
+            <button
+              type="button"
+              onClick={() => setRfidUid('RFID-TEST-' + Math.floor(100000 + Math.random() * 900000))}
+              style={{
+                fontSize: '0.75rem',
+                color: '#2563eb',
+                background: '#eff6ff',
+                border: '1px solid #bfdbfe',
+                borderRadius: '4px',
+                padding: '2px 8px',
+                cursor: 'pointer',
+              }}
+            >
+              🎲 คลิกเพื่อสุ่ม UID บัตรใหม่
+            </button>
+          </div>
           <input
             id="rfidUid"
             value={rfidUid}
             onChange={(event) => setRfidUid(event.target.value)}
+            placeholder="เช่น RFID-TEST-998811"
             maxLength={50}
             required
           />

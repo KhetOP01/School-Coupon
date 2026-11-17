@@ -97,6 +97,41 @@ export default function CardManagementForm() {
           ใช้เมื่อผู้ปกครองแจ้งขอระงับบัตร หรือพบว่านักเรียนลืมบัตรไว้
         </p>
 
+        {/* Quick Test Card Chips */}
+        <div style={{ marginBottom: '0.75rem', background: '#f8fafc', padding: '0.65rem 0.85rem', borderRadius: '6px', border: '1px solid #e2e8f0' }}>
+          <div style={{ fontSize: '0.8rem', fontWeight: 600, color: '#475569', marginBottom: '0.35rem' }}>
+            💡 คลิกเลือกบัตรตัวอย่างเพื่อทดสอบ:
+          </div>
+          <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
+            {[
+              { id: '201', desc: 'Card #201 (Active - ลองกดระงับ)' },
+              { id: '202', desc: 'Card #202 (Active - ลองกดระงับ)' },
+              { id: '204', desc: 'Card #204 (Suspended - ลองกดปลดระงับ)' },
+            ].map((c) => (
+              <button
+                key={c.id}
+                type="button"
+                onClick={() => {
+                  setCardId(c.id);
+                  setCardMessage(null);
+                }}
+                style={{
+                  background: cardId === c.id ? '#fef3c7' : '#ffffff',
+                  border: `1px solid ${cardId === c.id ? '#f59e0b' : '#cbd5e1'}`,
+                  padding: '0.25rem 0.5rem',
+                  borderRadius: '4px',
+                  fontSize: '0.75rem',
+                  cursor: 'pointer',
+                  color: cardId === c.id ? '#b45309' : '#334155',
+                  fontWeight: cardId === c.id ? 700 : 500,
+                }}
+              >
+                {c.desc}
+              </button>
+            ))}
+          </div>
+        </div>
+
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
           <label style={{ fontWeight: 600, fontSize: '0.9rem' }}>
             Card ID (รหัสบัตรในระบบ):
@@ -177,6 +212,40 @@ export default function CardManagementForm() {
         <p style={{ color: '#64748b', fontSize: '0.9rem', marginBottom: '1.25rem' }}>
           ปิดบัตรถาวรและคืนยอดเงินคงเหลือในกระเป๋าเงินทั้งหมดเมื่อนักเรียนสำเร็จการศึกษาหรือย้ายโรงเรียน
         </p>
+
+        {/* Quick Test Refund Student Chips */}
+        <div style={{ marginBottom: '0.75rem', background: '#f8fafc', padding: '0.65rem 0.85rem', borderRadius: '6px', border: '1px solid #e2e8f0' }}>
+          <div style={{ fontSize: '0.8rem', fontWeight: 600, color: '#475569', marginBottom: '0.35rem' }}>
+            💡 คลิกเลือกนักเรียนย้ายออกเพื่อทดสอบคืนเงิน:
+          </div>
+          <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
+            {[
+              { id: '203', desc: 'Student #203 (Somchai - มียอด 250 บ.)' },
+              { id: '207', desc: 'Student #207 (Sunan - ยอด 0.00 บ.)' },
+            ].map((s) => (
+              <button
+                key={s.id}
+                type="button"
+                onClick={() => {
+                  setStudentId(s.id);
+                  setRefundMessage(null);
+                }}
+                style={{
+                  background: studentId === s.id ? '#fee2e2' : '#ffffff',
+                  border: `1px solid ${studentId === s.id ? '#ef4444' : '#cbd5e1'}`,
+                  padding: '0.25rem 0.5rem',
+                  borderRadius: '4px',
+                  fontSize: '0.75rem',
+                  cursor: 'pointer',
+                  color: studentId === s.id ? '#b91c1c' : '#334155',
+                  fontWeight: studentId === s.id ? 700 : 500,
+                }}
+              >
+                {s.desc}
+              </button>
+            ))}
+          </div>
+        </div>
 
         <form onSubmit={handleRefund} style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
           <label style={{ fontWeight: 600, fontSize: '0.9rem' }}>

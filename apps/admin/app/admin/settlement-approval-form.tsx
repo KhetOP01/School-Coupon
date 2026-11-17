@@ -66,6 +66,42 @@ export default function SettlementApprovalForm() {
         ตรวจสอบยอดขายสุทธิหลังหักค่าธรรมเนียม และกดอนุมัติการตัดรอบโอนเงินเข้าบัญชีธนาคารร้านค้า
       </p>
 
+      {/* Quick Test Settlement Chips */}
+      <div style={{ marginBottom: '1rem', background: '#f8fafc', padding: '0.75rem 1rem', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
+        <div style={{ fontSize: '0.85rem', fontWeight: 600, color: '#334155', marginBottom: '0.4rem' }}>
+          💡 คลิกเลือกรอบสรุปยอดขายร้านค้าเพื่อทดสอบ:
+        </div>
+        <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+          {[
+            { id: '701', desc: 'ID: 701 • ร้าน Juice Shop (ยอดโอน ฿97.50 • สถานะ: รออนุมัติ)', color: '#2563eb', bg: '#eff6ff' },
+            { id: '702', desc: 'ID: 702 • ร้าน Bakery (ยอดโอน ฿194.00 • สถานะ: อนุมัติแล้ว)', color: '#059669', bg: '#ecfdf5' },
+            { id: '703', desc: 'ID: 703 • ร้าน Book Stall (ยอดโอน ฿49.25 • สถานะ: โอนแล้ว)', color: '#475569', bg: '#f1f5f9' },
+          ].map((item) => (
+            <button
+              key={item.id}
+              type="button"
+              onClick={() => {
+                setSettlementId(item.id);
+                setMessage(null);
+                setResult(null);
+              }}
+              style={{
+                background: settlementId === item.id ? item.bg : '#ffffff',
+                border: `1px solid ${settlementId === item.id ? item.color : '#cbd5e1'}`,
+                padding: '0.35rem 0.65rem',
+                borderRadius: '6px',
+                fontSize: '0.8rem',
+                cursor: 'pointer',
+                color: item.color,
+                fontWeight: settlementId === item.id ? 700 : 500,
+              }}
+            >
+              {item.desc}
+            </button>
+          ))}
+        </div>
+      </div>
+
       <form onSubmit={handleApprove} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
         <label style={{ fontWeight: 600, fontSize: '0.9rem' }}>
           Settlement ID (รหัสรอบสรุปยอดขาย):
