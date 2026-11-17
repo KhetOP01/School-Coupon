@@ -8,7 +8,17 @@ export const metadata = {
 export default function RootLayout({ children }: Readonly<{ children: ReactNode }>) {
   return (
     <html lang="th">
-      <body>{children}</body>
+      <body
+        style={{
+          margin: 0,
+          background: '#eef4fb',
+          color: '#0f172a',
+          fontFamily: "'Noto Sans Thai', 'Sarabun', system-ui, -apple-system, sans-serif",
+          WebkitFontSmoothing: 'antialiased',
+        }}
+      >
+        {children}
+      </body>
     </html>
   );
 }
