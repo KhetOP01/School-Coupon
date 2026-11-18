@@ -622,46 +622,6 @@ export default function CardReissueForm({
               </div>
 
               <div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.2rem' }}>
-                  <span
-                    style={{
-                      background: '#eff6ff',
-                      color: '#2563eb',
-                      border: '1px solid #bfdbfe',
-                      borderRadius: '9999px',
-                      padding: '0.15rem 0.6rem',
-                      fontSize: '0.74rem',
-                      fontWeight: 700,
-                    }}
-                  >
-                    Student ID
-                  </span>
-                  <span
-                    style={{
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: '0.35rem',
-                      background: statusMeta.pillBg,
-                      color: statusMeta.pillColor,
-                      border: `1px solid ${statusMeta.pillBorder}`,
-                      borderRadius: '9999px',
-                      padding: '0.15rem 0.65rem',
-                      fontSize: '0.74rem',
-                      fontWeight: 600,
-                    }}
-                  >
-                    <span
-                      style={{
-                        width: '7px',
-                        height: '7px',
-                        borderRadius: '9999px',
-                        background: statusMeta.dotColor,
-                      }}
-                    />
-                    {statusMeta.badgeLabel}
-                  </span>
-                </div>
-
                 <div style={{ fontSize: '1.85rem', fontWeight: 800, color: '#0f172a', lineHeight: 1.1 }}>
                   {preview.studentId}
                 </div>
@@ -690,17 +650,14 @@ export default function CardReissueForm({
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
                 <div
                   style={{
-                    width: '38px',
-                    height: '38px',
-                    borderRadius: '10px',
-                    background: '#eff6ff',
+                    background: 'transparent',
                     color: '#2563eb',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
                   }}
                 >
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor">
                     <path d="M21 18v1c0 1.1-.9 2-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h14c1.1 0 2 .9 2 2v1h-9a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h9zm-9-2h10V8H12v8zm4-2.5c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5z" />
                   </svg>
                 </div>
@@ -717,17 +674,14 @@ export default function CardReissueForm({
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
                 <div
                   style={{
-                    width: '38px',
-                    height: '38px',
-                    borderRadius: '10px',
-                    background: '#eff6ff',
+                    background: 'transparent',
                     color: '#2563eb',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
                   }}
                 >
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor">
                     <path d="M20 4H4c-1.11 0-2 .89-2 2v12c0 1.11.89 2 2 2h16c1.11 0 2-.89 2-2V6c0-1.1-.89-2-2-2zm0 14H4v-6h16v6zm0-10H4V6h16v2z" />
                   </svg>
                 </div>
@@ -830,7 +784,7 @@ export default function CardReissueForm({
                 <InfoRow label="สิทธิ์การใช้งาน" value="นักเรียน" />
                 <InfoRow
                   label="ยอด Wallet"
-                  value={<span style={{ color: '#16a34a', fontWeight: 700 }}>฿{preview.walletBalance}</span>}
+                  value={<span style={{ color: '#0f172a', fontWeight: 700 }}>฿{preview.walletBalance}</span>}
                 />
                 <InfoRow label="ระดับชั้น" value={preview.studentId < 200 ? 'มัธยมศึกษาปีที่ 6/1' : 'มัธยมศึกษาปีที่ 6/2'} />
               </div>

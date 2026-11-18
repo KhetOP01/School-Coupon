@@ -265,7 +265,7 @@ export default function CardManagementForm({
           display: 'grid',
           gap: '1.15rem',
           gridTemplateColumns: 'repeat(auto-fit, minmax(360px, 1fr))',
-          alignItems: 'stretch',
+          alignItems: 'start',
         }}
       >
         {/* Left Card: Freeze / Unfreeze */}
@@ -278,7 +278,7 @@ export default function CardManagementForm({
             boxShadow: '0 6px 24px rgba(15, 23, 42, 0.05)',
             display: 'flex',
             flexDirection: 'column',
-            justifyContent: 'space-between',
+            justifyContent: 'flex-start',
             gap: '1rem',
           }}
         >
@@ -539,7 +539,7 @@ export default function CardManagementForm({
             boxShadow: '0 6px 24px rgba(15, 23, 42, 0.05)',
             display: 'flex',
             flexDirection: 'column',
-            justifyContent: 'space-between',
+            justifyContent: 'flex-start',
             gap: '1rem',
           }}
         >

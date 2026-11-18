@@ -224,49 +224,41 @@ export default function SettlementApprovalForm() {
         }}
       >
         <KpiCard
-          bg="#dbeafe"
-          color="#2563eb"
           label="รอบสรุปยอดทั้งหมด"
           value={String(stats.total)}
           unit="รายการ"
           icon={
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
               <path d="M14 2H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V8l-6-6zm-4 15H8v-4h2v4zm3 0h-2v-6h2v6zm3 0h-2v-3h2v3zm-3-8V3.5L18.5 9H13z" />
             </svg>
           }
         />
         <KpiCard
-          bg="#fef3c7"
-          color="#d97706"
           label="รออนุมัติ (Pending)"
           value={String(stats.pending)}
           unit="รายการ"
           icon={
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
               <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 11h-2V7h2v6zm0 4h-2v-2h2v2z" />
             </svg>
           }
         />
         <KpiCard
-          bg="#dcfce7"
-          color="#16a34a"
           label="อนุมัติ / โอนแล้ว"
           value={String(stats.completed)}
           unit="รายการ"
           icon={
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
               <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z" />
             </svg>
           }
         />
         <KpiCard
-          bg="#f3e8ff"
-          color="#9333ea"
           label="ยอดโอนสุทธิรวม"
           value={`฿${stats.totalNet}`}
           unit=""
           icon={
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
               <path d="M21 18v1c0 1.1-.9 2-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h14c1.1 0 2 .9 2 2v1h-9a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h9zm-9-2h10V8H12v8zm4-2.5c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5z" />
             </svg>
           }
@@ -454,32 +446,14 @@ export default function SettlementApprovalForm() {
               <label
                 htmlFor="settlement-id-input"
                 style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '0.45rem',
+                  display: 'block',
                   fontWeight: 700,
                   fontSize: '0.86rem',
                   color: '#0f172a',
                   marginBottom: '0.45rem',
                 }}
               >
-                <span
-                  style={{
-                    width: '18px',
-                    height: '18px',
-                    borderRadius: '9999px',
-                    background: '#2563eb',
-                    color: '#ffffff',
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    fontSize: '0.68rem',
-                    fontWeight: 700,
-                  }}
-                >
-                  #
-                </span>
-                <span>Settlement ID (รหัสรอบสรุปยอดขาย)</span>
+                Settlement ID (รหัสรอบสรุปยอดขาย)
               </label>
 
               <div
@@ -610,15 +584,11 @@ export default function SettlementApprovalForm() {
 }
 
 function KpiCard({
-  bg,
-  color,
   label,
   value,
   unit,
   icon,
 }: {
-  bg: string;
-  color: string;
   label: string;
   value: string;
   unit: string;
@@ -639,11 +609,10 @@ function KpiCard({
     >
       <div
         style={{
-          width: '44px',
-          height: '44px',
-          borderRadius: '9999px',
-          background: bg,
-          color,
+          width: '32px',
+          height: '32px',
+          background: 'transparent',
+          color: 'rgba(0, 0, 0, 0.8)',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',

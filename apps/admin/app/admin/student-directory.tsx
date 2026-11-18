@@ -118,16 +118,14 @@ const SEED_STUDENTS: StudentItem[] = [
 
 interface StudentDirectoryProps {
   onSelectReissue: (studentId: number) => void;
-  onSelectCard: (cardId: number) => void;
-  onSelectRefund: (studentId: number) => void;
+  onManageCards: () => void;
 }
 
 type StatusFilter = 'all' | StudentItem['cardStatus'];
 
 export default function StudentDirectory({
   onSelectReissue,
-  onSelectCard,
-  onSelectRefund,
+  onManageCards,
 }: StudentDirectoryProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
@@ -193,18 +191,17 @@ export default function StudentDirectory({
         >
           <div
             style={{
-              width: '44px',
-              height: '44px',
-              borderRadius: '9999px',
-              background: '#dbeafe',
-              color: '#2563eb',
+              width: '32px',
+              height: '32px',
+              background: 'transparent',
+              color: 'rgba(0, 0, 0, 0.8)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
               flexShrink: 0,
             }}
           >
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
               <path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5s-3 1.34-3 3 1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z" />
             </svg>
           </div>
@@ -234,18 +231,17 @@ export default function StudentDirectory({
         >
           <div
             style={{
-              width: '44px',
-              height: '44px',
-              borderRadius: '9999px',
-              background: '#dcfce7',
-              color: '#16a34a',
+              width: '32px',
+              height: '32px',
+              background: 'transparent',
+              color: 'rgba(0, 0, 0, 0.8)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
               flexShrink: 0,
             }}
           >
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
               <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z" />
             </svg>
           </div>
@@ -275,18 +271,17 @@ export default function StudentDirectory({
         >
           <div
             style={{
-              width: '44px',
-              height: '44px',
-              borderRadius: '9999px',
-              background: '#fef3c7',
-              color: '#d97706',
+              width: '32px',
+              height: '32px',
+              background: 'transparent',
+              color: 'rgba(0, 0, 0, 0.8)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
               flexShrink: 0,
             }}
           >
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
               <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 14H9V8h2v8zm4 0h-2V8h2v8z" />
             </svg>
           </div>
@@ -316,18 +311,17 @@ export default function StudentDirectory({
         >
           <div
             style={{
-              width: '44px',
-              height: '44px',
-              borderRadius: '9999px',
-              background: '#f3e8ff',
-              color: '#9333ea',
+              width: '32px',
+              height: '32px',
+              background: 'transparent',
+              color: 'rgba(0, 0, 0, 0.8)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
               flexShrink: 0,
             }}
           >
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
               <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zM4 12c0-4.42 3.58-8 8-8 1.85 0 3.55.63 4.9 1.69L5.69 16.9A7.902 7.902 0 0 1 4 12zm8 8c-1.85 0-3.55-.63-4.9-1.69L18.31 7.1A7.902 7.902 0 0 1 20 12c0 4.42-3.58 8-8 8z" />
             </svg>
           </div>
@@ -505,6 +499,31 @@ export default function StudentDirectory({
                 </div>
               )}
             </div>
+
+            <button
+              type="button"
+              onClick={onManageCards}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '0.4rem',
+                background: 'linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)',
+                border: 'none',
+                borderRadius: '10px',
+                padding: '0.5rem 0.95rem',
+                fontSize: '0.84rem',
+                color: '#ffffff',
+                fontWeight: 600,
+                cursor: 'pointer',
+                whiteSpace: 'nowrap',
+                boxShadow: '0 4px 12px rgba(37, 99, 235, 0.22)',
+              }}
+            >
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M20 4H4c-1.11 0-2 .89-2 2v12c0 1.11.89 2 2 2h16c1.11 0 2-.89 2-2V6c0-1.1-.89-2-2-2zm0 14H4v-6h16v6zm0-10H4V6h16v2z" />
+              </svg>
+              <span>จัดการบัตร</span>
+            </button>
           </div>
         </div>
 
@@ -514,19 +533,13 @@ export default function StudentDirectory({
             <thead>
               <tr style={{ background: '#f5f8fd', borderBottom: '1px solid #e2e8f0', color: '#334155' }}>
                 <th style={{ padding: '0.75rem 0.65rem', textAlign: 'center', width: '44px', fontWeight: 600 }}>#</th>
-                <th style={{ padding: '0.75rem 0.65rem', fontWeight: 600 }}>
-                  รหัสนักเรียน
-                  <div style={{ fontSize: '0.74rem', color: '#64748b', fontWeight: 500 }}>(Student ID)</div>
-                </th>
+                <th style={{ padding: '0.75rem 0.65rem', fontWeight: 600 }}>รหัสนักเรียน</th>
                 <th style={{ padding: '0.75rem 0.65rem', fontWeight: 600 }}>ชื่อ - นามสกุล</th>
-                <th style={{ padding: '0.75rem 0.65rem', fontWeight: 600 }}>
+                <th style={{ padding: '0.75rem 0.65rem', fontWeight: 600, textAlign: 'right' }}>
                   ยอดเงินใน
                   <div style={{ fontSize: '0.78rem', fontWeight: 600 }}>Wallet</div>
                 </th>
-                <th style={{ padding: '0.75rem 0.65rem', fontWeight: 600 }}>
-                  Card ID /
-                  <div style={{ fontSize: '0.78rem', fontWeight: 600 }}>UID บัตร</div>
-                </th>
+                <th style={{ padding: '0.75rem 0.65rem', fontWeight: 600 }}>UID บัตร</th>
                 <th style={{ padding: '0.75rem 0.65rem', fontWeight: 600 }}>สถานะบัตร</th>
                 <th style={{ padding: '0.75rem 0.65rem', textAlign: 'center', fontWeight: 600 }}>การทำงานด่วน</th>
               </tr>
@@ -566,19 +579,26 @@ export default function StudentDirectory({
                       </span>
                     </td>
                     <td style={{ padding: '0.75rem 0.65rem', whiteSpace: 'nowrap' }}>
-                      <span style={{ fontWeight: 700, color: '#2563eb', marginRight: '0.55rem' }}>#{s.id}</span>
-                      <span style={{ color: '#475569', fontSize: '0.8rem', fontWeight: 500 }}>{s.studentCode}</span>
+                      <span style={{ color: '#334155', fontSize: '0.84rem', fontWeight: 600 }}>{s.studentCode}</span>
                     </td>
                     <td style={{ padding: '0.75rem 0.65rem' }} title={s.note}>
                       <div style={{ fontWeight: 600, color: '#0f172a' }}>{s.name}</div>
                       <div style={{ fontSize: '0.74rem', color: '#64748b', marginTop: '0.1rem' }}>{s.classroom}</div>
                     </td>
-                    <td style={{ padding: '0.75rem 0.65rem', fontWeight: 700, color: '#16a34a', whiteSpace: 'nowrap' }}>
+                    <td
+                      style={{
+                        padding: '0.75rem 0.65rem',
+                        fontWeight: 700,
+                        color: '#16a34a',
+                        whiteSpace: 'nowrap',
+                        textAlign: 'right',
+                        fontVariantNumeric: 'tabular-nums',
+                      }}
+                    >
                       ฿{s.balance}
                     </td>
-                    <td style={{ padding: '0.75rem 0.65rem', fontSize: '0.78rem', lineHeight: 1.35 }}>
-                      <div style={{ color: '#334155', fontWeight: 600 }}>ID: {s.cardId}</div>
-                      <div style={{ color: '#64748b' }}>{s.rfidUid}</div>
+                    <td style={{ padding: '0.75rem 0.65rem', fontSize: '0.82rem', color: '#475569', fontWeight: 500 }}>
+                      {s.rfidUid}
                     </td>
                     <td style={{ padding: '0.75rem 0.65rem' }}>
                       <StatusBadge status={s.cardStatus} />
@@ -608,54 +628,6 @@ export default function StudentDirectory({
                             <path d="M20 4H4c-1.11 0-2 .89-2 2v12c0 1.11.89 2 2 2h16c1.11 0 2-.89 2-2V6c0-1.11-.89-2-2-2zm0 14H4v-6h16v6zm0-10H4V6h16v2z" />
                           </svg>
                           ออกบัตร
-                        </button>
-                        <button
-                          type="button"
-                          title="จัดการระงับ/ปลดระงับบัตรใบนี้"
-                          onClick={() => onSelectCard(s.cardId)}
-                          style={{
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            gap: '0.3rem',
-                            padding: '0.34rem 0.62rem',
-                            fontSize: '0.75rem',
-                            background: '#fef9c3',
-                            color: '#92400e',
-                            border: '1px solid #fde68a',
-                            borderRadius: '7px',
-                            cursor: 'pointer',
-                            fontWeight: 600,
-                            whiteSpace: 'nowrap',
-                          }}
-                        >
-                          <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor">
-                            <path d="M3 3h8v8H3V3zm2 2v4h4V5H5zm8-2h8v8h-8V3zm2 2v4h4V5h-4zM3 13h8v8H3v-8zm2 2v4h4v-4H5zm10 0h2v2h-2v-2zm2-2h2v2h-2v-2zm0 4h2v2h-2v-2zm-2 2h2v2h-2v-2zm4-2h2v4h-2v-4zm-2 4h2v2h-2v-2z" />
-                          </svg>
-                          บัตร
-                        </button>
-                        <button
-                          type="button"
-                          title="คืนเงินและปิดบัตรเมื่อนักเรียนย้ายออก"
-                          onClick={() => onSelectRefund(s.id)}
-                          style={{
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            gap: '0.3rem',
-                            padding: '0.34rem 0.62rem',
-                            fontSize: '0.75rem',
-                            background: '#fee2e2',
-                            color: '#b91c1c',
-                            border: '1px solid #fecaca',
-                            borderRadius: '7px',
-                            cursor: 'pointer',
-                            fontWeight: 600,
-                            whiteSpace: 'nowrap',
-                          }}
-                        >
-                          <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor">
-                            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm5 11H7v-2h10v2z" />
-                          </svg>
-                          คืนเงิน
                         </button>
                       </div>
                     </td>
@@ -748,113 +720,23 @@ export default function StudentDirectory({
 }
 
 function StatusBadge({ status }: { status: StudentItem['cardStatus'] }) {
-  if (status === 'active') {
-    return (
-      <span
-        style={{
-          display: 'inline-flex',
-          alignItems: 'center',
-          gap: '0.45rem',
-          padding: '0.28rem 0.7rem',
-          borderRadius: '9999px',
-          background: '#ecfdf5',
-          color: '#047857',
-          border: '1px solid #bbf7d0',
-          fontSize: '0.75rem',
-          fontWeight: 600,
-          lineHeight: 1.25,
-        }}
-      >
-        <span
-          style={{
-            width: '10px',
-            height: '10px',
-            borderRadius: '9999px',
-            background: '#22c55e',
-            flexShrink: 0,
-          }}
-        />
-        <span>
-          พร้อมใช้งาน
-          <br />
-          (Active)
-        </span>
-      </span>
-    );
-  }
-
-  if (status === 'suspended') {
-    return (
-      <span
-        style={{
-          display: 'inline-flex',
-          alignItems: 'center',
-          gap: '0.45rem',
-          padding: '0.28rem 0.7rem',
-          borderRadius: '9999px',
-          background: '#fef9c3',
-          color: '#b45309',
-          border: '1px solid #fde68a',
-          fontSize: '0.75rem',
-          fontWeight: 600,
-          lineHeight: 1.25,
-        }}
-      >
-        <span
-          style={{
-            width: '14px',
-            height: '14px',
-            borderRadius: '9999px',
-            background: '#f59e0b',
-            color: '#ffffff',
-            fontSize: '0.55rem',
-            display: 'inline-flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            flexShrink: 0,
-          }}
-        >
-          ⏸
-        </span>
-        <span>
-          ถูกระงับชั่วคราว
-          <br />
-          (Suspended)
-        </span>
-      </span>
-    );
-  }
+  const statusMap = {
+    active: { color: '#047857', th: 'พร้อมใช้งาน' },
+    suspended: { color: '#b45309', th: 'ถูกระงับชั่วคราว' },
+    deactivated: { color: '#475569', th: 'ปิดใช้งานถาวร' },
+  }[status];
 
   return (
     <span
       style={{
-        display: 'inline-flex',
-        alignItems: 'center',
-        gap: '0.45rem',
-        padding: '0.28rem 0.7rem',
-        borderRadius: '9999px',
-        background: '#f1f5f9',
-        color: '#475569',
-        border: '1px solid #cbd5e1',
-        fontSize: '0.75rem',
+        display: 'inline-block',
+        color: statusMap.color,
+        fontSize: '0.82rem',
         fontWeight: 600,
-        lineHeight: 1.25,
+        whiteSpace: 'nowrap',
       }}
     >
-      <span
-        style={{
-          width: '10px',
-          height: '10px',
-          borderRadius: '9999px',
-          background: '#94a3b8',
-          flexShrink: 0,
-        }}
-      />
-      <span>
-        ปิดใช้งานถาวร
-        <br />
-        (Deactivated)
-      </span>
+      {statusMap.th}
     </span>
   );
 }

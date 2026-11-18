@@ -40,9 +40,9 @@ export default function AdminDashboard({ sessionExpiry }: { sessionExpiry?: stri
     setActiveTab('cards');
   }
 
-  function openRefundForStudent(studentId: number) {
-    setSelectedStudentId(studentId);
+  function openCardManagement() {
     setSelectedCardId(undefined);
+    setSelectedStudentId(undefined);
     setFormKey((k) => k + 1);
     setActiveTab('cards');
   }
@@ -252,172 +252,175 @@ export default function AdminDashboard({ sessionExpiry }: { sessionExpiry?: stri
           flex: 1,
           minWidth: 0,
           background: 'linear-gradient(180deg, #ddeaf9 0%, #edf3fb 190px, #f4f7fc 100%)',
-          padding: '1.1rem 1.6rem 2rem',
           position: 'relative',
           overflowX: 'hidden',
+          display: 'flex',
+          flexDirection: 'column',
         }}
       >
-        <div
-          aria-hidden="true"
+        {/* Full-width Top Nav Bar */}
+        <header
           style={{
-            position: 'absolute',
-            right: '0',
-            top: '55px',
-            width: '260px',
-            height: '130px',
-            pointerEvents: 'none',
-            opacity: 0.35,
-            background:
-              'radial-gradient(circle at 75% 45%, rgba(59, 130, 246, 0.25), transparent 70%)',
+            position: 'sticky',
+            top: 0,
+            zIndex: 20,
+            background: 'rgba(255, 255, 255, 0.96)',
+            backdropFilter: 'blur(8px)',
+            borderBottom: '1px solid #e2e8f0',
+            padding: '0.85rem 1.75rem',
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            gap: '1rem',
+            boxShadow: '0 2px 10px rgba(15, 23, 42, 0.04)',
           }}
-        />
+        >
+          <div>
+            <h1 style={{ fontSize: '1.3rem', fontWeight: 700, margin: 0, color: '#0f172a', lineHeight: 1.2 }}>
+              ระบบจัดการคูปองดิจิทัลโรงเรียน
+            </h1>
+            <p style={{ margin: '0.15rem 0 0 0', color: '#475569', fontSize: '0.8rem' }}>
+              School Cashless RFID Administration Portal (Staff Admin)
+            </p>
+          </div>
 
-        <div style={{ maxWidth: '1160px', margin: '0 auto', position: 'relative', zIndex: 1 }}>
-          {/* Top Header Bar */}
-          <header
-            style={{
-              background: 'rgba(255, 255, 255, 0.88)',
-              backdropFilter: 'blur(8px)',
-              borderRadius: '14px',
-              border: '1px solid rgba(226, 232, 240, 0.9)',
-              padding: '0.8rem 1.2rem',
-              marginBottom: '1.15rem',
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              gap: '1rem',
-              boxShadow: '0 4px 16px rgba(15, 23, 42, 0.04)',
-            }}
-          >
-            <div>
-              <h1 style={{ fontSize: '1.35rem', fontWeight: 700, margin: 0, color: '#0f172a', lineHeight: 1.2 }}>
-                ระบบจัดการคูปองดิจิทัลโรงเรียน
-              </h1>
-              <p style={{ margin: '0.15rem 0 0 0', color: '#475569', fontSize: '0.82rem' }}>
-                School Cashless RFID Administration Portal (Staff Admin)
-              </p>
-            </div>
-
-            {/* Right Staff Profile */}
-            <div style={{ display: 'flex', alignItems: 'center', position: 'relative' }}>
-              <button
-                type="button"
-                onClick={() => setProfileMenuOpen((prev) => !prev)}
+          {/* Right Staff Profile */}
+          <div style={{ display: 'flex', alignItems: 'center', position: 'relative' }}>
+            <button
+              type="button"
+              onClick={() => setProfileMenuOpen((prev) => !prev)}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.55rem',
+                background: 'transparent',
+                border: 'none',
+                cursor: 'pointer',
+                padding: '0.2rem 0.35rem',
+                borderRadius: '9999px',
+              }}
+            >
+              <span
                 style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '0.55rem',
-                  background: 'transparent',
-                  border: 'none',
-                  cursor: 'pointer',
-                  padding: '0.2rem 0.35rem',
+                  width: '34px',
+                  height: '34px',
                   borderRadius: '9999px',
+                  background: '#1e3a8a',
+                  color: '#ffffff',
+                  fontSize: '0.78rem',
+                  fontWeight: 700,
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
                 }}
               >
-                <span
-                  style={{
-                    width: '34px',
-                    height: '34px',
-                    borderRadius: '9999px',
-                    background: '#1e3a8a',
-                    color: '#ffffff',
-                    fontSize: '0.78rem',
-                    fontWeight: 700,
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                  }}
-                >
-                  SA
-                </span>
-                <span style={{ fontSize: '0.86rem', fontWeight: 600, color: '#0f172a', whiteSpace: 'nowrap' }}>
-                  สมชาย ใจดี
-                </span>
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#475569" strokeWidth="2">
-                  <path d="m6 9 6 6 6-6" />
-                </svg>
-              </button>
+                SA
+              </span>
+              <span style={{ fontSize: '0.86rem', fontWeight: 600, color: '#0f172a', whiteSpace: 'nowrap' }}>
+                สมชาย ใจดี
+              </span>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#475569" strokeWidth="2">
+                <path d="m6 9 6 6 6-6" />
+              </svg>
+            </button>
 
-              {profileMenuOpen && (
+            {profileMenuOpen && (
+              <div
+                style={{
+                  position: 'absolute',
+                  right: 0,
+                  top: 'calc(100% + 8px)',
+                  background: '#ffffff',
+                  border: '1px solid #e2e8f0',
+                  borderRadius: '12px',
+                  boxShadow: '0 10px 25px rgba(15, 23, 42, 0.14)',
+                  padding: '0.6rem',
+                  minWidth: '210px',
+                  zIndex: 30,
+                }}
+              >
                 <div
                   style={{
-                    position: 'absolute',
-                    right: 0,
-                    top: 'calc(100% + 8px)',
-                    background: '#ffffff',
-                    border: '1px solid #e2e8f0',
-                    borderRadius: '12px',
-                    boxShadow: '0 10px 25px rgba(15, 23, 42, 0.14)',
-                    padding: '0.6rem',
-                    minWidth: '210px',
-                    zIndex: 30,
+                    padding: '0.35rem 0.5rem 0.55rem',
+                    borderBottom: '1px solid #f1f5f9',
+                    marginBottom: '0.4rem',
                   }}
                 >
-                  <div
-                    style={{
-                      padding: '0.35rem 0.5rem 0.55rem',
-                      borderBottom: '1px solid #f1f5f9',
-                      marginBottom: '0.4rem',
-                    }}
-                  >
-                    <div style={{ fontSize: '0.84rem', fontWeight: 600, color: '#0f172a' }}>สมชาย ใจดี</div>
-                    <div style={{ fontSize: '0.74rem', color: '#64748b' }}>
-                      Staff Admin{sessionExpiry ? ` • หมดอายุ ${new Date(sessionExpiry).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })}` : ''}
-                    </div>
+                  <div style={{ fontSize: '0.84rem', fontWeight: 600, color: '#0f172a' }}>สมชาย ใจดี</div>
+                  <div style={{ fontSize: '0.74rem', color: '#64748b' }}>
+                    Staff Admin{sessionExpiry ? ` • หมดอายุ ${new Date(sessionExpiry).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })}` : ''}
                   </div>
-                  <button
-                    type="button"
-                    disabled={loggingOut}
-                    onClick={handleLogout}
-                    style={{
-                      width: '100%',
-                      textAlign: 'left',
-                      padding: '0.5rem 0.65rem',
-                      fontSize: '0.84rem',
-                      background: '#fef2f2',
-                      border: '1px solid #fecaca',
-                      borderRadius: '8px',
-                      color: '#b91c1c',
-                      cursor: 'pointer',
-                      fontWeight: 600,
-                    }}
-                  >
-                    {loggingOut ? 'กำลังออกจากระบบ...' : 'ออกจากระบบ (Logout)'}
-                  </button>
                 </div>
+                <button
+                  type="button"
+                  disabled={loggingOut}
+                  onClick={handleLogout}
+                  style={{
+                    width: '100%',
+                    textAlign: 'left',
+                    padding: '0.5rem 0.65rem',
+                    fontSize: '0.84rem',
+                    background: '#fef2f2',
+                    border: '1px solid #fecaca',
+                    borderRadius: '8px',
+                    color: '#b91c1c',
+                    cursor: 'pointer',
+                    fontWeight: 600,
+                  }}
+                >
+                  {loggingOut ? 'กำลังออกจากระบบ...' : 'ออกจากระบบ (Logout)'}
+                </button>
+              </div>
+            )}
+          </div>
+        </header>
+
+        <div style={{ padding: '1.25rem 1.6rem 2rem', position: 'relative', flex: 1 }}>
+          <div
+            aria-hidden="true"
+            style={{
+              position: 'absolute',
+              right: '0',
+              top: '0',
+              width: '260px',
+              height: '130px',
+              pointerEvents: 'none',
+              opacity: 0.35,
+              background:
+                'radial-gradient(circle at 75% 45%, rgba(59, 130, 246, 0.25), transparent 70%)',
+            }}
+          />
+
+          <div style={{ maxWidth: '1160px', margin: '0 auto', position: 'relative', zIndex: 1 }}>
+            {/* Tab Panels */}
+            <main>
+              {activeTab === 'directory' && (
+                <StudentDirectory
+                  onSelectReissue={openReissueForStudent}
+                  onManageCards={openCardManagement}
+                />
               )}
-            </div>
-          </header>
 
-          {/* Tab Panels */}
-          <main>
-            {activeTab === 'directory' && (
-              <StudentDirectory
-                onSelectReissue={openReissueForStudent}
-                onSelectCard={openCardManagementForCard}
-                onSelectRefund={openRefundForStudent}
-              />
-            )}
+              {activeTab === 'reissue' && (
+                <CardReissueForm
+                  key={`reissue-${formKey}`}
+                  initialStudentId={selectedStudentId}
+                  onBackToDirectory={() => setActiveTab('directory')}
+                  onGoToCardManagement={openCardManagementForCard}
+                />
+              )}
 
-            {activeTab === 'reissue' && (
-              <CardReissueForm
-                key={`reissue-${formKey}`}
-                initialStudentId={selectedStudentId}
-                onBackToDirectory={() => setActiveTab('directory')}
-                onGoToCardManagement={openCardManagementForCard}
-              />
-            )}
+              {activeTab === 'cards' && (
+                <CardManagementForm
+                  key={`cards-${formKey}`}
+                  initialCardId={selectedCardId}
+                  initialStudentId={selectedStudentId}
+                />
+              )}
 
-            {activeTab === 'cards' && (
-              <CardManagementForm
-                key={`cards-${formKey}`}
-                initialCardId={selectedCardId}
-                initialStudentId={selectedStudentId}
-              />
-            )}
-
-            {activeTab === 'settlements' && <SettlementApprovalForm />}
-          </main>
+              {activeTab === 'settlements' && <SettlementApprovalForm />}
+            </main>
+          </div>
         </div>
       </div>
     </div>
