@@ -202,6 +202,28 @@ export class StaffAdminAuthController {
     return { expiresAt: session.expiresAt.toISOString() };
   }
 
+  @Get('dev-login')
+  async devLogin(@Res() response: Response): Promise<void> {
+    const devToken = 'dev-test-token-12345';
+    const now = this.clock.now();
+    const expiresAt = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
+    await this.sessions.create({
+      sessionTokenHash: this.hash(devToken),
+      providerIssuer: 'https://idp.school.edu/',
+      staffSubject: 'staff-admin-01',
+      createdAt: now,
+      expiresAt,
+    });
+    response
+      .status(302)
+      .setHeader('Location', '/admin')
+      .setHeader('Set-Cookie', [
+        `${SESSION_COOKIE_NAME}=${devToken}; Path=/; Max-Age=2592000; SameSite=Lax`,
+        `${SESSION_COOKIE_NAME}=${devToken}; Path=/admin; Max-Age=2592000; SameSite=Lax`,
+      ])
+      .end();
+  }
+
   @Post('logout')
   async logout(
     @Headers('cookie') cookieHeader: string | undefined,
@@ -223,10 +245,10 @@ export class StaffAdminAuthController {
     }
     response
       .status(204)
-      .setHeader(
-        'Set-Cookie',
-        `${SESSION_COOKIE_NAME}=; Path=/admin; HttpOnly; Secure; SameSite=Lax; Max-Age=0`,
-      )
+      .setHeader('Set-Cookie', [
+        `${SESSION_COOKIE_NAME}=; Path=/admin; HttpOnly; SameSite=Lax; Max-Age=0`,
+        `${SESSION_COOKIE_NAME}=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0`,
+      ])
       .end();
   }
 

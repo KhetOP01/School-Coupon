@@ -1,4 +1,4 @@
-node_modules
+**/node_modules
 .git
 .next
 apps/admin/.next
@@ -6,3 +6,5 @@ dist
 build
 coverage
 *.log
+*.png
+

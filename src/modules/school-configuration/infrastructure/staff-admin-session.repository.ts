@@ -14,7 +14,9 @@ export class StaffAdminSessionRepository implements StaffAdminSessions {
     await this.pool.query(
       `INSERT INTO staff_admin_sessions
         (session_token_hash, provider_issuer, staff_subject, created_at, expires_at)
-       VALUES ($1, $2, $3, $4, $5)`,
+       VALUES ($1, $2, $3, $4, $5)
+       ON CONFLICT (session_token_hash) DO UPDATE
+       SET revoked_at = NULL, expires_at = EXCLUDED.expires_at, updated_at = now()`,
       [
         session.sessionTokenHash,
         session.providerIssuer,

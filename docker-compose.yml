@@ -1,19 +1,66 @@
 services:
   postgres:
     image: postgres:16-alpine
+    container_name: school_coupon_postgres
     environment:
-      POSTGRES_DB: school_coupon
-      POSTGRES_USER: school_coupon
-      POSTGRES_PASSWORD: school_coupon_dev
+      POSTGRES_DB: ${POSTGRES_DB:-school_coupon}
+      POSTGRES_USER: ${POSTGRES_USER:-school_coupon}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-school_coupon_secure_pwd}
     ports:
-      - "5432:5432"
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U school_coupon -d school_coupon"]
-      interval: 3s
-      timeout: 3s
-      retries: 20
+      - "${POSTGRES_PORT:-5432}:5432"
     volumes:
-      - school-coupon-postgres:/var/lib/postgresql/data
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-school_coupon} -d ${POSTGRES_DB:-school_coupon}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile.api
+    container_name: school_coupon_api
+    environment:
+      DATABASE_URL: postgres://${POSTGRES_USER:-school_coupon}:${POSTGRES_PASSWORD:-school_coupon_secure_pwd}@postgres:5432/${POSTGRES_DB:-school_coupon}
+      PORT: 3000
+      STAFF_OIDC_ISSUER: ${STAFF_OIDC_ISSUER:-https://idp.example.edu/}
+      STAFF_OIDC_CLIENT_ID: ${STAFF_OIDC_CLIENT_ID:-school-coupon-client}
+      STAFF_OIDC_CLIENT_SECRET: ${STAFF_OIDC_CLIENT_SECRET:-school-coupon-secret}
+      STAFF_OIDC_REDIRECT_URI: ${STAFF_OIDC_REDIRECT_URI:-http://localhost/admin/auth/oidc/callback}
+      STAFF_CLAIM_NAME: ${STAFF_CLAIM_NAME:-groups}
+      STAFF_CLAIM_VALUE: ${STAFF_CLAIM_VALUE:-staff}
+    ports:
+      - "${API_PORT:-3000}:3000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+
+  admin:
+    build:
+      context: .
+      dockerfile: Dockerfile.admin
+    container_name: school_coupon_admin
+    environment:
+      PORT: 3001
+      AUTH_API_ORIGIN: http://api:3000
+    depends_on:
+      - api
+    restart: unless-stopped
+
+  nginx:
+    image: nginx:alpine
+    container_name: school_coupon_proxy
+    ports:
+      - "${HTTP_PORT:-80}:80"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - api
+      - admin
+    restart: unless-stopped
 
 volumes:
-  school-coupon-postgres:
+  postgres_data:

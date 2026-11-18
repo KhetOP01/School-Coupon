@@ -11,7 +11,7 @@ export class ParentApiClient {
   private parentId: string;
 
   constructor(options?: { baseUrl?: string; parentId?: string }) {
-    this.baseUrl = options?.baseUrl ?? 'http://10.0.2.2'; // Default Android emulator host
+    this.baseUrl = options?.baseUrl ?? 'http://192.168.1.89'; // LAN IP for Expo Go
     this.parentId = options?.parentId ?? 'parent-1';
   }
 
