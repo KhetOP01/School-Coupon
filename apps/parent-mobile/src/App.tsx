@@ -31,7 +31,7 @@ export default function App() {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <StatusBar barStyle="dark-content" backgroundColor="#f8fafc" />
+      <StatusBar barStyle="dark-content" />
       <View style={styles.container}>
         {currentScreen === 'home' && (
           <HomeScreen

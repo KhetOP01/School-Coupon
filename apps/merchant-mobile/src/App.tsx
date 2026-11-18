@@ -32,7 +32,7 @@ export default function App() {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <StatusBar barStyle="light-content" backgroundColor="#0f172a" />
+      <StatusBar barStyle="light-content" />
 
       {/* App Bar Header */}
       <View style={styles.topHeader}>
