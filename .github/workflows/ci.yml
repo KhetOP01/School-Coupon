@@ -75,4 +75,4 @@ jobs:
 
       - name: Validate Nginx configuration syntax
         run: |
-          docker run --rm -v ${{ github.workspace }}/nginx/nginx.conf:/etc/nginx/nginx.conf:ro nginx:alpine nginx -t
+          docker run --rm --add-host=api:127.0.0.1 --add-host=admin:127.0.0.1 -v ${{ github.workspace }}/nginx/nginx.conf:/etc/nginx/nginx.conf:ro nginx:alpine nginx -t
