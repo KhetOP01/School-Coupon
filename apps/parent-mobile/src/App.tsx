@@ -18,7 +18,7 @@ const INITIAL_STUDENT: StudentProfile = {
   nextDailyLimit: '200.00',
   card: {
     id: 1,
-    rfidUid: 'E200001906070123456789AB',
+    rfidUid: 'E280F3020000000145A58295',
     status: 'active',
   },
 };

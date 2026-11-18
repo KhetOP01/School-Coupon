@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -7,6 +7,7 @@ import {
   TextInput,
   ActivityIndicator,
   Alert,
+  Image,
 } from 'react-native';
 import { parentApi } from '../api/parent-api';
 import { StudentProfile } from '../types';
@@ -23,6 +24,36 @@ export function TopUpScreen({ student, onSuccess, onBack }: TopUpScreenProps) {
   const [amount, setAmount] = useState('100');
   const [loading, setLoading] = useState(false);
   const [qrGenerated, setQrGenerated] = useState(false);
+  const [pendingTopUp, setPendingTopUp] = useState<{
+    topUpId: number;
+    amount: string;
+    gatewayReference: string | null;
+    qrImageUrl: string | null;
+  } | null>(null);
+
+  useEffect(() => {
+    if (!qrGenerated || !pendingTopUp) return;
+
+    const timer = setInterval(async () => {
+      try {
+        const statusRes = await parentApi.getTopUpStatus(pendingTopUp.topUpId);
+        if (statusRes.status === 'succeeded' && statusRes.walletBalance) {
+          clearInterval(timer);
+          setQrGenerated(false);
+          setPendingTopUp(null);
+          Alert.alert(
+            'เติมเงินสำเร็จ',
+            `ยอดเงิน ฿${parseFloat(pendingTopUp.amount).toFixed(2)} เข้าสู่กระเป๋าเงินนักเรียนเรียบร้อยแล้ว`,
+            [{ text: 'ตกลง', onPress: () => onSuccess(statusRes.walletBalance!) }],
+          );
+        }
+      } catch {
+        // Ignore transient poll errors
+      }
+    }, 2500);
+
+    return () => clearInterval(timer);
+  }, [qrGenerated, pendingTopUp, onSuccess]);
 
   async function handleConfirmTopUp() {
     const amountVal = parseFloat(amount);
@@ -45,11 +76,45 @@ export function TopUpScreen({ student, onSuccess, onBack }: TopUpScreenProps) {
           [{ text: 'ตกลง', onPress: () => onSuccess(result.walletBalance!) }],
         );
       } else {
+        setPendingTopUp({
+          topUpId: result.topUpId,
+          amount: result.amount,
+          gatewayReference: result.gatewayReference ?? null,
+          qrImageUrl: result.qrImageUrl ?? null,
+        });
         setQrGenerated(true);
       }
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'ไม่สามารถดำเนินการได้';
       Alert.alert('การเติมเงินไม่สำเร็จ', message);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleSimulatePay() {
+    if (!pendingTopUp?.gatewayReference) {
+      Alert.alert('ข้อผิดพลาด', 'ไม่พบข้อมูลอ้างอิงสำหรับจำลองการจ่ายเงิน');
+      return;
+    }
+    setLoading(true);
+    try {
+      const res = await parentApi.simulateGatewayPayment(
+        pendingTopUp.gatewayReference,
+        pendingTopUp.amount,
+      );
+      const latest = await parentApi.getTopUpStatus(pendingTopUp.topUpId);
+      const newBal = latest.walletBalance ?? res.walletBalance;
+      setQrGenerated(false);
+      setPendingTopUp(null);
+      if (newBal) {
+        Alert.alert('ชำระเงินสำเร็จ', 'ยอดเงินเข้าสู่ระบบ PostgreSQL เรียบร้อยแล้ว', [
+          { text: 'ตกลง', onPress: () => onSuccess(newBal) },
+        ]);
+      }
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'จำลองการชำระเงินไม่สำเร็จ';
+      Alert.alert('ข้อผิดพลาด', message);
     } finally {
       setLoading(false);
     }
@@ -103,20 +168,27 @@ export function TopUpScreen({ student, onSuccess, onBack }: TopUpScreenProps) {
           <View style={styles.qrContainer}>
             <Text style={styles.qrTitle}>สแกน QR เพื่อชำระเงิน (PromptPay)</Text>
             <View style={styles.mockQrBox}>
-              <Text style={styles.qrCodeIcon}>[QR CODE]</Text>
+              {pendingTopUp?.qrImageUrl ? (
+                <Image
+                  source={{ uri: pendingTopUp.qrImageUrl }}
+                  style={{ width: 180, height: 180, marginBottom: 8 }}
+                  resizeMode="contain"
+                />
+              ) : (
+                <Text style={styles.qrCodeIcon}>[QR CODE]</Text>
+              )}
               <Text style={styles.qrAmountText}>฿{parseFloat(amount).toFixed(2)}</Text>
             </View>
             <TouchableOpacity
               style={styles.paySimButton}
-              onPress={() => {
-                const currentBal = parseFloat(student.walletBalance);
-                const newBal = (currentBal + parseFloat(amount)).toFixed(2);
-                Alert.alert('ชำระเงินสำเร็จ', 'ยอดเงินเข้าสู่ระบบแล้ว', [
-                  { text: 'ตกลง', onPress: () => onSuccess(newBal) },
-                ]);
-              }}
+              onPress={handleSimulatePay}
+              disabled={loading}
             >
-              <Text style={styles.paySimButtonText}>จำลองการชำระเงินสำเร็จ (Simulate Pay)</Text>
+              {loading ? (
+                <ActivityIndicator color="#fff" />
+              ) : (
+                <Text style={styles.paySimButtonText}>จำลองการชำระเงินสำเร็จ (Sandbox Webhook)</Text>
+              )}
             </TouchableOpacity>
           </View>
         ) : (

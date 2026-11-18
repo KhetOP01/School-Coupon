@@ -1,6 +1,6 @@
 'use client';
 
-import { FormEvent, useMemo, useState } from 'react';
+import { FormEvent, useEffect, useMemo, useState } from 'react';
 
 interface SettlementResult {
   id: number;
@@ -74,6 +74,44 @@ export default function SettlementApprovalForm() {
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [result, setResult] = useState<SettlementResult | null>(null);
+
+  useEffect(() => {
+    let active = true;
+    fetch('/admin/settlements')
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data: { settlements?: Array<{
+        id: number;
+        merchantId: number;
+        merchantCode: string;
+        merchantName: string;
+        feePercent: string;
+        grossAmount: string;
+        feeAmount: string;
+        netAmount: string;
+        status: 'PENDING_APPROVAL' | 'APPROVED' | 'PAID';
+      }> } | null) => {
+        if (!active || !data?.settlements) return;
+        setSamples(
+          data.settlements.map((s) => ({
+            id: String(s.id),
+            merchantId: s.merchantId,
+            merchantCode: s.merchantCode,
+            merchantName: s.merchantName,
+            feePercent: `${s.feePercent}%`,
+            grossAmount: s.grossAmount,
+            feeAmount: s.feeAmount,
+            netAmount: s.netAmount,
+            status: s.status,
+          })),
+        );
+      })
+      .catch(() => {
+        // Keep fallback samples if API is unreachable
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
 
   const stats = useMemo(() => {
     const pending = samples.filter((s) => s.status === 'PENDING_APPROVAL').length;

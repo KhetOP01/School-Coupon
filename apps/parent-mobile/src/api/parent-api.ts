@@ -11,7 +11,7 @@ export class ParentApiClient {
   private parentId: string;
 
   constructor(options?: { baseUrl?: string; parentId?: string }) {
-    this.baseUrl = options?.baseUrl ?? 'http://192.168.1.89'; // LAN IP for Expo Go
+    this.baseUrl = options?.baseUrl ?? 'http://192.168.1.78'; // LAN IP for Expo Go
     this.parentId = options?.parentId ?? 'parent-1';
   }
 
@@ -62,6 +62,31 @@ export class ParentApiClient {
     }
 
     return (await res.json()) as TopUpResponse;
+  }
+
+  /**
+   * Sandbox helper: ยิง Callback/Webhook จำลองการชำระเงินสำเร็จเข้า Backend จริง
+   */
+  async simulateGatewayPayment(
+    gatewayReference: string,
+    amount: string,
+  ): Promise<{ accepted: boolean; walletBalance?: string }> {
+    const res = await fetch(`${this.baseUrl}/callbacks/payment-gateway/topup`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        gatewayReference,
+        status: 'succeeded',
+        amount,
+      }),
+    });
+
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.message ?? `Callback failed (${res.status})`);
+    }
+
+    return (await res.json()) as { accepted: boolean; walletBalance?: string };
   }
 
   /**

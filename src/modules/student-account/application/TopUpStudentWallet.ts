@@ -17,6 +17,8 @@ export type TopUpStudentWalletResult =
       studentId: string;
       amount: string;
       status: 'pending';
+      gatewayReference?: string;
+      qrImageUrl?: string;
     }
   | {
       topUpId: string;
@@ -52,7 +54,12 @@ export class TopUpStudentWallet {
     };
 
     if (payment.status === 'pending') {
-      return { ...result, status: 'pending' };
+      return {
+        ...result,
+        status: 'pending',
+        gatewayReference: payment.gatewayReference,
+        qrImageUrl: payment.qrImageUrl,
+      };
     }
 
     return {

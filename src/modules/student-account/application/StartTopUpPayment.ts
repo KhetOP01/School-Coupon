@@ -5,7 +5,7 @@ import { TopUpRepository } from '../domain/TopUpRepository';
 import { PaymentGateway } from './ports';
 
 export type StartTopUpPaymentResult =
-  | { status: 'pending' }
+  | { status: 'pending'; gatewayReference?: string; qrImageUrl?: string }
   | { status: 'succeeded'; walletBalance: Money };
 
 export class StartTopUpPayment {
@@ -19,7 +19,15 @@ export class StartTopUpPayment {
 
     const result = await this.paymentGateway.requestPayment(topUp);
     if (result.status === 'pending') {
-      return { status: 'pending' };
+      if (result.gatewayProvider && result.gatewayReference) {
+        topUp.attachPendingGateway(result.gatewayProvider, result.gatewayReference);
+        await this.topUpRepository.save(topUp);
+      }
+      return {
+        status: 'pending',
+        gatewayReference: result.gatewayReference,
+        qrImageUrl: result.qrImageUrl,
+      };
     }
 
     if (result.status === 'failed') {

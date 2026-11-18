@@ -45,6 +45,14 @@ export class TopUp {
     return this.gatewayReference;
   }
 
+  attachPendingGateway(gatewayProvider: string, gatewayReference: string): void {
+    if (this.currentStatus !== 'pending') {
+      throw new DomainError('INVALID_GATEWAY_EVENT');
+    }
+    this.currentGatewayProvider = gatewayProvider;
+    this.gatewayReference = gatewayReference;
+  }
+
   markPaymentFailed(): boolean {
     if (this.currentStatus === 'failed') {
       return false;

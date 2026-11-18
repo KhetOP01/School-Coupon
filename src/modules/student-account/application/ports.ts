@@ -21,7 +21,12 @@ export type GatewayPaymentResult =
       gatewayReference: string;
     }
   | { status: 'failed' }
-  | { status: 'pending' };
+  | {
+      status: 'pending';
+      gatewayProvider?: string;
+      gatewayReference?: string;
+      qrImageUrl?: string;
+    };
 
 export interface PaymentGateway {
   requestPayment(topUp: TopUp): Promise<GatewayPaymentResult>;

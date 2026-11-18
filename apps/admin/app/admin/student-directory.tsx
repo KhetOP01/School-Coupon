@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 
 interface StudentItem {
   id: number;
@@ -127,22 +127,64 @@ export default function StudentDirectory({
   onSelectReissue,
   onManageCards,
 }: StudentDirectoryProps) {
+  const [students, setStudents] = useState<StudentItem[]>(SEED_STUDENTS);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
   const [filterOpen, setFilterOpen] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const pageSize = 10;
 
-  const counts = useMemo(() => {
-    return {
-      total: SEED_STUDENTS.length,
-      active: SEED_STUDENTS.filter((s) => s.cardStatus === 'active').length,
-      suspended: SEED_STUDENTS.filter((s) => s.cardStatus === 'suspended').length,
-      deactivated: SEED_STUDENTS.filter((s) => s.cardStatus === 'deactivated').length,
+  useEffect(() => {
+    let active = true;
+    fetch('/admin/students')
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data: { students?: Array<{
+        id: number;
+        studentCode: string;
+        name: string;
+        walletBalance: string;
+        cardId: number | null;
+        rfidUid: string | null;
+        cardStatus: string | null;
+      }> } | null) => {
+        if (!active || !data?.students) return;
+        setStudents(
+          data.students.map((s) => ({
+            id: s.id,
+            studentCode: s.studentCode,
+            name: s.name,
+            classroom: 'นักเรียนในระบบ',
+            balance: s.walletBalance,
+            cardId: s.cardId ?? 0,
+            rfidUid: s.rfidUid ?? '-',
+            cardStatus:
+              s.cardStatus === 'active' || s.cardStatus === 'suspended' || s.cardStatus === 'deactivated'
+                ? s.cardStatus
+                : 'suspended',
+            note: '',
+          })),
+        );
+      })
+      .catch(() => {
+        // Keep fallback seed list if API is unreachable
+      });
+    return () => {
+      active = false;
     };
   }, []);
 
+  const counts = useMemo(() => {
+    return {
+      total: students.length,
+      active: students.filter((s) => s.cardStatus === 'active').length,
+      suspended: students.filter((s) => s.cardStatus === 'suspended').length,
+      deactivated: students.filter((s) => s.cardStatus === 'deactivated').length,
+    };
+  }, [students]);
+
   const filteredStudents = useMemo(() => {
     const query = searchQuery.trim().toLowerCase();
-    return SEED_STUDENTS.filter((student) => {
+    return students.filter((student) => {
       if (statusFilter !== 'all' && student.cardStatus !== statusFilter) {
         return false;
       }
@@ -157,6 +199,18 @@ export default function StudentDirectory({
         String(student.cardId).includes(query)
       );
     });
+  }, [students, searchQuery, statusFilter]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredStudents.length / pageSize));
+  const safePage = Math.min(currentPage, totalPages);
+  const startIndex = (safePage - 1) * pageSize;
+  const paginatedStudents = useMemo(
+    () => filteredStudents.slice(startIndex, startIndex + pageSize),
+    [filteredStudents, startIndex],
+  );
+
+  useEffect(() => {
+    setCurrentPage(1);
   }, [searchQuery, statusFilter]);
 
   const filterLabel: Record<StatusFilter, string> = {
@@ -552,7 +606,7 @@ export default function StudentDirectory({
                   </td>
                 </tr>
               ) : (
-                filteredStudents.map((s, idx) => (
+                paginatedStudents.map((s, idx) => (
                   <tr
                     key={s.id}
                     style={{
@@ -575,7 +629,7 @@ export default function StudentDirectory({
                           fontSize: '0.78rem',
                         }}
                       >
-                        {idx + 1}
+                        {startIndex + idx + 1}
                       </span>
                     </td>
                     <td style={{ padding: '0.75rem 0.65rem', whiteSpace: 'nowrap' }}>
@@ -654,13 +708,14 @@ export default function StudentDirectory({
           <span>
             {filteredStudents.length === 0
               ? 'แสดง 0 จาก 0 รายการ'
-              : `แสดง 1–${filteredStudents.length} จาก ${filteredStudents.length} รายการ`}
+              : `แสดง ${startIndex + 1}–${Math.min(startIndex + pageSize, filteredStudents.length)} จาก ${filteredStudents.length} รายการ`}
           </span>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
             <button
               type="button"
-              disabled
+              disabled={safePage <= 1}
+              onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
               aria-label="Previous page"
               style={{
                 width: '30px',
@@ -668,34 +723,45 @@ export default function StudentDirectory({
                 borderRadius: '8px',
                 border: '1px solid #e2e8f0',
                 background: '#ffffff',
-                color: '#94a3b8',
+                color: safePage <= 1 ? '#94a3b8' : '#334155',
                 display: 'inline-flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                cursor: 'not-allowed',
+                cursor: safePage <= 1 ? 'not-allowed' : 'pointer',
               }}
             >
               ‹
             </button>
-            <span
-              style={{
-                width: '30px',
-                height: '30px',
-                borderRadius: '8px',
-                background: '#2563eb',
-                color: '#ffffff',
-                fontWeight: 700,
-                fontSize: '0.82rem',
-                display: 'inline-flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-              }}
-            >
-              1
-            </span>
+            {Array.from({ length: totalPages }, (_, i) => i + 1).map((pageNum) => {
+              const isActive = pageNum === safePage;
+              return (
+                <button
+                  key={pageNum}
+                  type="button"
+                  onClick={() => setCurrentPage(pageNum)}
+                  style={{
+                    width: '30px',
+                    height: '30px',
+                    borderRadius: '8px',
+                    border: isActive ? 'none' : '1px solid #e2e8f0',
+                    background: isActive ? '#2563eb' : '#ffffff',
+                    color: isActive ? '#ffffff' : '#334155',
+                    fontWeight: isActive ? 700 : 500,
+                    fontSize: '0.82rem',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    cursor: 'pointer',
+                  }}
+                >
+                  {pageNum}
+                </button>
+              );
+            })}
             <button
               type="button"
-              disabled
+              disabled={safePage >= totalPages}
+              onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
               aria-label="Next page"
               style={{
                 width: '30px',
@@ -703,11 +769,11 @@ export default function StudentDirectory({
                 borderRadius: '8px',
                 border: '1px solid #e2e8f0',
                 background: '#ffffff',
-                color: '#94a3b8',
+                color: safePage >= totalPages ? '#94a3b8' : '#334155',
                 display: 'inline-flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                cursor: 'not-allowed',
+                cursor: safePage >= totalPages ? 'not-allowed' : 'pointer',
               }}
             >
               ›

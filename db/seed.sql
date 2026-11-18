@@ -316,6 +316,33 @@ ON CONFLICT (merchant_id, settlement_date) DO NOTHING;
 SELECT setval(pg_get_serial_sequence('merchants', 'id'), GREATEST((SELECT MAX(id) FROM merchants), 1), TRUE);
 SELECT setval(pg_get_serial_sequence('settlements', 'id'), GREATEST((SELECT MAX(id) FROM settlements), 1), TRUE);
 
+-- Realistic Demo / Mobile App Seed Data (Merchant #1 + 5 Students with Real RFID UIDs)
+INSERT INTO merchants (id, merchant_code, name, fee_percent, status)
+VALUES (1, 'M-001', 'Pa Daeng Rice Shop', 2.00, 'active')
+ON CONFLICT (merchant_code) DO NOTHING;
+
+INSERT INTO students (id, student_code, first_name, last_name, wallet_balance, current_daily_limit, next_daily_limit)
+VALUES
+  (1, 'STD-1001', 'Somchai', 'Jaidee', 150.00, 200.00, 200.00),
+  (2, 'STD-1002', 'Somying', 'Rakrian', 200.00, 200.00, 200.00),
+  (3, 'STD-1003', 'Tonkla', 'Meesuk', 100.00, 150.00, 150.00),
+  (4, 'STD-1004', 'Namsai', 'Sawangjit', 50.00, 100.00, 100.00),
+  (5, 'STD-1005', 'Phupha', 'Mankong', 300.00, 250.00, 250.00)
+ON CONFLICT (student_code) DO NOTHING;
+
+INSERT INTO rfid_cards (id, rfid_uid, student_id, status)
+VALUES
+  (1, 'E280F3020000000145A58295', 1, 'active'),
+  (2, 'E280F3020000000145A58285', 2, 'active'),
+  (3, 'E280F3020000000145A5828D', 3, 'active'),
+  (4, 'E280F3020000000145A58289', 4, 'active'),
+  (5, 'E280F3020000000145A58291', 5, 'active')
+ON CONFLICT (rfid_uid) DO NOTHING;
+
+SELECT setval(pg_get_serial_sequence('merchants', 'id'), GREATEST((SELECT MAX(id) FROM merchants), 1), TRUE);
+SELECT setval(pg_get_serial_sequence('students', 'id'), GREATEST((SELECT MAX(id) FROM students), 1), TRUE);
+SELECT setval(pg_get_serial_sequence('rfid_cards', 'id'), GREATEST((SELECT MAX(id) FROM rfid_cards), 1), TRUE);
+
 
 
 

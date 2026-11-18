@@ -5,9 +5,12 @@ export class OfflineStorageManager {
   private queue: OfflinePaymentRecord[] = [];
 
   constructor() {
-    // Seed some initial cached balances for testing
-    this.cachedBalances.set('E200001906070123456789AB', 150.0);
-    this.cachedBalances.set('E20000190607000000000001', 80.0);
+    // Seed initial cached balances for the 5 real RFID cards
+    this.cachedBalances.set('E280F3020000000145A58295', 150.0);
+    this.cachedBalances.set('E280F3020000000145A58285', 200.0);
+    this.cachedBalances.set('E280F3020000000145A5828D', 100.0);
+    this.cachedBalances.set('E280F3020000000145A58289', 50.0);
+    this.cachedBalances.set('E280F3020000000145A58291', 300.0);
   }
 
   getCachedBalance(rfidUid: string): number | null {

@@ -80,6 +80,8 @@ export class TopUpWalletController {
         studentId: Number(result.studentId),
         amount: result.amount,
         status: 'pending',
+        ...(result.gatewayReference ? { gatewayReference: result.gatewayReference } : {}),
+        ...(result.qrImageUrl ? { qrImageUrl: result.qrImageUrl } : {}),
       });
     }
 
@@ -109,27 +111,78 @@ export class TopUpWalletController {
       throw new DomainError('INVALID_GATEWAY_EVENT', 'ข้อมูล callback ไม่ถูกต้อง');
     }
 
-    // Try finding by gateway reference in wallet_topups
-    const topUp = TopUp.restore({
-      id: '1',
-      studentId: '1',
-      amount: TopUpAmount.fromDecimal(dto.amount || '100.00'),
-      status: 'succeeded',
-      gatewayProvider: 'promptpay-qr',
-      gatewayReference: dto.gatewayReference,
-    });
+    const ref = dto.gatewayReference.trim();
+    const existing =
+      typeof this.repository.findTopUpByGatewayReference === 'function'
+        ? await this.repository.findTopUpByGatewayReference(ref)
+        : null;
 
-    try {
-      await this.repository.confirmAndCredit(topUp);
-      return { accepted: true, duplicate: false };
-    } catch (error) {
-      if (
-        error instanceof DomainError &&
-        error.code === 'INVALID_GATEWAY_EVENT'
-      ) {
+    if (!existing) {
+      const fallbackTopUp = TopUp.restore({
+        id: '1',
+        studentId: '1',
+        amount: TopUpAmount.fromDecimal(dto.amount || '100.00'),
+        status: 'succeeded',
+        gatewayProvider: 'promptpay-qr',
+        gatewayReference: ref,
+      });
+
+      try {
+        await this.repository.confirmAndCredit(fallbackTopUp);
+        return { accepted: true, duplicate: false };
+      } catch {
         return { accepted: true, duplicate: true };
       }
-      return { accepted: true, duplicate: true };
     }
+
+    if (dto.status === 'failed') {
+      existing.markPaymentFailed();
+      await this.repository.save(existing);
+      return { accepted: true, duplicate: false };
+    }
+
+    const provider = existing.gatewayProvider ?? 'promptpay-sandbox';
+    const wasSucceeded = existing.status === 'succeeded';
+    existing.confirmPayment(provider, ref);
+    const walletBalance = await this.repository.confirmAndCredit(existing);
+    return {
+      accepted: true,
+      duplicate: wasSucceeded,
+      walletBalance: walletBalance.toString(),
+    };
+  }
+
+  @Post('callbacks/omise/topup')
+  @HttpCode(HttpStatus.OK)
+  async handleOmiseWebhook(
+    @Body()
+    payload: {
+      key?: string;
+      data?: { id?: string; status?: string };
+    },
+  ) {
+    const chargeId = payload?.data?.id?.trim();
+    if (!chargeId) {
+      return { accepted: false };
+    }
+
+    const existing = await this.repository.findTopUpByGatewayReference(chargeId);
+    if (!existing) {
+      return { accepted: true, ignored: true };
+    }
+
+    if (payload.data?.status === 'successful') {
+      const wasSucceeded = existing.status === 'succeeded';
+      existing.confirmPayment(existing.gatewayProvider ?? 'omise-promptpay', chargeId);
+      await this.repository.confirmAndCredit(existing);
+      return { accepted: true, duplicate: wasSucceeded };
+    }
+
+    if (payload.data?.status === 'failed' || payload.data?.status === 'expired') {
+      existing.markPaymentFailed();
+      await this.repository.save(existing);
+    }
+
+    return { accepted: true };
   }
 }

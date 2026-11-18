@@ -24,6 +24,8 @@ export interface TopUpResponse {
   amount: string;
   walletBalance?: string;
   status: 'pending' | 'succeeded' | 'failed';
+  gatewayReference?: string | null;
+  qrImageUrl?: string | null;
 }
 
 export interface DailyLimitResponse {

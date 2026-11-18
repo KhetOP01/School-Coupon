@@ -18,13 +18,16 @@ interface PosScreenProps {
 }
 
 const TEST_RFID_CARDS = [
-  { label: 'บัตรนักเรียน 1 (สมชาย)', uid: 'E200001906070123456789AB' },
-  { label: 'บัตรนักเรียน 2 (สมศรี)', uid: 'E20000190607000000000001' },
+  { label: '1. สมชาย (STD-1001)', uid: 'E280F3020000000145A58295' },
+  { label: '2. สมหญิง (STD-1002)', uid: 'E280F3020000000145A58285' },
+  { label: '3. ต้นกล้า (STD-1003)', uid: 'E280F3020000000145A5828D' },
+  { label: '4. น้ำใส (STD-1004)', uid: 'E280F3020000000145A58289' },
+  { label: '5. ภูผา (STD-1005)', uid: 'E280F3020000000145A58291' },
 ];
 
 export function PosScreen({ merchantId, onPaymentSuccess }: PosScreenProps) {
   const [amount, setAmount] = useState('');
-  const [rfidUid, setRfidUid] = useState('E200001906070123456789AB');
+  const [rfidUid, setRfidUid] = useState('E280F3020000000145A58295');
   const [isOffline, setIsOffline] = useState(false);
   const [loading, setLoading] = useState(false);
   const [successData, setSuccessData] = useState<{

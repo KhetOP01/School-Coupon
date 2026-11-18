@@ -1,6 +1,6 @@
 'use client';
 
-import { FormEvent, useMemo, useState } from 'react';
+import { FormEvent, useEffect, useMemo, useState } from 'react';
 
 interface CardResult {
   cardId: number;
@@ -74,6 +74,50 @@ export default function CardManagementForm({
   const [busy, setBusy] = useState(false);
   const [cardMessage, setCardMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [refundMessage, setRefundMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+
+  useEffect(() => {
+    let active = true;
+    fetch('/admin/students')
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data: { students?: Array<{
+        id: number;
+        firstName: string;
+        name: string;
+        walletBalance: string;
+        cardId: number | null;
+        rfidUid: string | null;
+        cardStatus: string | null;
+      }> } | null) => {
+        if (!active || !data?.students) return;
+        setCards(
+          data.students
+            .filter((s) => s.cardId !== null && s.rfidUid !== null)
+            .map((s) => ({
+              id: String(s.cardId),
+              rfidUid: s.rfidUid!,
+              studentName: s.name,
+              status:
+                s.cardStatus === 'active' || s.cardStatus === 'suspended' || s.cardStatus === 'deactivated'
+                  ? s.cardStatus
+                  : 'suspended',
+            })),
+        );
+        setRefundStudents(
+          data.students.map((s) => ({
+            id: String(s.id),
+            shortName: s.firstName,
+            fullName: s.name,
+            balance: s.walletBalance,
+          })),
+        );
+      })
+      .catch(() => {
+        // Keep fallback seed lists if API is unreachable
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
 
   const filteredCards = useMemo(() => {
     const query = cardFilter.trim().toLowerCase();

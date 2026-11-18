@@ -1,15 +1,34 @@
 import {
   BadRequestException,
   Controller,
+  Get,
   HttpCode,
   HttpStatus,
   Inject,
+  Optional,
   Param,
   Post,
   UseGuards,
 } from '@nestjs/common';
+import { PostgresDatabase } from '../../../../shared/postgres-database';
 import { StaffAuthGuard } from '../../../student-account/interface/http/staff-auth.guard';
 import { ApproveSettlement } from '../../application/ApproveSettlement';
+
+interface SettlementListRow {
+  id: number;
+  merchant_id: number;
+  merchant_code: string;
+  merchant_name: string;
+  fee_percent: string;
+  settlement_date: Date | string;
+  gross_amount: string;
+  fee_amount: string;
+  net_amount: string;
+  status: string;
+  approved_by: string | null;
+  approved_at: Date | null;
+  created_at: Date;
+}
 
 @Controller('admin/settlements')
 @UseGuards(StaffAuthGuard)
@@ -17,7 +36,57 @@ export class SettlementController {
   constructor(
     @Inject(ApproveSettlement)
     private readonly approveSettlement: ApproveSettlement,
+    @Optional()
+    @Inject(PostgresDatabase)
+    private readonly db?: PostgresDatabase,
   ) {}
+
+  @Get()
+  async list() {
+    if (!this.db) {
+      return { settlements: [] };
+    }
+    const result = await this.db.pool.query<SettlementListRow>(`
+      SELECT
+        st.id,
+        st.merchant_id,
+        m.merchant_code,
+        m.name AS merchant_name,
+        m.fee_percent::text AS fee_percent,
+        st.settlement_date,
+        st.gross_amount::text AS gross_amount,
+        st.fee_amount::text AS fee_amount,
+        st.net_amount::text AS net_amount,
+        st.status,
+        st.approved_by,
+        st.approved_at,
+        st.created_at
+      FROM settlements st
+      JOIN merchants m ON m.id = st.merchant_id
+      ORDER BY st.settlement_date DESC, st.id DESC
+    `);
+
+    return {
+      settlements: result.rows.map((row) => ({
+        id: row.id,
+        merchantId: row.merchant_id,
+        merchantCode: row.merchant_code,
+        merchantName: row.merchant_name,
+        feePercent: Number(row.fee_percent).toFixed(2),
+        settlementDate:
+          row.settlement_date instanceof Date
+            ? row.settlement_date.toISOString().slice(0, 10)
+            : String(row.settlement_date).slice(0, 10),
+        grossAmount: Number(row.gross_amount).toFixed(2),
+        feeAmount: Number(row.fee_amount).toFixed(2),
+        netAmount: Number(row.net_amount).toFixed(2),
+        status: row.status,
+        approvedBy: row.approved_by,
+        approvedAt: row.approved_at ? row.approved_at.toISOString() : null,
+        createdAt: row.created_at.toISOString(),
+      })),
+    };
+  }
 
   @Post(':id/approve')
   @HttpCode(HttpStatus.OK)

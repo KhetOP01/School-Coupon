@@ -2,6 +2,7 @@ import { Pool } from 'pg';
 import { DomainError } from '../../../shared/domain-error';
 import { Money } from '../domain/Money';
 import { TopUp } from '../domain/TopUp';
+import { TopUpAmount } from '../domain/TopUpAmount';
 import { TopUpPolicy } from '../domain/TopUpPolicy';
 import { TopUpRepository } from '../domain/TopUpRepository';
 import { Wallet } from '../domain/Wallet';
@@ -186,6 +187,33 @@ export class PostgresTopUpRepository implements TopUpRepository {
       status: row.status,
       walletBalance: row.status === 'succeeded' ? row.wallet_balance : null,
     };
+  }
+
+  async findTopUpByGatewayReference(gatewayReference: string): Promise<TopUp | null> {
+    const result = await this.pool.query<{
+      id: number;
+      student_id: number;
+      amount: string;
+      status: 'pending' | 'succeeded' | 'failed';
+      gateway_provider: string | null;
+      gateway_reference: string | null;
+    }>(
+      `SELECT id, student_id, amount::text, status, gateway_provider, gateway_reference
+       FROM wallet_topups
+       WHERE gateway_reference = $1
+       LIMIT 1`,
+      [gatewayReference],
+    );
+    const row = result.rows[0];
+    if (!row) return null;
+    return TopUp.restore({
+      id: String(row.id),
+      studentId: String(row.student_id),
+      amount: TopUpAmount.fromDecimal(row.amount),
+      status: row.status,
+      gatewayProvider: row.gateway_provider,
+      gatewayReference: row.gateway_reference,
+    });
   }
 
   private async readWalletBalance(

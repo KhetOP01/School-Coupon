@@ -17,6 +17,7 @@ import { ValidateTopUpAmount } from './application/ValidateTopUpAmount';
 import { CardIdGenerator } from './application/ports';
 import { StudentAccountRepository } from './application/student-account.repository';
 import { PostgresCardIdGenerator } from './infrastructure/postgres-card-id-generator';
+import { OmiseSandboxPaymentGateway } from './infrastructure/OmiseSandboxPaymentGateway';
 import {
   PostgresStudentLookup,
   PostgresTopUpIdGenerator,
@@ -25,6 +26,7 @@ import {
 } from './infrastructure/PostgresTopUpRepository';
 import { StudentAccountPostgresRepository } from './infrastructure/student-account-postgres.repository';
 import { CardReissuePreviewController } from './interface/http/card-reissue-preview.controller';
+import { AdminQueryController } from './interface/http/admin-query.controller';
 import { DailyLimitController } from './interface/http/daily-limit.controller';
 import { FreezeCardController } from './interface/http/freeze-card.controller';
 import { RefundStudentController } from './interface/http/refund-student.controller';
@@ -48,6 +50,7 @@ export const PARENT_STUDENT_ACCESS = Symbol('PARENT_STUDENT_ACCESS');
     RefundStudentController,
     TopUpWalletController,
     DailyLimitController,
+    AdminQueryController,
   ],
   providers: [
     PostgresDatabase,
@@ -89,18 +92,7 @@ export const PARENT_STUDENT_ACCESS = Symbol('PARENT_STUDENT_ACCESS');
     },
     {
       provide: PAYMENT_GATEWAY,
-      useValue: {
-        requestPayment: async (topUp: import('./domain/TopUp').TopUp) => {
-          if (topUp.studentId === 'fail') {
-            return { status: 'failed' };
-          }
-          return {
-            status: 'succeeded',
-            gatewayProvider: 'promptpay-qr',
-            gatewayReference: `pp-${topUp.id}`,
-          };
-        },
-      } as PaymentGateway,
+      useFactory: () => new OmiseSandboxPaymentGateway(),
     },
     {
       provide: PARENT_STUDENT_ACCESS,
