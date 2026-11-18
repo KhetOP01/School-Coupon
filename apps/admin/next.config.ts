@@ -18,12 +18,16 @@ const nextConfig: NextConfig = {
         destination: `${authApiOrigin}/admin/auth/:path*`,
       },
       {
-        source: '/admin/students/:studentId/card-reissue-preview',
-        destination: `${authApiOrigin}/admin/students/:studentId/card-reissue-preview`,
+        source: '/admin/students/:path*',
+        destination: `${authApiOrigin}/admin/students/:path*`,
       },
       {
-        source: '/admin/cards/reissue',
-        destination: `${authApiOrigin}/admin/cards/reissue`,
+        source: '/admin/cards/:path*',
+        destination: `${authApiOrigin}/admin/cards/:path*`,
+      },
+      {
+        source: '/admin/settlements/:path*',
+        destination: `${authApiOrigin}/admin/settlements/:path*`,
       },
     ];
   },
