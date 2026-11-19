@@ -24,6 +24,15 @@ interface ApiError {
   message: string;
 }
 
+interface WalletAdjustmentItem {
+  id: string;
+  previousBalance: string;
+  newBalance: string;
+  delta: string;
+  reason: string;
+  createdAt: string;
+}
+
 interface CardReissueFormProps {
   initialStudentId?: number;
   onBackToDirectory?: () => void;
@@ -67,6 +76,16 @@ export default function CardReissueForm({
   const [rfidUid, setRfidUid] = useState('');
   const [reissueOpen, setReissueOpen] = useState(false);
   const [guideOpen, setGuideOpen] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
+  const [editStudentCode, setEditStudentCode] = useState('');
+  const [editFirstName, setEditFirstName] = useState('');
+  const [editLastName, setEditLastName] = useState('');
+  const [editWalletBalance, setEditWalletBalance] = useState('');
+  const [editAdjustmentReason, setEditAdjustmentReason] = useState('');
+  const [editError, setEditError] = useState('');
+  const [editBusy, setEditBusy] = useState(false);
+  const [adjustments, setAdjustments] = useState<WalletAdjustmentItem[]>([]);
+  const [adjustmentsLoading, setAdjustmentsLoading] = useState(false);
   const [copiedUid, setCopiedUid] = useState(false);
   const [infoNotice, setInfoNotice] = useState('');
   const [error, setError] = useState('');
@@ -235,6 +254,118 @@ export default function CardReissueForm({
     setTimeout(() => {
       rfidInputRef.current?.focus();
     }, 50);
+  }
+
+  const fetchWalletAdjustments = useCallback(async (studentId: number) => {
+    setAdjustmentsLoading(true);
+    try {
+      const response = await fetch(`/admin/students/${studentId}/wallet-adjustments`, {
+        cache: 'no-store',
+      });
+      if (!response.ok) {
+        setAdjustments([]);
+        return;
+      }
+      const data = (await response.json()) as { adjustments?: WalletAdjustmentItem[] };
+      setAdjustments(Array.isArray(data.adjustments) ? data.adjustments : []);
+    } catch {
+      setAdjustments([]);
+    } finally {
+      setAdjustmentsLoading(false);
+    }
+  }, []);
+
+  function handleOpenEditModal() {
+    if (!preview) {
+      return;
+    }
+    setEditStudentCode(preview.studentCode);
+    setEditFirstName(preview.firstName);
+    setEditLastName(preview.lastName);
+    setEditWalletBalance(preview.walletBalance);
+    setEditAdjustmentReason('');
+    setEditError('');
+    setEditOpen(true);
+    void fetchWalletAdjustments(preview.studentId);
+  }
+
+  async function handleSaveStudentProfile(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!preview) {
+      return;
+    }
+
+    const studentCode = editStudentCode.trim();
+    const firstName = editFirstName.trim();
+    const lastName = editLastName.trim();
+    const parsedBalance = Number(editWalletBalance);
+    const isBalanceChanged =
+      Number.isFinite(parsedBalance) &&
+      Math.abs(parsedBalance - Number(preview.walletBalance)) > 0.0001;
+
+    if (!studentCode || !firstName || !lastName) {
+      setEditError('กรุณากรอกรหัสนักเรียน ชื่อ และนามสกุลให้ครบถ้วน');
+      return;
+    }
+    if (studentCode.length > 20) {
+      setEditError('รหัสนักเรียนต้องไม่เกิน 20 ตัวอักษร');
+      return;
+    }
+    if (
+      !Number.isFinite(parsedBalance) ||
+      parsedBalance < 0 ||
+      Math.round(parsedBalance * 100) !== parsedBalance * 100
+    ) {
+      setEditError('ยอดเงิน Wallet ต้องเป็นตัวเลขไม่ติดลบ (ทศนิยมไม่เกิน 2 ตำแหน่ง)');
+      return;
+    }
+    if (isBalanceChanged && !editAdjustmentReason.trim()) {
+      setEditError('กรุณาระบุเหตุผลในการปรับยอดเงิน Wallet');
+      return;
+    }
+
+    setEditBusy(true);
+    setEditError('');
+    try {
+      const response = await fetch(`/admin/students/${preview.studentId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          studentCode,
+          firstName,
+          lastName,
+          walletBalance: parsedBalance.toFixed(2),
+          adjustmentReason: isBalanceChanged ? editAdjustmentReason.trim() : undefined,
+        }),
+      });
+      if (!response.ok) {
+        setEditError(await getErrorMessage(response));
+        return;
+      }
+      const updated = (await response.json()) as {
+        studentCode: string;
+        firstName: string;
+        lastName: string;
+        walletBalance: string;
+      };
+      setPreview((prev) =>
+        prev
+          ? {
+              ...prev,
+              studentCode: updated.studentCode,
+              firstName: updated.firstName,
+              lastName: updated.lastName,
+              walletBalance: updated.walletBalance,
+            }
+          : prev,
+      );
+      setEditOpen(false);
+      setInfoNotice('บันทึกการแก้ไขข้อมูลนักเรียนเรียบร้อยแล้ว');
+    } catch {
+      setEditError('ไม่สามารถเชื่อมต่อระบบได้ กรุณาลองอีกครั้ง');
+    } finally {
+      setEditBusy(false);
+    }
   }
 
   return (
@@ -728,17 +859,46 @@ export default function CardReissueForm({
                 style={{
                   display: 'flex',
                   alignItems: 'center',
-                  gap: '0.45rem',
-                  fontSize: '0.95rem',
-                  fontWeight: 700,
-                  color: '#0f172a',
+                  justifyContent: 'space-between',
+                  gap: '0.5rem',
                   marginBottom: '0.85rem',
                 }}
               >
-                <svg width="17" height="17" viewBox="0 0 24 24" fill="#2563eb">
-                  <path d="M20 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zM9 8.5c1.1 0 2 .9 2 2s-.9 2-2 2-2-.9-2-2 .9-2 2-2zM13 16H5v-1c0-1.33 2.67-2 4-2s4 .67 4 2v1zm6-1h-5v-1.5h5V15zm0-3h-5v-1.5h5V12z" />
-                </svg>
-                <span>ข้อมูลเพิ่มเติม</span>
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.45rem',
+                    fontSize: '0.95rem',
+                    fontWeight: 700,
+                    color: '#0f172a',
+                  }}
+                >
+                  <svg width="17" height="17" viewBox="0 0 24 24" fill="#2563eb">
+                    <path d="M20 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zM9 8.5c1.1 0 2 .9 2 2s-.9 2-2 2-2-.9-2-2 .9-2 2-2zM13 16H5v-1c0-1.33 2.67-2 4-2s4 .67 4 2v1zm6-1h-5v-1.5h5V15zm0-3h-5v-1.5h5V12z" />
+                  </svg>
+                  <span>ข้อมูลเพิ่มเติม</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleOpenEditModal}
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '0.35rem',
+                    padding: '0.28rem 0.7rem',
+                    borderRadius: '8px',
+                    border: '1px solid #cbd5e1',
+                    background: '#ffffff',
+                    color: '#334155',
+                    fontSize: '0.78rem',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                  }}
+                >
+                  <span>✏️</span>
+                  <span>แก้ไขข้อมูล</span>
+                </button>
               </div>
 
               <div
@@ -1060,6 +1220,336 @@ export default function CardReissueForm({
           </div>
         )}
       </div>
+
+      {/* Edit Student Profile Popup Modal */}
+      {editOpen && preview && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-label="แก้ไขข้อมูลนักเรียน"
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(15, 23, 42, 0.5)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '1rem',
+            zIndex: 50,
+          }}
+          onClick={() => !editBusy && setEditOpen(false)}
+        >
+          <div
+            style={{
+              width: '100%',
+              maxWidth: '440px',
+              background: '#ffffff',
+              borderRadius: '14px',
+              border: '1px solid #e2e8f0',
+              boxShadow: '0 20px 40px rgba(15, 23, 42, 0.2)',
+              padding: '1.35rem 1.5rem',
+            }}
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                marginBottom: '1rem',
+              }}
+            >
+              <h3 style={{ margin: 0, fontSize: '1.05rem', fontWeight: 700, color: '#0f172a' }}>
+                แก้ไขข้อมูลนักเรียน (ID: {preview.studentId})
+              </h3>
+              <button
+                type="button"
+                disabled={editBusy}
+                onClick={() => setEditOpen(false)}
+                style={{
+                  border: 'none',
+                  background: 'transparent',
+                  fontSize: '1.15rem',
+                  color: '#64748b',
+                  cursor: 'pointer',
+                  padding: '0.15rem 0.35rem',
+                }}
+                aria-label="ปิดหน้าต่าง"
+              >
+                ✕
+              </button>
+            </div>
+
+            {editError && (
+              <div
+                style={{
+                  background: '#fef2f2',
+                  border: '1px solid #fecaca',
+                  color: '#991b1b',
+                  borderRadius: '8px',
+                  padding: '0.6rem 0.85rem',
+                  fontSize: '0.84rem',
+                  marginBottom: '0.9rem',
+                }}
+              >
+                {editError}
+              </div>
+            )}
+
+            <form onSubmit={handleSaveStudentProfile} style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
+              <div>
+                <label
+                  htmlFor="editStudentCode"
+                  style={{ display: 'block', fontSize: '0.82rem', fontWeight: 600, color: '#334155', marginBottom: '0.3rem' }}
+                >
+                  รหัสนักเรียน
+                </label>
+                <input
+                  id="editStudentCode"
+                  type="text"
+                  maxLength={20}
+                  value={editStudentCode}
+                  onChange={(e) => setEditStudentCode(e.target.value)}
+                  disabled={editBusy}
+                  style={{
+                    width: '100%',
+                    boxSizing: 'border-box',
+                    padding: '0.55rem 0.75rem',
+                    borderRadius: '8px',
+                    border: '1px solid #cbd5e1',
+                    fontSize: '0.9rem',
+                    color: '#0f172a',
+                  }}
+                />
+              </div>
+
+              <div>
+                <label
+                  htmlFor="editFirstName"
+                  style={{ display: 'block', fontSize: '0.82rem', fontWeight: 600, color: '#334155', marginBottom: '0.3rem' }}
+                >
+                  ชื่อ
+                </label>
+                <input
+                  id="editFirstName"
+                  type="text"
+                  maxLength={100}
+                  value={editFirstName}
+                  onChange={(e) => setEditFirstName(e.target.value)}
+                  disabled={editBusy}
+                  style={{
+                    width: '100%',
+                    boxSizing: 'border-box',
+                    padding: '0.55rem 0.75rem',
+                    borderRadius: '8px',
+                    border: '1px solid #cbd5e1',
+                    fontSize: '0.9rem',
+                    color: '#0f172a',
+                  }}
+                />
+              </div>
+
+              <div>
+                <label
+                  htmlFor="editLastName"
+                  style={{ display: 'block', fontSize: '0.82rem', fontWeight: 600, color: '#334155', marginBottom: '0.3rem' }}
+                >
+                  นามสกุล
+                </label>
+                <input
+                  id="editLastName"
+                  type="text"
+                  maxLength={100}
+                  value={editLastName}
+                  onChange={(e) => setEditLastName(e.target.value)}
+                  disabled={editBusy}
+                  style={{
+                    width: '100%',
+                    boxSizing: 'border-box',
+                    padding: '0.55rem 0.75rem',
+                    borderRadius: '8px',
+                    border: '1px solid #cbd5e1',
+                    fontSize: '0.9rem',
+                    color: '#0f172a',
+                  }}
+                />
+              </div>
+
+              <div
+                style={{
+                  borderTop: '1px dashed #e2e8f0',
+                  paddingTop: '0.75rem',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '0.65rem',
+                }}
+              >
+                <div>
+                  <label
+                    htmlFor="editWalletBalance"
+                    style={{ display: 'block', fontSize: '0.82rem', fontWeight: 600, color: '#334155', marginBottom: '0.3rem' }}
+                  >
+                    ยอดเงินใน Wallet (บาท)
+                  </label>
+                  <input
+                    id="editWalletBalance"
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={editWalletBalance}
+                    onChange={(e) => setEditWalletBalance(e.target.value)}
+                    disabled={editBusy}
+                    style={{
+                      width: '100%',
+                      boxSizing: 'border-box',
+                      padding: '0.55rem 0.75rem',
+                      borderRadius: '8px',
+                      border: '1px solid #cbd5e1',
+                      fontSize: '0.9rem',
+                      color: '#0f172a',
+                    }}
+                  />
+                </div>
+
+                {Math.abs(Number(editWalletBalance || 0) - Number(preview.walletBalance)) > 0.0001 && (
+                  <div>
+                    <label
+                      htmlFor="editAdjustmentReason"
+                      style={{ display: 'block', fontSize: '0.82rem', fontWeight: 600, color: '#b45309', marginBottom: '0.3rem' }}
+                    >
+                      เหตุผลในการปรับยอดเงิน (บังคับบันทึกประวัติ)
+                    </label>
+                    <input
+                      id="editAdjustmentReason"
+                      type="text"
+                      placeholder="เช่น ใส่ยอดเงินผิด / แก้ไขข้อมูลทดสอบ"
+                      value={editAdjustmentReason}
+                      onChange={(e) => setEditAdjustmentReason(e.target.value)}
+                      disabled={editBusy}
+                      style={{
+                        width: '100%',
+                        boxSizing: 'border-box',
+                        padding: '0.55rem 0.75rem',
+                        borderRadius: '8px',
+                        border: '1px solid #fcd34d',
+                        background: '#fffbeb',
+                        fontSize: '0.88rem',
+                        color: '#0f172a',
+                      }}
+                    />
+                  </div>
+                )}
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.6rem', marginTop: '0.35rem' }}>
+                <button
+                  type="button"
+                  disabled={editBusy}
+                  onClick={() => setEditOpen(false)}
+                  style={{
+                    padding: '0.55rem 1rem',
+                    borderRadius: '9px',
+                    border: '1px solid #cbd5e1',
+                    background: '#ffffff',
+                    color: '#475569',
+                    fontSize: '0.85rem',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                  }}
+                >
+                  ยกเลิก
+                </button>
+                <button
+                  type="submit"
+                  disabled={editBusy}
+                  style={{
+                    padding: '0.55rem 1.15rem',
+                    borderRadius: '9px',
+                    border: 'none',
+                    background: '#2563eb',
+                    color: '#ffffff',
+                    fontSize: '0.85rem',
+                    fontWeight: 700,
+                    cursor: editBusy ? 'not-allowed' : 'pointer',
+                    opacity: editBusy ? 0.7 : 1,
+                  }}
+                >
+                  {editBusy ? 'กำลังบันทึก...' : 'บันทึกการแก้ไข'}
+                </button>
+              </div>
+            </form>
+
+            <div
+              style={{
+                marginTop: '1rem',
+                paddingTop: '0.85rem',
+                borderTop: '1px solid #e2e8f0',
+              }}
+            >
+              <div
+                style={{
+                  fontSize: '0.82rem',
+                  fontWeight: 700,
+                  color: '#334155',
+                  marginBottom: '0.5rem',
+                }}
+              >
+                ประวัติการปรับยอดเงินล่าสุด
+              </div>
+              {adjustmentsLoading ? (
+                <div style={{ fontSize: '0.8rem', color: '#64748b' }}>กำลังโหลดประวัติ...</div>
+              ) : adjustments.length === 0 ? (
+                <div style={{ fontSize: '0.8rem', color: '#94a3b8' }}>ยังไม่มีประวัติการปรับยอดเงิน</div>
+              ) : (
+                <div
+                  style={{
+                    maxHeight: '160px',
+                    overflowY: 'auto',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '0.45rem',
+                  }}
+                >
+                  {adjustments.map((item) => {
+                    const deltaNum = Number(item.delta);
+                    const isPositive = deltaNum >= 0;
+                    return (
+                      <div
+                        key={item.id}
+                        style={{
+                          padding: '0.5rem 0.65rem',
+                          borderRadius: '8px',
+                          background: '#f8fafc',
+                          border: '1px solid #e2e8f0',
+                          fontSize: '0.78rem',
+                        }}
+                      >
+                        <div style={{ display: 'flex', justifyContent: 'space-between', gap: '0.5rem', fontWeight: 600 }}>
+                          <span style={{ color: '#0f172a' }}>
+                            ฿{item.previousBalance} → ฿{item.newBalance}{' '}
+                            <span style={{ color: isPositive ? '#16a34a' : '#dc2626' }}>
+                              ({isPositive ? `+${item.delta}` : item.delta})
+                            </span>
+                          </span>
+                          <span style={{ color: '#64748b', fontWeight: 400 }}>
+                            {new Date(item.createdAt).toLocaleString('th-TH', {
+                              dateStyle: 'short',
+                              timeStyle: 'short',
+                            })}
+                          </span>
+                        </div>
+                        <div style={{ color: '#475569', marginTop: '0.2rem' }}>
+                          เหตุผล: {item.reason}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </section>
   );
 }
@@ -1158,6 +1648,10 @@ function formatApiError(error: ApiError | null, status: number): string {
   switch (error.code) {
     case 'STUDENT_NOT_FOUND':
       return 'ไม่พบนักเรียน';
+    case 'STUDENT_CODE_CONFLICT':
+      return 'รหัสนักเรียนนี้มีอยู่ในระบบแล้ว';
+    case 'INVALID_STUDENT_PROFILE':
+      return 'กรุณากรอกรหัสนักเรียน ชื่อ และนามสกุลให้ครบถ้วน';
     case 'CARD_ALREADY_BOUND':
       return 'RFID UID นี้เคยลงทะเบียนแล้ว';
     case 'ACTIVE_CARD_CONFLICT':
