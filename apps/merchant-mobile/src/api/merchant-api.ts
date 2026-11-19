@@ -5,7 +5,7 @@ export class MerchantApiClient {
   private merchantId: string;
 
   constructor(options?: { baseUrl?: string; merchantId?: string }) {
-    this.baseUrl = options?.baseUrl ?? 'http://192.168.1.78';
+    this.baseUrl = options?.baseUrl ?? 'http://192.168.1.89';
     this.merchantId = options?.merchantId ?? '1'; // Default test merchant
   }
 
