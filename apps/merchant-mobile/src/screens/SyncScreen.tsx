@@ -4,18 +4,50 @@ import {
   Text,
   StyleSheet,
   TouchableOpacity,
-  FlatList,
   ActivityIndicator,
   Alert,
+  ScrollView,
 } from 'react-native';
 import { merchantApi } from '../api/merchant-api';
 import { offlineStorage } from '../offline/offline-storage';
 import { OfflinePaymentRecord } from '../types';
 
+function CloudSyncIcon() {
+  return (
+    <View style={styles.cloudCircle}>
+      <View style={styles.cloudShape}>
+        <View style={styles.cloudBumpLeft} />
+        <View style={styles.cloudBumpTop} />
+        <View style={styles.cloudBase} />
+        <Text style={styles.cloudArrows}>↻</Text>
+      </View>
+    </View>
+  );
+}
+
+function ListHeaderIcon() {
+  return (
+    <View style={styles.listIconBox}>
+      <View style={styles.listRow}>
+        <View style={styles.listDot} />
+        <View style={styles.listBar} />
+      </View>
+      <View style={styles.listRow}>
+        <View style={styles.listDot} />
+        <View style={styles.listBar} />
+      </View>
+      <View style={styles.listRow}>
+        <View style={styles.listDot} />
+        <View style={styles.listBar} />
+      </View>
+    </View>
+  );
+}
+
 export function SyncScreen() {
   const [queue, setQueue] = useState<OfflinePaymentRecord[]>([]);
   const [syncing, setSyncing] = useState(false);
-  const [syncLog, setSyncLog] = useState<string[]>([]);
+  const [syncLog, setSyncLog] = useState<Array<{ ok: boolean; text: string }>>([]);
 
   function loadQueue() {
     setQueue(offlineStorage.getAllQueue());
@@ -26,6 +58,7 @@ export function SyncScreen() {
   }, []);
 
   const pendingCount = queue.filter((q) => !q.synced).length;
+  const syncedCount = queue.length - pendingCount;
   const isLocked = offlineStorage.isOfflineLocked();
 
   async function handleSyncAll() {
@@ -36,7 +69,7 @@ export function SyncScreen() {
     }
 
     setSyncing(true);
-    const logs: string[] = [];
+    const logs: Array<{ ok: boolean; text: string }> = [];
     const successfullySyncedIds: string[] = [];
 
     for (const record of pending) {
@@ -44,14 +77,17 @@ export function SyncScreen() {
         const res = await merchantApi.syncOfflinePayment(record);
         successfullySyncedIds.push(record.offlineTrxId);
         const balNum = parseFloat(res.walletBalance);
-        let logMsg = `✓ สำเร็จ: บัตร ${record.rfidUid.slice(-6)} ยอด ฿${record.amount} (คงเหลือ ฿${balNum.toFixed(2)})`;
+        let logMsg = `สำเร็จ: บัตร ${record.rfidUid.slice(-6)} ยอด ฿${record.amount} (คงเหลือ ฿${balNum.toFixed(2)})`;
         if (balNum < 0) {
           logMsg += ` ⚠️ ติดลบตาม BR-PAY-02`;
         }
-        logs.push(logMsg);
+        logs.push({ ok: true, text: logMsg });
       } catch (err: unknown) {
         const msg = err instanceof Error ? err.message : 'เชื่อมต่อเซิร์ฟเวอร์ล้มเหลว';
-        logs.push(`✗ ล้มเหลว: บัตร ${record.rfidUid.slice(-6)} ยอด ฿${record.amount} (${msg})`);
+        logs.push({
+          ok: false,
+          text: `ล้มเหลว: บัตร ${record.rfidUid.slice(-6)} ยอด ฿${record.amount} (${msg})`,
+        });
       }
     }
 
@@ -70,9 +106,19 @@ export function SyncScreen() {
   }
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>ซิงก์ข้อมูลออฟไลน์ (Offline Sync)</Text>
-      <Text style={styles.subtitle}>UC-05: ส่งรายการค้างชำระขึ้นคลาวด์</Text>
+    <ScrollView
+      style={styles.scroll}
+      contentContainerStyle={styles.container}
+      showsVerticalScrollIndicator={false}
+    >
+      {/* Top Title Card */}
+      <View style={styles.titleCard}>
+        <CloudSyncIcon />
+        <View style={styles.titleTextWrap}>
+          <Text style={styles.title}>ซิงก์ข้อมูลออฟไลน์ (Offline Sync)</Text>
+          <Text style={styles.subtitle}>UC-05: ส่งรายการค้างชำระขึ้นคลาวด์</Text>
+        </View>
+      </View>
 
       {/* 12-Hour Lock Warning Banner */}
       {isLocked && (
@@ -88,16 +134,20 @@ export function SyncScreen() {
       <View style={styles.statusCard}>
         <View style={styles.statusCol}>
           <Text style={styles.statusNumber}>{pendingCount}</Text>
-          <Text style={styles.statusLabel}>รอซิงก์ (Pending)</Text>
+          <Text style={styles.statusLabel}>รอซิงก์</Text>
+          <Text style={styles.statusSubLabel}>(Pending)</Text>
         </View>
+
         <View style={styles.statusDivider} />
+
         <View style={styles.statusCol}>
-          <Text style={styles.statusNumber}>{queue.length - pendingCount}</Text>
-          <Text style={styles.statusLabel}>ซิงก์แล้ว (Synced)</Text>
+          <Text style={styles.statusNumber}>{syncedCount}</Text>
+          <Text style={styles.statusLabel}>ซิงก์แล้ว</Text>
+          <Text style={styles.statusSubLabel}>(Synced)</Text>
         </View>
       </View>
 
-      {/* Sync Action Button */}
+      {/* Primary Sync Pill Button */}
       <TouchableOpacity
         style={[
           styles.syncButton,
@@ -105,220 +155,465 @@ export function SyncScreen() {
         ]}
         onPress={handleSyncAll}
         disabled={syncing || pendingCount === 0}
-        activeOpacity={0.8}
+        activeOpacity={0.85}
       >
         {syncing ? (
-          <ActivityIndicator color="#fff" />
+          <ActivityIndicator color="#FFFFFF" />
         ) : (
-          <Text style={styles.syncButtonText}>
-            🔄 ซิงก์ข้อมูลทั้งหมดทันที ({pendingCount} รายการ)
-          </Text>
+          <View style={styles.syncBtnInner}>
+            <Text style={styles.syncBtnIcon}>↻</Text>
+            <Text style={styles.syncButtonText}>
+              ซิงก์ข้อมูลทั้งหมดทันที ({pendingCount} รายการ)
+            </Text>
+          </View>
         )}
       </TouchableOpacity>
 
-      {/* Sync Logs */}
+      {/* Latest Sync Result Card */}
       {syncLog.length > 0 && (
-        <View style={styles.logCard}>
-          <Text style={styles.logTitle}>ผลการซิงก์ล่าสุด:</Text>
-          {syncLog.map((log, idx) => (
-            <Text key={idx} style={styles.logText}>
-              {log}
-            </Text>
-          ))}
+        <View style={styles.sectionCard}>
+          <View style={styles.cardHeader}>
+            <View style={styles.infoCircle}>
+              <Text style={styles.infoCircleText}>i</Text>
+            </View>
+            <Text style={styles.cardHeaderTitle}>ผลการซิงก์ล่าสุด</Text>
+          </View>
+          <View style={styles.cardDivider} />
+
+          <View style={styles.logList}>
+            {syncLog.map((log, idx) => (
+              <View key={idx} style={styles.logRow}>
+                <Text style={log.ok ? styles.logMarkOk : styles.logMarkFail}>
+                  {log.ok ? '✓' : '✕'}
+                </Text>
+                <Text style={styles.logText}>{log.text}</Text>
+              </View>
+            ))}
+          </View>
         </View>
       )}
 
-      {/* Offline Queue Items */}
-      <Text style={styles.sectionHeader}>ประวัติรายการคิวในเครื่อง:</Text>
-      {queue.length === 0 ? (
-        <View style={styles.emptyContainer}>
-          <Text style={styles.emptyText}>ไม่มีรายการออฟไลน์ในเครื่อง</Text>
+      {/* Offline Queue History Card */}
+      <View style={styles.sectionCard}>
+        <View style={styles.cardHeader}>
+          <ListHeaderIcon />
+          <Text style={styles.cardHeaderTitle}>ประวัติรายการคิวในเครื่อง</Text>
         </View>
-      ) : (
-        <FlatList
-          data={queue}
-          keyExtractor={(item) => item.offlineTrxId}
-          renderItem={({ item }) => (
-            <View style={styles.queueItem}>
-              <View>
-                <Text style={styles.queueUid}>บัตร: {item.rfidUid}</Text>
-                <Text style={styles.queueTime}>
-                  เวลา: {new Date(item.createdAt).toLocaleString('th-TH')}
-                </Text>
+
+        {queue.length === 0 ? (
+          <View style={styles.emptyContainer}>
+            <Text style={styles.emptyText}>ไม่มีรายการออฟไลน์ในเครื่อง</Text>
+          </View>
+        ) : (
+          <View style={styles.queueList}>
+            {queue.map((item) => (
+              <View key={item.offlineTrxId} style={styles.queueItem}>
+                <View style={styles.queueMiddle}>
+                  <Text style={styles.queueUid} numberOfLines={1} adjustsFontSizeToFit>
+                    บัตร : {item.rfidUid}
+                  </Text>
+                  <Text style={styles.queueTime}>
+                    ◷ เวลา : {new Date(item.createdAt).toLocaleString('th-TH')}
+                  </Text>
+                </View>
+
+                <View style={styles.queueRight}>
+                  <Text style={styles.queueAmount}>฿{parseFloat(item.amount).toFixed(2)}</Text>
+                  <View
+                    style={[
+                      styles.queueBadgePill,
+                      item.synced ? styles.badgeSyncedBg : styles.badgePendingBg,
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        styles.queueBadgeText,
+                        item.synced ? styles.badgeSyncedText : styles.badgePendingText,
+                      ]}
+                    >
+                      {item.synced ? '✓ ซิงก์แล้ว' : 'รอซิงก์'}
+                    </Text>
+                  </View>
+                </View>
               </View>
-              <View style={styles.queueRight}>
-                <Text style={styles.queueAmount}>฿{item.amount}</Text>
-                <Text
-                  style={[
-                    styles.queueStatusBadge,
-                    item.synced ? styles.badgeSynced : styles.badgePending,
-                  ]}
-                >
-                  {item.synced ? '✓ ซิงก์แล้ว' : '⏳ รอซิงก์'}
-                </Text>
-              </View>
-            </View>
-          )}
-        />
-      )}
-    </View>
+            ))}
+          </View>
+        )}
+      </View>
+
+      {/* Bottom Note Banner */}
+      <View style={styles.noteCard}>
+        <View style={styles.bulbCircle}>
+          <Text style={styles.bulbIcon}>💡</Text>
+        </View>
+        <View style={styles.noteTextWrap}>
+          <Text style={styles.noteTitle}>หมายเหตุ</Text>
+          <Text style={styles.noteBody}>
+            ระบบจะซิงก์ข้อมูลโดยอัตโนมัติ หรือกดซิงก์ด้วยตนเองได้
+          </Text>
+        </View>
+      </View>
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
+  scroll: {
     flex: 1,
-    backgroundColor: '#f8fafc',
-    padding: 16,
+    backgroundColor: '#EEF4FF',
+  },
+  container: {
+    padding: 14,
+    paddingBottom: 22,
+    gap: 12,
+  },
+  titleCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 18,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    shadowColor: '#1E3A8A',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 6,
+    elevation: 2,
+  },
+  cloudCircle: {
+    width: 46,
+    height: 46,
+    borderRadius: 23,
+    backgroundColor: '#EFF6FF',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  cloudShape: {
+    width: 34,
+    height: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  cloudBumpLeft: {
+    position: 'absolute',
+    left: 2,
+    bottom: 2,
+    width: 16,
+    height: 16,
+    borderRadius: 8,
+    backgroundColor: '#2563EB',
+  },
+  cloudBumpTop: {
+    position: 'absolute',
+    top: 0,
+    left: 9,
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    backgroundColor: '#2563EB',
+  },
+  cloudBase: {
+    position: 'absolute',
+    bottom: 2,
+    left: 6,
+    right: 2,
+    height: 14,
+    borderRadius: 7,
+    backgroundColor: '#2563EB',
+  },
+  cloudArrows: {
+    color: '#FFFFFF',
+    fontSize: 13,
+    fontWeight: '900',
+    marginTop: 4,
+  },
+  titleTextWrap: {
+    flex: 1,
   },
   title: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#0f172a',
+    fontSize: 16,
+    fontWeight: '800',
+    color: '#0F172A',
   },
   subtitle: {
     fontSize: 12,
-    color: '#64748b',
-    marginBottom: 12,
+    color: '#64748B',
+    marginTop: 1,
   },
   lockWarning: {
-    backgroundColor: '#fef2f2',
-    borderColor: '#fca5a5',
+    backgroundColor: '#FEF2F2',
+    borderColor: '#FCA5A5',
     borderWidth: 1,
-    borderRadius: 8,
+    borderRadius: 14,
     padding: 12,
-    marginBottom: 12,
   },
   lockTitle: {
-    fontSize: 12,
-    fontWeight: 'bold',
-    color: '#b91c1c',
+    fontSize: 12.5,
+    fontWeight: '800',
+    color: '#B91C1C',
     marginBottom: 4,
   },
   lockBody: {
-    fontSize: 11,
-    color: '#991b1b',
+    fontSize: 11.5,
+    color: '#991B1B',
     lineHeight: 16,
   },
   statusCard: {
-    backgroundColor: '#fff',
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
-    padding: 14,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 18,
+    paddingVertical: 14,
+    paddingHorizontal: 12,
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 12,
+    shadowColor: '#1E3A8A',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 6,
+    elevation: 2,
   },
   statusCol: {
     flex: 1,
     alignItems: 'center',
   },
-  statusDivider: {
-    width: 1,
-    height: 36,
-    backgroundColor: '#e2e8f0',
-  },
   statusNumber: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#0f172a',
+    fontSize: 30,
+    fontWeight: '800',
+    color: '#0F172A',
+    marginBottom: 4,
   },
   statusLabel: {
-    fontSize: 11,
-    color: '#64748b',
-    marginTop: 2,
+    fontSize: 13.5,
+    fontWeight: '700',
+    color: '#0F172A',
+  },
+  statusSubLabel: {
+    fontSize: 11.5,
+    color: '#64748B',
+  },
+  statusDivider: {
+    width: 1,
+    height: 56,
+    backgroundColor: '#E2E8F0',
   },
   syncButton: {
-    backgroundColor: '#0284c7',
-    paddingVertical: 14,
-    borderRadius: 10,
+    backgroundColor: '#1E64EE',
+    height: 52,
+    borderRadius: 26,
+    justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 14,
+    shadowColor: '#1D4ED8',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+    elevation: 4,
   },
   syncButtonDisabled: {
-    backgroundColor: '#94a3b8',
+    backgroundColor: '#93C5FD',
+    shadowOpacity: 0.08,
+  },
+  syncBtnInner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  syncBtnIcon: {
+    color: '#FFFFFF',
+    fontSize: 22,
+    fontWeight: '800',
   },
   syncButtonText: {
-    color: '#fff',
-    fontSize: 14,
-    fontWeight: 'bold',
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '800',
   },
-  logCard: {
-    backgroundColor: '#f1f5f9',
-    borderRadius: 8,
-    padding: 10,
-    marginBottom: 12,
+  sectionCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 18,
+    padding: 14,
+    shadowColor: '#1E3A8A',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 6,
+    elevation: 2,
   },
-  logTitle: {
+  cardHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  infoCircle: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: '#2563EB',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  infoCircleText: {
+    color: '#FFFFFF',
     fontSize: 12,
-    fontWeight: 'bold',
-    color: '#334155',
-    marginBottom: 6,
+    fontWeight: '800',
   },
-  logText: {
-    fontSize: 11,
-    color: '#475569',
-    marginBottom: 2,
+  listIconBox: {
+    width: 20,
+    height: 20,
+    borderRadius: 5,
+    backgroundColor: '#2563EB',
+    justifyContent: 'center',
+    paddingHorizontal: 4,
+    gap: 2.5,
   },
-  sectionHeader: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#475569',
+  listRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 2,
+  },
+  listDot: {
+    width: 2.5,
+    height: 2.5,
+    borderRadius: 1.5,
+    backgroundColor: '#FFFFFF',
+  },
+  listBar: {
+    flex: 1,
+    height: 2,
+    borderRadius: 1,
+    backgroundColor: '#FFFFFF',
+  },
+  cardHeaderTitle: {
+    fontSize: 15,
+    fontWeight: '800',
+    color: '#0F172A',
+  },
+  cardDivider: {
+    height: 1,
+    backgroundColor: '#F1F5F9',
+    marginTop: 10,
     marginBottom: 8,
   },
+  logList: {
+    gap: 6,
+  },
+  logRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 8,
+  },
+  logMarkOk: {
+    color: '#16A34A',
+    fontSize: 14,
+    fontWeight: '900',
+  },
+  logMarkFail: {
+    color: '#DC2626',
+    fontSize: 14,
+    fontWeight: '900',
+  },
+  logText: {
+    flex: 1,
+    fontSize: 12.5,
+    color: '#334155',
+    lineHeight: 18,
+  },
   emptyContainer: {
-    padding: 20,
+    paddingVertical: 18,
     alignItems: 'center',
   },
   emptyText: {
-    fontSize: 12,
-    color: '#94a3b8',
+    fontSize: 13,
+    color: '#94A3B8',
+  },
+  queueList: {
+    marginTop: 10,
+    gap: 8,
   },
   queueItem: {
-    backgroundColor: '#fff',
-    borderRadius: 8,
-    padding: 12,
+    backgroundColor: '#F8FAFF',
+    borderRadius: 14,
+    padding: 10,
     borderWidth: 1,
-    borderColor: '#e2e8f0',
-    marginBottom: 8,
+    borderColor: '#E2E8F0',
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
+    gap: 10,
+  },
+  queueMiddle: {
+    flex: 1,
   },
   queueUid: {
     fontSize: 12,
-    fontFamily: 'monospace',
-    fontWeight: '600',
-    color: '#0f172a',
+    fontWeight: '700',
+    color: '#0F172A',
   },
   queueTime: {
-    fontSize: 10,
-    color: '#64748b',
-    marginTop: 2,
+    fontSize: 11,
+    color: '#64748B',
+    marginTop: 3,
   },
   queueRight: {
     alignItems: 'flex-end',
+    gap: 4,
   },
   queueAmount: {
-    fontSize: 15,
-    fontWeight: 'bold',
-    color: '#0f172a',
+    fontSize: 16,
+    fontWeight: '800',
+    color: '#0F172A',
   },
-  queueStatusBadge: {
-    fontSize: 10,
-    fontWeight: '600',
-    marginTop: 2,
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 4,
+  queueBadgePill: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 999,
   },
-  badgeSynced: {
-    backgroundColor: '#dcfce7',
-    color: '#15803d',
+  badgeSyncedBg: {
+    backgroundColor: '#DCFCE7',
   },
-  badgePending: {
-    backgroundColor: '#fef3c7',
-    color: '#b45309',
+  badgePendingBg: {
+    backgroundColor: '#FEF3C7',
+  },
+  queueBadgeText: {
+    fontSize: 10.5,
+    fontWeight: '700',
+  },
+  badgeSyncedText: {
+    color: '#15803D',
+  },
+  badgePendingText: {
+    color: '#B45309',
+  },
+  noteCard: {
+    backgroundColor: '#E8F1FF',
+    borderWidth: 1,
+    borderColor: '#DBEAFE',
+    borderRadius: 16,
+    paddingVertical: 11,
+    paddingHorizontal: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  bulbCircle: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#DBEAFE',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  bulbIcon: {
+    fontSize: 16,
+  },
+  noteTextWrap: {
+    flex: 1,
+  },
+  noteTitle: {
+    fontSize: 13.5,
+    fontWeight: '800',
+    color: '#1D4ED8',
+  },
+  noteBody: {
+    fontSize: 11.5,
+    color: '#334155',
+    marginTop: 1,
   },
 });

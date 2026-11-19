@@ -12,11 +12,11 @@ export interface PaymentRequest {
 }
 
 export interface PaymentResponse {
-  paymentId: number;
-  status: 'COMPLETED' | 'FAILED';
+  paymentId: number | string;
+  status?: 'COMPLETED' | 'FAILED';
   amount: string;
   walletBalance: string;
-  receiptNumber: string;
+  receiptNumber?: string;
   createdAt: string;
 }
 
@@ -30,11 +30,13 @@ export interface OfflinePaymentRecord {
 }
 
 export interface VoidResponse {
-  voidId: number;
-  paymentId: number;
-  refundedAmount: string;
-  studentWalletBalance: string;
-  status: 'COMPLETED';
+  voidId?: number | string;
+  paymentId: number | string;
+  refundedAmount?: string;
+  amount?: string;
+  studentWalletBalance?: string;
+  walletBalance?: string;
+  status: 'COMPLETED' | 'VOIDED';
   voidedAt: string;
 }
 
