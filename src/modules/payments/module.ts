@@ -7,6 +7,7 @@ import { VoidPayment } from './application/VoidPayment';
 import { PostgresMerchantGateway } from './infrastructure/PostgresMerchantGateway';
 import { PostgresPaymentRepository } from './infrastructure/PostgresPaymentRepository';
 import { PostgresStudentPaymentGateway } from './infrastructure/PostgresStudentPaymentGateway';
+import { MerchantAuthController } from './interface/http/merchant-auth.controller';
 import { MerchantPaymentController } from './interface/http/merchant-payment.controller';
 
 export const MERCHANT_GATEWAY = Symbol('MERCHANT_GATEWAY');
@@ -14,7 +15,7 @@ export const STUDENT_PAYMENT_GATEWAY = Symbol('STUDENT_PAYMENT_GATEWAY');
 export const PAYMENT_REPOSITORY = Symbol('PAYMENT_REPOSITORY');
 
 @Module({
-  controllers: [MerchantPaymentController],
+  controllers: [MerchantPaymentController, MerchantAuthController],
   providers: [
     PostgresDatabase,
     SystemClock,

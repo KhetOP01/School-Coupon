@@ -1,0 +1,325 @@
+<mxfile host="app.diagrams.net" modified="2026-11-19T13:55:00.000Z" agent="Antigravity" version="24.0.0" type="device">
+  <diagram id="uc03-topup-th" name="1. UC-03 เติมเงิน QR พร้อมเพย์">
+    <mxGraphModel dx="1400" dy="850" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1400" pageHeight="820" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+
+        <!-- Title -->
+        <mxCell id="t1" value="แผนภาพลำดับการทำงาน (Sequence Diagram): UC-03 ผู้ปกครองเติมเงินผ่านคิวอาร์พร้อมเพย์" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=16;fontStyle=1;fontColor=#1e293b;" vertex="1" parent="1">
+          <mxGeometry x="40" y="20" width="840" height="30" as="geometry" />
+        </mxCell>
+
+        <!-- Lifelines -->
+        <mxCell id="p1_parent" value="ผู้ปกครอง&#xa;(แอปผู้ปกครอง)" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=1;dropTarget=0;collapsible=0;recursiveResize=0;outlineConnect=0;portConstraint=eastwest;newEdgeStyle={&quot;curved&quot;:0,&quot;rounded&quot;:0};fillColor=#dbeafe;strokeColor=#2563eb;fontStyle=1;size=50;" vertex="1" parent="1">
+          <mxGeometry x="60" y="70" width="140" height="680" as="geometry" />
+        </mxCell>
+        <mxCell id="p1_nginx" value="ตัวกระจายทราฟฟิก&#xa;(Nginx พอร์ต 80)" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=1;dropTarget=0;collapsible=0;recursiveResize=0;outlineConnect=0;portConstraint=eastwest;newEdgeStyle={&quot;curved&quot;:0,&quot;rounded&quot;:0};fillColor=#e0f2fe;strokeColor=#0284c7;fontStyle=1;size=50;" vertex="1" parent="1">
+          <mxGeometry x="290" y="70" width="140" height="680" as="geometry" />
+        </mxCell>
+        <mxCell id="p1_api" value="ระบบหลังบ้าน API&#xa;(โมดูลบัญชีนักเรียน)" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=1;dropTarget=0;collapsible=0;recursiveResize=0;outlineConnect=0;portConstraint=eastwest;newEdgeStyle={&quot;curved&quot;:0,&quot;rounded&quot;:0};fillColor=#dcfce7;strokeColor=#16a34a;fontStyle=1;size=50;" vertex="1" parent="1">
+          <mxGeometry x="530" y="70" width="150" height="680" as="geometry" />
+        </mxCell>
+        <mxCell id="p1_gw" value="ระบบรับชำระเงิน&#xa;(Omise / จำลอง)" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=1;dropTarget=0;collapsible=0;recursiveResize=0;outlineConnect=0;portConstraint=eastwest;newEdgeStyle={&quot;curved&quot;:0,&quot;rounded&quot;:0};fillColor=#fef3c7;strokeColor=#d97706;fontStyle=1;size=50;" vertex="1" parent="1">
+          <mxGeometry x="780" y="70" width="160" height="680" as="geometry" />
+        </mxCell>
+        <mxCell id="p1_db" value="ฐานข้อมูล PostgreSQL&#xa;(กระเป๋าเงินและประวัติเติม)" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=1;dropTarget=0;collapsible=0;recursiveResize=0;outlineConnect=0;portConstraint=eastwest;newEdgeStyle={&quot;curved&quot;:0,&quot;rounded&quot;:0};fillColor=#f1f5f9;strokeColor=#475569;fontStyle=1;size=50;" vertex="1" parent="1">
+          <mxGeometry x="1040" y="70" width="160" height="680" as="geometry" />
+        </mxCell>
+
+        <!-- Messages -->
+        <mxCell id="m1_1" value="1. ส่งคำขอเติมเงิน (รหัสนักเรียน, จำนวน 50-2,000 บาท)" style="html=1;verticalAlign=bottom;endArrow=block;curved=0;rounded=0;fontSize=12;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="130" y="160" as="sourcePoint" />
+            <mxPoint x="360" y="160" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="m1_2" value="2. ส่งต่อคำขอไปยัง API" style="html=1;verticalAlign=bottom;endArrow=block;curved=0;rounded=0;fontSize=12;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="360" y="195" as="sourcePoint" />
+            <mxPoint x="605" y="195" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="m1_3" value="3. ตรวจวงเงินเติม (50-2,000 บ.) และยอดสะสมไม่เกิน 5,000 บ." style="html=1;verticalAlign=bottom;endArrow=block;curved=0;rounded=0;fontSize=12;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="605" y="235" as="sourcePoint" />
+            <mxPoint x="1120" y="235" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="m1_4" value="4. สั่งสร้างคิวอาร์พร้อมเพย์" style="html=1;verticalAlign=bottom;endArrow=block;curved=0;rounded=0;fontSize=12;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="605" y="275" as="sourcePoint" />
+            <mxPoint x="860" y="275" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="m1_5" value="5. ส่งกลับลิงก์รูปคิวอาร์และรหัสอ้างอิง" style="html=1;verticalAlign=bottom;endArrow=open;dashed=1;endSize=8;curved=0;rounded=0;fontSize=12;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="860" y="315" as="sourcePoint" />
+            <mxPoint x="605" y="315" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="m1_6" value="6. บันทึกรายการเติมเงิน (สถานะ: รอชำระเงิน)" style="html=1;verticalAlign=bottom;endArrow=block;curved=0;rounded=0;fontSize=12;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="605" y="355" as="sourcePoint" />
+            <mxPoint x="1120" y="355" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="m1_7" value="7. แสดงรูปคิวอาร์บนหน้าจอมือถือ (เริ่มตรวจสอบสถานะอัตโนมัติ)" style="html=1;verticalAlign=bottom;endArrow=open;dashed=1;endSize=8;curved=0;rounded=0;fontSize=12;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="605" y="395" as="sourcePoint" />
+            <mxPoint x="130" y="395" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+
+        <!-- Webhook Block -->
+        <mxCell id="f1_webhook" value="เมื่อผู้ปกครองสแกนจ่ายเงินสำเร็จ (แจ้งผลอัตโนมัติ)" style="shape=umlFrame;whiteSpace=wrap;html=1;pointerEvents=0;fillColor=none;strokeColor=#64748b;width=310;height=25;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="90" y="425" width="1080" height="285" as="geometry" />
+        </mxCell>
+        <mxCell id="m1_8" value="8. ส่งสัญญาณแจ้งชำระเงินสำเร็จ (Webhook)" style="html=1;verticalAlign=bottom;endArrow=block;curved=0;rounded=0;fontSize=12;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="860" y="475" as="sourcePoint" />
+            <mxPoint x="360" y="475" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="m1_9" value="9. ส่งต่อข้อมูลแจ้งผลชำระเงิน" style="html=1;verticalAlign=bottom;endArrow=block;curved=0;rounded=0;fontSize=12;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="360" y="515" as="sourcePoint" />
+            <mxPoint x="605" y="515" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="m1_10" value="10. อัปเดตสถานะสำเร็จ + เพิ่มยอดเงินและบันทึกบัญชี" style="html=1;verticalAlign=bottom;endArrow=block;curved=0;rounded=0;fontSize=12;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="605" y="555" as="sourcePoint" />
+            <mxPoint x="1120" y="555" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="m1_11" value="11. ตอบรับการแจ้งผลสำเร็จ" style="html=1;verticalAlign=bottom;endArrow=open;dashed=1;endSize=8;curved=0;rounded=0;fontSize=12;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="605" y="595" as="sourcePoint" />
+            <mxPoint x="860" y="595" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="m1_12" value="12. แอปผู้ปกครองสอบถามสถานะการเติมเงิน" style="html=1;verticalAlign=bottom;endArrow=block;curved=0;rounded=0;fontSize=12;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="130" y="635" as="sourcePoint" />
+            <mxPoint x="605" y="635" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="m1_13" value="13. แสดงข้อความเติมเงินสำเร็จ พร้อมยอดเงินล่าสุด" style="html=1;verticalAlign=bottom;endArrow=open;dashed=1;endSize=8;curved=0;rounded=0;fontSize=12;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="605" y="675" as="sourcePoint" />
+            <mxPoint x="130" y="675" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+
+  <diagram id="uc05-06-pos-th" name="2. UC-05 &amp; UC-06 ชำระเงินร้านค้า &amp; ยกเลิกบิล">
+    <mxGraphModel dx="1400" dy="880" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1400" pageHeight="860" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+
+        <mxCell id="t2" value="แผนภาพลำดับการทำงาน: UC-05 ชำระเงินออนไลน์ / ออฟไลน์ และ UC-06 ยกเลิกบิลภายในวัน" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=16;fontStyle=1;fontColor=#1e293b;" vertex="1" parent="1">
+          <mxGeometry x="40" y="20" width="840" height="30" as="geometry" />
+        </mxCell>
+
+        <!-- Lifelines -->
+        <mxCell id="p2_merch" value="ร้านค้า / แคชเชียร์&#xa;(แอปจุดชำระเงิน POS)" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=1;dropTarget=0;collapsible=0;recursiveResize=0;outlineConnect=0;portConstraint=eastwest;newEdgeStyle={&quot;curved&quot;:0,&quot;rounded&quot;:0};fillColor=#dbeafe;strokeColor=#2563eb;fontStyle=1;size=50;" vertex="1" parent="1">
+          <mxGeometry x="60" y="70" width="160" height="720" as="geometry" />
+        </mxCell>
+        <mxCell id="p2_local" value="หน่วยความจำเครื่อง&#xa;(คิวรายการออฟไลน์)" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=1;dropTarget=0;collapsible=0;recursiveResize=0;outlineConnect=0;portConstraint=eastwest;newEdgeStyle={&quot;curved&quot;:0,&quot;rounded&quot;:0};fillColor=#fef3c7;strokeColor=#d97706;fontStyle=1;size=50;" vertex="1" parent="1">
+          <mxGeometry x="300" y="70" width="160" height="720" as="geometry" />
+        </mxCell>
+        <mxCell id="p2_nginx" value="ตัวกระจายทราฟฟิก&#xa;(Nginx พอร์ต 80)" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=1;dropTarget=0;collapsible=0;recursiveResize=0;outlineConnect=0;portConstraint=eastwest;newEdgeStyle={&quot;curved&quot;:0,&quot;rounded&quot;:0};fillColor=#e0f2fe;strokeColor=#0284c7;fontStyle=1;size=50;" vertex="1" parent="1">
+          <mxGeometry x="540" y="70" width="140" height="720" as="geometry" />
+        </mxCell>
+        <mxCell id="p2_api" value="ระบบหลังบ้าน API&#xa;(โมดูลการชำระเงิน)" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=1;dropTarget=0;collapsible=0;recursiveResize=0;outlineConnect=0;portConstraint=eastwest;newEdgeStyle={&quot;curved&quot;:0,&quot;rounded&quot;:0};fillColor=#dcfce7;strokeColor=#16a34a;fontStyle=1;size=50;" vertex="1" parent="1">
+          <mxGeometry x="770" y="70" width="160" height="720" as="geometry" />
+        </mxCell>
+        <mxCell id="p2_db" value="ฐานข้อมูล PostgreSQL&#xa;(รายการขายและบัญชี)" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=1;dropTarget=0;collapsible=0;recursiveResize=0;outlineConnect=0;portConstraint=eastwest;newEdgeStyle={&quot;curved&quot;:0,&quot;rounded&quot;:0};fillColor=#f1f5f9;strokeColor=#475569;fontStyle=1;size=50;" vertex="1" parent="1">
+          <mxGeometry x="1030" y="70" width="160" height="720" as="geometry" />
+        </mxCell>
+
+        <!-- Alt Online / Offline -->
+        <mxCell id="f2_alt" value="ทางเลือก [โหมดออนไลน์ vs โหมดออฟไลน์]" style="shape=umlFrame;whiteSpace=wrap;html=1;pointerEvents=0;fillColor=none;strokeColor=#64748b;width=260;height=25;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="50" y="140" width="1130" height="410" as="geometry" />
+        </mxCell>
+
+        <mxCell id="m2_1" value="1. [ออนไลน์] แตะบัตร RFID ส่งยอดชำระเงิน" style="html=1;verticalAlign=bottom;endArrow=block;curved=0;rounded=0;fontSize=12;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="140" y="195" as="sourcePoint" />
+            <mxPoint x="610" y="195" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="m2_2" value="2. ส่งต่อคำขอชำระเงินไปยัง API" style="html=1;verticalAlign=bottom;endArrow=block;curved=0;rounded=0;fontSize=12;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="610" y="230" as="sourcePoint" />
+            <mxPoint x="850" y="230" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="m2_3" value="3. ตรวจสถานะบัตร วงเงินรายวัน และยอดเงินคงเหลือ" style="html=1;verticalAlign=bottom;endArrow=block;curved=0;rounded=0;fontSize=12;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="850" y="270" as="sourcePoint" />
+            <mxPoint x="1110" y="270" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="m2_4" value="4. ตัดยอดเงิน + บันทึกบิลและบัญชี (ชำระเงินสำเร็จ)" style="html=1;verticalAlign=bottom;endArrow=open;dashed=1;endSize=8;curved=0;rounded=0;fontSize=12;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="1110" y="310" as="sourcePoint" />
+            <mxPoint x="140" y="310" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+
+        <!-- Divider -->
+        <mxCell id="f2_div" value="" style="line;strokeWidth=1;dashed=1;html=1;strokeColor=#94a3b8;" vertex="1" parent="1">
+          <mxGeometry x="50" y="340" width="1130" height="10" as="geometry" />
+        </mxCell>
+
+        <mxCell id="m2_5" value="5. [ออฟไลน์] บันทึกลงคิวในเครื่อง (&lt;= 100 บ./ครั้ง, ไม่เกิน 12 ชม.)" style="html=1;verticalAlign=bottom;endArrow=block;curved=0;rounded=0;fontSize=12;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="140" y="390" as="sourcePoint" />
+            <mxPoint x="380" y="390" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="m2_6" value="6. เมื่อเน็ตกลับมา: กดซิงก์รายการออฟไลน์ขึ้นเซิร์ฟเวอร์" style="html=1;verticalAlign=bottom;endArrow=block;curved=0;rounded=0;fontSize=12;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="380" y="435" as="sourcePoint" />
+            <mxPoint x="850" y="435" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="m2_7" value="7. ตรวจรายการซ้ำ (อนุญาตติดลบถึง -500 บ.) + บันทึกฐานข้อมูล" style="html=1;verticalAlign=bottom;endArrow=block;curved=0;rounded=0;fontSize=12;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="850" y="475" as="sourcePoint" />
+            <mxPoint x="1110" y="475" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="m2_8" value="8. ยืนยันซิงก์สำเร็จ -> ลบรายการออกจากคิวในเครื่อง" style="html=1;verticalAlign=bottom;endArrow=open;dashed=1;endSize=8;curved=0;rounded=0;fontSize=12;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="850" y="515" as="sourcePoint" />
+            <mxPoint x="140" y="515" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+
+        <!-- UC-06 Void -->
+        <mxCell id="f2_void" value="กรณีเพิ่มเติม [UC-06: ยกเลิกบิลภายในวันเดียวกัน]" style="shape=umlFrame;whiteSpace=wrap;html=1;pointerEvents=0;fillColor=none;strokeColor=#64748b;width=310;height=25;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="50" y="575" width="1130" height="175" as="geometry" />
+        </mxCell>
+        <mxCell id="m2_9" value="9. กดยกเลิกบิลตามรหัสอ้างอิง" style="html=1;verticalAlign=bottom;endArrow=block;curved=0;rounded=0;fontSize=12;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="140" y="630" as="sourcePoint" />
+            <mxPoint x="850" y="630" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="m2_10" value="10. ตรวจว่ายังไม่ข้ามวัน (ก่อน 23:59:59 น.) + คืนเงินเข้าบัตร" style="html=1;verticalAlign=bottom;endArrow=block;curved=0;rounded=0;fontSize=12;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="850" y="670" as="sourcePoint" />
+            <mxPoint x="1110" y="670" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="m2_11" value="11. แจ้งยกเลิกบิลสำเร็จ (สถานะ: ยกเลิกแล้ว)" style="html=1;verticalAlign=bottom;endArrow=open;dashed=1;endSize=8;curved=0;rounded=0;fontSize=12;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="850" y="710" as="sourcePoint" />
+            <mxPoint x="140" y="710" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+
+  <diagram id="uc01-07-admin-th" name="3. UC-01 ออกบัตรใหม่ &amp; UC-07 สรุปยอดโอน">
+    <mxGraphModel dx="1400" dy="800" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1400" pageHeight="760" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+
+        <mxCell id="t3" value="แผนภาพลำดับการทำงาน: UC-01 ออกบัตร RFID ใหม่ และ UC-07 สรุปยอดโอนเงินร้านค้า T+1" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=16;fontStyle=1;fontColor=#1e293b;" vertex="1" parent="1">
+          <mxGeometry x="40" y="20" width="840" height="30" as="geometry" />
+        </mxCell>
+
+        <!-- Lifelines -->
+        <mxCell id="p3_staff" value="เจ้าหน้าที่โรงเรียน&#xa;(เว็บแอดมิน)" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=1;dropTarget=0;collapsible=0;recursiveResize=0;outlineConnect=0;portConstraint=eastwest;newEdgeStyle={&quot;curved&quot;:0,&quot;rounded&quot;:0};fillColor=#dbeafe;strokeColor=#2563eb;fontStyle=1;size=50;" vertex="1" parent="1">
+          <mxGeometry x="60" y="70" width="150" height="630" as="geometry" />
+        </mxCell>
+        <mxCell id="p3_cron" value="ตัวตั้งเวลาอัตโนมัติ&#xa;(งานรอบเที่ยงคืน)" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=1;dropTarget=0;collapsible=0;recursiveResize=0;outlineConnect=0;portConstraint=eastwest;newEdgeStyle={&quot;curved&quot;:0,&quot;rounded&quot;:0};fillColor=#ede9fe;strokeColor=#7c3aed;fontStyle=1;size=50;" vertex="1" parent="1">
+          <mxGeometry x="300" y="70" width="150" height="630" as="geometry" />
+        </mxCell>
+        <mxCell id="p3_api" value="ระบบหลังบ้าน API&#xa;(ยืนยันตัวตน / บัญชี / โอนเงิน)" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=1;dropTarget=0;collapsible=0;recursiveResize=0;outlineConnect=0;portConstraint=eastwest;newEdgeStyle={&quot;curved&quot;:0,&quot;rounded&quot;:0};fillColor=#dcfce7;strokeColor=#16a34a;fontStyle=1;size=50;" vertex="1" parent="1">
+          <mxGeometry x="550" y="70" width="190" height="630" as="geometry" />
+        </mxCell>
+        <mxCell id="p3_db" value="ฐานข้อมูล PostgreSQL&#xa;(บัตรและรายการโอนเงิน)" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=1;dropTarget=0;collapsible=0;recursiveResize=0;outlineConnect=0;portConstraint=eastwest;newEdgeStyle={&quot;curved&quot;:0,&quot;rounded&quot;:0};fillColor=#f1f5f9;strokeColor=#475569;fontStyle=1;size=50;" vertex="1" parent="1">
+          <mxGeometry x="860" y="70" width="160" height="630" as="geometry" />
+        </mxCell>
+
+        <!-- UC-01 -->
+        <mxCell id="f3_reissue" value="UC-01: ออกบัตร RFID ใหม่แทนบัตรหาย" style="shape=umlFrame;whiteSpace=wrap;html=1;pointerEvents=0;fillColor=none;strokeColor=#64748b;width=250;height=25;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="50" y="140" width="980" height="200" as="geometry" />
+        </mxCell>
+        <mxCell id="m3_1" value="1. สั่งออกบัตรใหม่ (รหัสนักเรียน, รหัสบัตร RFID ใหม่)" style="html=1;verticalAlign=bottom;endArrow=block;curved=0;rounded=0;fontSize=12;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="135" y="195" as="sourcePoint" />
+            <mxPoint x="645" y="195" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="m3_2" value="2. ตรวจสอบสิทธิ์เจ้าหน้าที่ (คุกกี้เซสชัน)" style="html=1;verticalAlign=bottom;endArrow=block;curved=0;rounded=0;fontSize=12;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="645" y="230" as="sourcePoint" />
+            <mxPoint x="645" y="255" as="targetPoint" />
+            <Array as="points">
+              <mxPoint x="705" y="230" />
+              <mxPoint x="705" y="255" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="m3_3" value="3. อายัดบัตรเดิม + ผูกบัตรใหม่ + โอนยอดเงินคงเหลือ" style="html=1;verticalAlign=bottom;endArrow=block;curved=0;rounded=0;fontSize=12;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="645" y="280" as="sourcePoint" />
+            <mxPoint x="940" y="280" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="m3_4" value="4. แสดงผลออกบัตรใหม่สำเร็จ" style="html=1;verticalAlign=bottom;endArrow=open;dashed=1;endSize=8;curved=0;rounded=0;fontSize=12;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="645" y="315" as="sourcePoint" />
+            <mxPoint x="135" y="315" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+
+        <!-- UC-07 -->
+        <mxCell id="f3_settle" value="UC-07: สรุปยอดขายเที่ยงคืน และอนุมัติโอนเงินรอบ T+1" style="shape=umlFrame;whiteSpace=wrap;html=1;pointerEvents=0;fillColor=none;strokeColor=#64748b;width=340;height=25;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="50" y="365" width="980" height="295" as="geometry" />
+        </mxCell>
+        <mxCell id="m3_5" value="5. เวลา 00:00 น. สั่งรันงานสรุปยอดประจำวัน" style="html=1;verticalAlign=bottom;endArrow=block;curved=0;rounded=0;fontSize=12;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="375" y="425" as="sourcePoint" />
+            <mxPoint x="645" y="425" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="m3_6" value="6. รวมยอดขายสุทธิ หักค่าธรรมเนียม 3% -> สร้างรายการรออนุมัติ" style="html=1;verticalAlign=bottom;endArrow=block;curved=0;rounded=0;fontSize=12;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="645" y="465" as="sourcePoint" />
+            <mxPoint x="940" y="465" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="m3_7" value="7. วันถัดไป (T+1): กดอนุมัติโอนเงินให้ร้านค้า" style="html=1;verticalAlign=bottom;endArrow=block;curved=0;rounded=0;fontSize=12;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="135" y="530" as="sourcePoint" />
+            <mxPoint x="645" y="530" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="m3_8" value="8. อัปเดตสถานะการโอนเงิน = อนุมัติ / โอนแล้ว" style="html=1;verticalAlign=bottom;endArrow=block;curved=0;rounded=0;fontSize=12;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="645" y="575" as="sourcePoint" />
+            <mxPoint x="940" y="575" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="m3_9" value="9. แจ้งอนุมัติโอนเงินสำเร็จ" style="html=1;verticalAlign=bottom;endArrow=open;dashed=1;endSize=8;curved=0;rounded=0;fontSize=12;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="645" y="615" as="sourcePoint" />
+            <mxPoint x="135" y="615" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

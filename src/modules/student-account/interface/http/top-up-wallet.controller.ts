@@ -14,6 +14,7 @@ import {
 import { Response } from 'express';
 import { IsInt, IsNotEmpty, IsString, Matches, Min } from 'class-validator';
 import { DomainError } from '../../../../shared/domain-error';
+import { verifyMobileToken } from '../../../../shared/mobile-auth';
 import { TopUpStudentWallet } from '../../application/TopUpStudentWallet';
 import { PostgresTopUpRepository } from '../../infrastructure/PostgresTopUpRepository';
 import { TopUp } from '../../domain/TopUp';
@@ -61,11 +62,17 @@ export class TopUpWalletController {
     @Res() res: Response,
   ) {
     let parent: { id: string } | null = null;
-    if (parentIdHeader) {
-      parent = { id: parentIdHeader };
-    } else if (authHeader && authHeader.startsWith('Bearer ')) {
+    if (authHeader && authHeader.startsWith('Bearer ')) {
       const token = authHeader.slice(7).trim();
-      parent = { id: token || 'default-parent' };
+      const payload = verifyMobileToken(token);
+      if (payload && payload.role === 'parent') {
+        parent = { id: payload.sub };
+      } else if (!parentIdHeader) {
+        parent = { id: token || 'default-parent' };
+      }
+    }
+    if (!parent && parentIdHeader) {
+      parent = { id: parentIdHeader };
     }
 
     const result = await this.topUpStudentWallet.execute({

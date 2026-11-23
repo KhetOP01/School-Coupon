@@ -12,14 +12,16 @@ import {
   View,
 } from 'react-native';
 import { parentApi } from '../api/parent-api';
-import { StudentProfile } from '../types';
+import { ParentUser, StudentProfile } from '../types';
 
 interface HomeScreenProps {
+  parent: ParentUser;
   student: StudentProfile;
   students: StudentProfile[];
   topInset: number;
   onSelectStudent: (studentId: number) => void;
   onBalanceUpdated: (newBalance: string) => void;
+  onLogout: () => void;
 }
 
 const PRESET_AMOUNTS = ['50', '100', '200', '300', '500'] as const;
@@ -56,11 +58,13 @@ function CouponWalletBadge() {
 }
 
 export function HomeScreen({
+  parent,
   student,
   students,
   topInset,
   onSelectStudent,
   onBalanceUpdated,
+  onLogout,
 }: HomeScreenProps) {
   const [selectedAmount, setSelectedAmount] = useState<string>('100');
   const [isCustomSelected, setIsCustomSelected] = useState(false);
@@ -72,7 +76,7 @@ export function HomeScreen({
   const customInputRef = useRef<React.ComponentRef<typeof TextInput>>(null);
   const [menuModalVisible, setMenuModalVisible] = useState(false);
   const [noteModalVisible, setNoteModalVisible] = useState(false);
-  const [baseUrlInput, setBaseUrlInput] = useState('http://192.168.1.89');
+  const [baseUrlInput, setBaseUrlInput] = useState('http://192.168.1.78');
 
   const [qrGenerated, setQrGenerated] = useState(false);
   const [pendingTopUp, setPendingTopUp] = useState<{
@@ -206,9 +210,23 @@ export function HomeScreen({
         onLongPress={() => setMenuModalVisible(true)}
         activeOpacity={1}
       >
-        <View style={styles.headerCenter}>
-          <Text style={styles.headerTitle}>เติมเงินคูปองลูกน้อย</Text>
-          <Text style={styles.headerSubtitle}>เติมเงินง่าย ให้ลูกใช้ที่โรงเรียน</Text>
+        <View style={styles.headerRow}>
+          <View style={styles.headerCenter}>
+            <Text style={styles.headerTitle}>เติมเงินคูปองลูกน้อย</Text>
+            <Text style={styles.headerSubtitle}>ผู้ปกครอง: {parent.fullName}</Text>
+          </View>
+          <TouchableOpacity
+            style={styles.logoutPill}
+            onPress={() =>
+              Alert.alert('ออกจากระบบ', 'ต้องการออกจากระบบใช่หรือไม่?', [
+                { text: 'ยกเลิก', style: 'cancel' },
+                { text: 'ออกจากระบบ', style: 'destructive', onPress: onLogout },
+              ])
+            }
+            activeOpacity={0.8}
+          >
+            <Text style={styles.logoutPillText}>ออก</Text>
+          </TouchableOpacity>
         </View>
       </TouchableOpacity>
 
@@ -560,6 +578,15 @@ export function HomeScreen({
 
             <View style={styles.modalActionsRow}>
               <TouchableOpacity
+                style={styles.modalLogoutBtn}
+                onPress={() => {
+                  setMenuModalVisible(false);
+                  onLogout();
+                }}
+              >
+                <Text style={styles.modalLogoutText}>ออกจากระบบ</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
                 style={styles.modalCancelBtn}
                 onPress={() => setMenuModalVisible(false)}
               >
@@ -599,8 +626,28 @@ const styles = StyleSheet.create({
     shadowRadius: 6,
     elevation: 5,
   },
+  headerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 10,
+  },
   headerCenter: {
+    flex: 1,
     alignItems: 'flex-start',
+  },
+  logoutPill: {
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.35)',
+  },
+  logoutPillText: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: '700',
   },
   headerTitle: {
     color: '#FFFFFF',
@@ -1151,6 +1198,17 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
     gap: 10,
     marginTop: 14,
+  },
+  modalLogoutBtn: {
+    marginRight: 'auto',
+    paddingHorizontal: 14,
+    paddingVertical: 9,
+    borderRadius: 10,
+    backgroundColor: '#FEE2E2',
+  },
+  modalLogoutText: {
+    color: '#B91C1C',
+    fontWeight: '700',
   },
   modalCancelBtn: {
     paddingHorizontal: 16,

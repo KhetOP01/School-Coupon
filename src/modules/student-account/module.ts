@@ -29,6 +29,7 @@ import { CardReissuePreviewController } from './interface/http/card-reissue-prev
 import { AdminQueryController } from './interface/http/admin-query.controller';
 import { DailyLimitController } from './interface/http/daily-limit.controller';
 import { FreezeCardController } from './interface/http/freeze-card.controller';
+import { ParentAuthController } from './interface/http/parent-auth.controller';
 import { RefundStudentController } from './interface/http/refund-student.controller';
 import { ReissueRfidCardController } from './interface/http/reissue-rfid-card.controller';
 import { StaffAuthGuard } from './interface/http/staff-auth.guard';
@@ -51,6 +52,7 @@ export const PARENT_STUDENT_ACCESS = Symbol('PARENT_STUDENT_ACCESS');
     TopUpWalletController,
     DailyLimitController,
     AdminQueryController,
+    ParentAuthController,
   ],
   providers: [
     PostgresDatabase,

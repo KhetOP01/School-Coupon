@@ -47,3 +47,8 @@ export interface DailySummary {
   netAmount: string;
   totalTransactions: number;
 }
+
+export interface MerchantLoginResponse {
+  token: string;
+  merchant: MerchantProfile;
+}

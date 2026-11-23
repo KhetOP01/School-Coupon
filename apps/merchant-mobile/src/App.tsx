@@ -15,8 +15,14 @@ import { PosScreen } from './screens/PosScreen';
 import { SyncScreen } from './screens/SyncScreen';
 import { VoidScreen } from './screens/VoidScreen';
 import { SummaryScreen } from './screens/SummaryScreen';
+import { LoginScreen } from './screens/LoginScreen';
 import { merchantApi } from './api/merchant-api';
-import { PaymentResponse, VoidResponse } from './types';
+import {
+  MerchantLoginResponse,
+  MerchantProfile,
+  PaymentResponse,
+  VoidResponse,
+} from './types';
 
 type Tab = 'pos' | 'sync' | 'void' | 'summary';
 
@@ -108,14 +114,40 @@ function MerchantApp() {
   );
   const bottomInset = Math.max(insets.bottom, 10);
 
+  const [merchant, setMerchant] = useState<MerchantProfile | null>(null);
   const [activeTab, setActiveTab] = useState<Tab>('pos');
   const [merchantId, setMerchantId] = useState<number>(1);
   const [isOffline, setIsOffline] = useState<boolean>(false);
   const [recentPayments, setRecentPayments] = useState<PaymentResponse[]>([]);
 
   const [settingsVisible, setSettingsVisible] = useState(false);
-  const [baseUrlInput, setBaseUrlInput] = useState('http://192.168.1.89');
+  const [baseUrlInput, setBaseUrlInput] = useState('http://192.168.1.78');
   const [merchantIdInput, setMerchantIdInput] = useState('1');
+
+  function handleLoginSuccess(session: MerchantLoginResponse) {
+    setMerchant(session.merchant);
+    setMerchantId(session.merchant.id);
+    setMerchantIdInput(String(session.merchant.id));
+    setBaseUrlInput(merchantApi.getBaseUrl());
+    setActiveTab('pos');
+  }
+
+  function handleLogout() {
+    merchantApi.logout();
+    setSettingsVisible(false);
+    setMerchant(null);
+    setRecentPayments([]);
+    setActiveTab('pos');
+  }
+
+  if (!merchant) {
+    return (
+      <View style={[styles.screenWrapper, { backgroundColor: '#EEF4FF' }]}>
+        <StatusBar barStyle="light-content" />
+        <LoginScreen topInset={topInset} onLoginSuccess={handleLoginSuccess} />
+      </View>
+    );
+  }
 
   function handlePaymentSuccess(payment: PaymentResponse) {
     setRecentPayments((prev) => [payment, ...prev]);
@@ -151,7 +183,12 @@ function MerchantApp() {
               </View>
             </View>
             <View style={styles.brandTextWrap}>
-              <Text style={styles.appTitle}>School Coupon POS</Text>
+              <Text style={styles.appTitle} numberOfLines={1}>
+                {merchant.name}
+              </Text>
+              <Text style={styles.appSubtitle} numberOfLines={1}>
+                รหัสร้าน: {merchant.merchantCode}
+              </Text>
             </View>
           </View>
 
@@ -275,6 +312,12 @@ function MerchantApp() {
 
             <View style={styles.modalButtonsRow}>
               <TouchableOpacity
+                style={styles.modalLogoutBtn}
+                onPress={handleLogout}
+              >
+                <Text style={styles.modalLogoutText}>ออกจากระบบ</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
                 style={styles.modalCancelBtn}
                 onPress={() => setSettingsVisible(false)}
               >
@@ -359,9 +402,14 @@ const styles = StyleSheet.create({
   },
   appTitle: {
     color: '#FFFFFF',
-    fontSize: 17,
+    fontSize: 16,
     fontWeight: '800',
     letterSpacing: 0.2,
+  },
+  appSubtitle: {
+    color: '#DBEAFE',
+    fontSize: 11,
+    fontWeight: '600',
   },
   headerActions: {
     flexDirection: 'row',
@@ -638,6 +686,17 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
     gap: 10,
     marginTop: 18,
+  },
+  modalLogoutBtn: {
+    marginRight: 'auto',
+    paddingHorizontal: 14,
+    paddingVertical: 9,
+    borderRadius: 10,
+    backgroundColor: '#FEE2E2',
+  },
+  modalLogoutText: {
+    color: '#B91C1C',
+    fontWeight: '700',
   },
   modalCancelBtn: {
     paddingHorizontal: 16,

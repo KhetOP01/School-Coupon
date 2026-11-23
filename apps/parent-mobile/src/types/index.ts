@@ -39,3 +39,15 @@ export interface FreezeCardResponse {
   cardId: number;
   status: 'lost';
 }
+
+export interface ParentUser {
+  id: number;
+  phone: string;
+  fullName: string;
+}
+
+export interface ParentLoginResponse {
+  token: string;
+  parent: ParentUser;
+  students: StudentProfile[];
+}

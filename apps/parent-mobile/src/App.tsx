@@ -6,7 +6,9 @@ import { HomeScreen } from './screens/HomeScreen';
 import { TopUpScreen } from './screens/TopUpScreen';
 import { DailyLimitScreen } from './screens/DailyLimitScreen';
 import { CardSecurityScreen } from './screens/CardSecurityScreen';
-import { StudentProfile } from './types';
+import { LoginScreen } from './screens/LoginScreen';
+import { parentApi } from './api/parent-api';
+import { ParentLoginResponse, ParentUser, StudentProfile } from './types';
 
 const INITIAL_STUDENTS: StudentProfile[] = [
   {
@@ -129,11 +131,37 @@ function ParentApp() {
   );
   const bottomInset = Math.max(insets.bottom, 10);
 
+  const [parent, setParent] = useState<ParentUser | null>(null);
   const [currentScreen, setCurrentScreen] = useState<ScreenType>('home');
   const [students, setStudents] = useState<StudentProfile[]>(INITIAL_STUDENTS);
   const [selectedStudentId, setSelectedStudentId] = useState<number>(1);
 
   const student = students.find((s) => s.id === selectedStudentId) ?? students[0];
+
+  function handleLoginSuccess(session: ParentLoginResponse) {
+    setParent(session.parent);
+    const nextStudents = session.students.length > 0 ? session.students : INITIAL_STUDENTS;
+    setStudents(nextStudents);
+    setSelectedStudentId(nextStudents[0].id);
+    setCurrentScreen('home');
+  }
+
+  function handleLogout() {
+    parentApi.logout();
+    setParent(null);
+    setStudents(INITIAL_STUDENTS);
+    setSelectedStudentId(1);
+    setCurrentScreen('home');
+  }
+
+  if (!parent) {
+    return (
+      <View style={[styles.root, { backgroundColor: '#EEF4FF' }]}>
+        <StatusBar barStyle="light-content" />
+        <LoginScreen topInset={topInset} onLoginSuccess={handleLoginSuccess} />
+      </View>
+    );
+  }
 
   function updateStudent(updater: (prev: StudentProfile) => StudentProfile) {
     setStudents((prevList) =>
@@ -159,6 +187,7 @@ function ParentApp() {
       <View style={styles.screenBody}>
         {currentScreen === 'home' && (
           <HomeScreen
+            parent={parent}
             student={student}
             students={students}
             topInset={topInset}
@@ -166,6 +195,7 @@ function ParentApp() {
             onBalanceUpdated={(newBalance) =>
               updateStudent((prev) => ({ ...prev, walletBalance: newBalance }))
             }
+            onLogout={handleLogout}
           />
         )}
 

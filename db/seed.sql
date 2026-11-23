@@ -348,3 +348,26 @@ SELECT setval(pg_get_serial_sequence('rfid_cards', 'id'), GREATEST((SELECT MAX(i
 
 
 
+
+-- Mobile Auth Demo Accounts (PIN: 123456)
+INSERT INTO parents (id, phone, pin_hash, full_name, status)
+VALUES
+  (1, '0812345678', 'scrypt:a1b2c3d4e5f60718293a4b5c6d7e8f90:bf6bdd1693dc31289e14d0eca9d8dd21d9e5d6945a99a798b2bbd904873d4578962b2471595c04a15459dab8ff124511d0288e7e5d3c60b4a850d8211c4903db', 'คุณสมศรี ใจดี', 'active'),
+  (2, '0899999999', 'scrypt:a1b2c3d4e5f60718293a4b5c6d7e8f90:bf6bdd1693dc31289e14d0eca9d8dd21d9e5d6945a99a798b2bbd904873d4578962b2471595c04a15459dab8ff124511d0288e7e5d3c60b4a850d8211c4903db', 'คุณวิชัย รักเรียน', 'active')
+ON CONFLICT (phone) DO NOTHING;
+
+INSERT INTO parent_students (parent_id, student_id, relationship)
+VALUES
+  (1, 1, 'guardian'),
+  (1, 2, 'guardian'),
+  (1, 3, 'guardian'),
+  (1, 4, 'guardian'),
+  (1, 5, 'guardian'),
+  (2, 2, 'guardian')
+ON CONFLICT (parent_id, student_id) DO NOTHING;
+
+SELECT setval(pg_get_serial_sequence('parents', 'id'), GREATEST((SELECT MAX(id) FROM parents), 1), TRUE);
+
+UPDATE merchants
+SET pin_hash = 'scrypt:a1b2c3d4e5f60718293a4b5c6d7e8f90:bf6bdd1693dc31289e14d0eca9d8dd21d9e5d6945a99a798b2bbd904873d4578962b2471595c04a15459dab8ff124511d0288e7e5d3c60b4a850d8211c4903db'
+WHERE pin_hash IS NULL;

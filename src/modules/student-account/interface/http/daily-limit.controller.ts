@@ -12,6 +12,7 @@ import {
 import { IsNotEmpty, IsString } from 'class-validator';
 import { DailyLimitAmount } from '../../domain/DailyLimitAmount';
 import { SetDailyLimit } from '../../application/SetDailyLimit';
+import { verifyMobileToken } from '../../../../shared/mobile-auth';
 
 class UpdateDailyLimitDto {
   @IsString()
@@ -35,13 +36,17 @@ export class DailyLimitController {
     @Headers('x-parent-id') parentIdHeader: string | undefined,
   ) {
     let parent: { id: string } | null = null;
-    if (parentIdHeader) {
-      parent = { id: parentIdHeader };
-    } else if (authHeader && authHeader.startsWith('Bearer ')) {
+    if (authHeader && authHeader.startsWith('Bearer ')) {
       const token = authHeader.slice(7).trim();
-      if (token) {
+      const payload = verifyMobileToken(token);
+      if (payload && payload.role === 'parent') {
+        parent = { id: payload.sub };
+      } else if (!parentIdHeader && token) {
         parent = { id: token };
       }
+    }
+    if (!parent && parentIdHeader) {
+      parent = { id: parentIdHeader };
     }
 
     const limit = DailyLimitAmount.fromString(dto.dailyLimit);

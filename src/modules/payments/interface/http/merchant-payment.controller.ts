@@ -13,6 +13,7 @@ import { IsNotEmpty, IsOptional, IsString, IsUUID } from 'class-validator';
 import { ProcessOnlinePayment } from '../../application/ProcessOnlinePayment';
 import { SyncOfflinePayment } from '../../application/SyncOfflinePayment';
 import { VoidPayment } from '../../application/VoidPayment';
+import { verifyMobileToken } from '../../../../shared/mobile-auth';
 
 class OnlinePaymentDto {
   @IsString()
@@ -155,16 +156,25 @@ function extractMerchant(
   authHeader: string | undefined,
   merchantIdHeader: string | undefined,
 ): { id: number } | null {
-  if (merchantIdHeader && !isNaN(Number(merchantIdHeader))) {
-    return { id: Number(merchantIdHeader) };
-  }
   if (authHeader && authHeader.startsWith('Bearer ')) {
     const token = authHeader.slice(7).trim();
+    const payload = verifyMobileToken(token);
+    if (payload && payload.role === 'merchant') {
+      const jwtId = Number(payload.sub);
+      if (!isNaN(jwtId) && jwtId > 0) {
+        return { id: jwtId };
+      }
+    }
     const id = Number(token);
     if (!isNaN(id) && id > 0) {
       return { id };
     }
-    return { id: 1 };
+    if (!merchantIdHeader) {
+      return { id: 1 };
+    }
+  }
+  if (merchantIdHeader && !isNaN(Number(merchantIdHeader))) {
+    return { id: Number(merchantIdHeader) };
   }
   return null;
 }

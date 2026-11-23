@@ -1,6 +1,8 @@
 import {
   DailyLimitResponse,
   FreezeCardResponse,
+  ParentLoginResponse,
+  ParentUser,
   StudentProfile,
   TopUpRequest,
   TopUpResponse,
@@ -9,10 +11,16 @@ import {
 export class ParentApiClient {
   private baseUrl: string;
   private parentId: string;
+  private token: string | null;
 
   constructor(options?: { baseUrl?: string; parentId?: string }) {
-    this.baseUrl = options?.baseUrl ?? 'http://192.168.1.89'; // LAN IP for Expo Go
+    this.baseUrl = options?.baseUrl ?? 'http://192.168.1.78'; // LAN IP for Expo Go
     this.parentId = options?.parentId ?? 'parent-1';
+    this.token = null;
+  }
+
+  getBaseUrl(): string {
+    return this.baseUrl;
   }
 
   setBaseUrl(url: string) {
@@ -23,12 +31,58 @@ export class ParentApiClient {
     this.parentId = id;
   }
 
+  setSession(token: string, parentId: number) {
+    this.token = token;
+    this.parentId = String(parentId);
+  }
+
+  logout() {
+    this.token = null;
+    this.parentId = 'parent-1';
+  }
+
   private get headers(): HeadersInit {
     return {
       'Content-Type': 'application/json',
       'x-parent-id': this.parentId,
-      Authorization: `Bearer ${this.parentId}`,
+      Authorization: `Bearer ${this.token ?? this.parentId}`,
     };
+  }
+
+  /**
+   * เข้าสู่ระบบผู้ปกครองด้วยเบอร์โทรศัพท์และรหัส PIN
+   */
+  async login(phone: string, pin: string): Promise<ParentLoginResponse> {
+    const res = await fetch(`${this.baseUrl}/parent/auth/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ phone: phone.trim(), pin: pin.trim() }),
+    });
+
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.message ?? `เข้าสู่ระบบไม่สำเร็จ (${res.status})`);
+    }
+
+    const data = (await res.json()) as ParentLoginResponse;
+    this.setSession(data.token, data.parent.id);
+    return data;
+  }
+
+  /**
+   * ดึงข้อมูลผู้ปกครองและรายชื่อนักเรียนล่าสุด
+   */
+  async getMe(): Promise<{ parent: ParentUser; students: StudentProfile[] }> {
+    const res = await fetch(`${this.baseUrl}/parent/auth/me`, {
+      headers: this.headers,
+    });
+
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.message ?? `ไม่สามารถโหลดข้อมูลผู้ใช้ได้ (${res.status})`);
+    }
+
+    return (await res.json()) as { parent: ParentUser; students: StudentProfile[] };
   }
 
   /**
