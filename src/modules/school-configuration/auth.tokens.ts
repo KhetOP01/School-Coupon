@@ -7,6 +7,7 @@ export const STAFF_ADMIN_SESSIONS = 'STAFF_ADMIN_SESSIONS';
 export const STAFF_OIDC_CLIENT = 'STAFF_OIDC_CLIENT';
 export const STAFF_OIDC_FLOWS = 'STAFF_OIDC_FLOWS';
 export const STAFF_SESSION_AUTHORIZER = 'STAFF_SESSION_AUTHORIZER';
+export const STAFF_USERS = 'STAFF_USERS';
 
 export interface StaffAdminAuthConfig {
   issuer: string;
@@ -77,6 +78,19 @@ export interface StaffOidcClient {
 
 export interface StaffSessionAuthorizer {
   isActiveStaffSession(sessionToken: string, now: Date): Promise<boolean>;
+}
+
+export interface StaffUser {
+  id: number;
+  username: string;
+  passwordHash: string;
+  fullName: string;
+  role: 'staff' | 'admin';
+  status: 'active' | 'suspended';
+}
+
+export interface StaffUsers {
+  findByUsername(username: string): Promise<StaffUser | null>;
 }
 
 export type StaffAdminPool = Pool;

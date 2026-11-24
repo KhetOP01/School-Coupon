@@ -1,19 +1,24 @@
 import {
   BadRequestException,
   BadGatewayException,
+  Body,
   Controller,
   ForbiddenException,
   Get,
   Headers,
+  HttpCode,
+  HttpStatus,
   Inject,
   Post,
   Query,
   Res,
   UnauthorizedException,
 } from '@nestjs/common';
+import { IsOptional, IsString } from 'class-validator';
 import { createHash, randomBytes } from 'node:crypto';
 import type { Response } from 'express';
 import { Clock } from '../../../../shared/clock';
+import { verifyScryptSecret } from '../../../../shared/scrypt-hash';
 import {
   InvalidOidcResponseError,
   OidcProviderUnavailableError,
@@ -22,15 +27,28 @@ import {
   STAFF_ADMIN_SESSIONS,
   STAFF_OIDC_CLIENT,
   STAFF_OIDC_FLOWS,
+  STAFF_USERS,
   StaffAdminAuthConfig,
   StaffAdminSessions,
   StaffOidcClient,
   StaffOidcFlows,
+  StaffUsers,
 } from '../../auth.tokens';
 
 const FLOW_COOKIE_NAME = 'school_coupon_oidc_flow';
 const SESSION_COOKIE_NAME = 'school_coupon_admin_session';
 const OIDC_FLOW_LIFETIME_MS = 5 * 60_000;
+const LOCAL_SESSION_LIFETIME_MS = 8 * 60 * 60_000;
+
+class StaffLocalLoginDto {
+  @IsOptional()
+  @IsString()
+  username?: string;
+
+  @IsOptional()
+  @IsString()
+  password?: string;
+}
 
 @Controller('admin/auth')
 export class StaffAdminAuthController {
@@ -45,7 +63,71 @@ export class StaffAdminAuthController {
     private readonly oidcClient: StaffOidcClient,
     @Inject(STAFF_OIDC_FLOWS)
     private readonly flows: StaffOidcFlows,
+    @Inject(STAFF_USERS)
+    private readonly staffUsers: StaffUsers,
   ) {}
+
+  @Post('login')
+  @HttpCode(HttpStatus.OK)
+  async loginWithPassword(
+    @Body() dto: StaffLocalLoginDto,
+    @Res({ passthrough: true }) response: Response,
+  ): Promise<{
+    username: string;
+    fullName: string;
+    role: 'staff' | 'admin';
+    expiresAt: string;
+  }> {
+    const username = dto?.username?.trim() ?? '';
+    const password = dto?.password ?? '';
+
+    if (!username || !password) {
+      throw new BadRequestException({
+        code: 'INVALID_REQUEST',
+        message: 'กรุณากรอกชื่อผู้ใช้และรหัสผ่านให้ครบถ้วน',
+      });
+    }
+
+    const user = await this.staffUsers.findByUsername(username);
+    if (!user || !verifyScryptSecret(password, user.passwordHash)) {
+      throw new UnauthorizedException({
+        code: 'INVALID_CREDENTIALS',
+        message: 'ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง',
+      });
+    }
+
+    if (user.status !== 'active') {
+      throw new ForbiddenException({
+        code: 'STAFF_SUSPENDED',
+        message: 'บัญชีเจ้าหน้าที่ถูกระงับการใช้งาน กรุณาติดต่อผู้ดูแลระบบ',
+      });
+    }
+
+    const now = this.clock.now();
+    const expiresAt = new Date(now.getTime() + LOCAL_SESSION_LIFETIME_MS);
+    const maxAge = Math.floor(LOCAL_SESSION_LIFETIME_MS / 1000);
+    const sessionToken = randomBytes(32).toString('base64url');
+
+    await this.sessions.create({
+      sessionTokenHash: this.hash(sessionToken),
+      providerIssuer: 'local',
+      staffSubject: user.username,
+      createdAt: now,
+      expiresAt,
+    });
+
+    response.setHeader(
+      'Set-Cookie',
+      `${SESSION_COOKIE_NAME}=${sessionToken}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${maxAge}`,
+    );
+
+    return {
+      username: user.username,
+      fullName: user.fullName,
+      role: user.role,
+      expiresAt: expiresAt.toISOString(),
+    };
+  }
 
   @Get('oidc/start')
   async start(@Res() response: Response): Promise<void> {
