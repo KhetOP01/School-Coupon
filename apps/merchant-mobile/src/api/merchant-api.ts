@@ -11,7 +11,7 @@ export class MerchantApiClient {
   private token: string | null;
 
   constructor(options?: { baseUrl?: string; merchantId?: string }) {
-    this.baseUrl = options?.baseUrl ?? 'http://192.168.1.78';
+    this.baseUrl = options?.baseUrl ?? 'http://192.168.1.53';
     this.merchantId = options?.merchantId ?? '1'; // Default test merchant
     this.token = null;
   }

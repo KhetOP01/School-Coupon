@@ -14,7 +14,7 @@ export class ParentApiClient {
   private token: string | null;
 
   constructor(options?: { baseUrl?: string; parentId?: string }) {
-    this.baseUrl = options?.baseUrl ?? 'http://192.168.1.78'; // LAN IP for Expo Go
+    this.baseUrl = options?.baseUrl ?? 'http://192.168.1.53'; // LAN IP for Expo Go
     this.parentId = options?.parentId ?? 'parent-1';
     this.token = null;
   }

@@ -121,7 +121,7 @@ function MerchantApp() {
   const [recentPayments, setRecentPayments] = useState<PaymentResponse[]>([]);
 
   const [settingsVisible, setSettingsVisible] = useState(false);
-  const [baseUrlInput, setBaseUrlInput] = useState('http://192.168.1.78');
+  const [baseUrlInput, setBaseUrlInput] = useState('http://192.168.1.53');
   const [merchantIdInput, setMerchantIdInput] = useState('1');
 
   function handleLoginSuccess(session: MerchantLoginResponse) {

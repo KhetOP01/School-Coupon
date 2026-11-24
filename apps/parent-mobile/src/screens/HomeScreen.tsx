@@ -76,7 +76,7 @@ export function HomeScreen({
   const customInputRef = useRef<React.ComponentRef<typeof TextInput>>(null);
   const [menuModalVisible, setMenuModalVisible] = useState(false);
   const [noteModalVisible, setNoteModalVisible] = useState(false);
-  const [baseUrlInput, setBaseUrlInput] = useState('http://192.168.1.78');
+  const [baseUrlInput, setBaseUrlInput] = useState('http://192.168.1.53');
 
   const [qrGenerated, setQrGenerated] = useState(false);
   const [pendingTopUp, setPendingTopUp] = useState<{
