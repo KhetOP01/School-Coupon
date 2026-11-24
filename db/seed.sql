@@ -371,3 +371,24 @@ SELECT setval(pg_get_serial_sequence('parents', 'id'), GREATEST((SELECT MAX(id) 
 UPDATE merchants
 SET pin_hash = 'scrypt:a1b2c3d4e5f60718293a4b5c6d7e8f90:bf6bdd1693dc31289e14d0eca9d8dd21d9e5d6945a99a798b2bbd904873d4578962b2471595c04a15459dab8ff124511d0288e7e5d3c60b4a850d8211c4903db'
 WHERE pin_hash IS NULL;
+
+-- UC-09 Local Staff Admin Seed Accounts (password: admin1234)
+-- AC9.1, AC9.3, AC9.5: active admin account
+-- AC9.4: suspended staff account
+INSERT INTO staff_users (username, password_hash, full_name, role, status)
+VALUES
+  (
+    'admin',
+    'scrypt:b2c3d4e5f60718293a4b5c6d7e8f9011:e083f994cf0dabd80dfa0c3621b62b7e5b1997764ccc3898b15701bee6bfbc3124e46fdccee81b99f1617154283e3c82ad0a99b7439e1dae7375edcfd66b016f',
+    'สมชาย ใจดี',
+    'admin',
+    'active'
+  ),
+  (
+    'staff_suspended',
+    'scrypt:b2c3d4e5f60718293a4b5c6d7e8f9011:e083f994cf0dabd80dfa0c3621b62b7e5b1997764ccc3898b15701bee6bfbc3124e46fdccee81b99f1617154283e3c82ad0a99b7439e1dae7375edcfd66b016f',
+    'สมหญิง ถูกระงับ',
+    'staff',
+    'suspended'
+  )
+ON CONFLICT (username) DO NOTHING;

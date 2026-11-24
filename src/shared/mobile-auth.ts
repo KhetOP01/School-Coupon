@@ -1,7 +1,6 @@
-import { randomBytes, scryptSync, timingSafeEqual } from 'node:crypto';
 import jwt from 'jsonwebtoken';
+import { hashScryptSecret, verifyScryptSecret } from './scrypt-hash';
 
-const SCRYPT_PREFIX = 'scrypt';
 const DEFAULT_MOBILE_JWT_SECRET = 'school-coupon-mobile-dev-secret';
 
 export interface MobileTokenPayload {
@@ -12,29 +11,11 @@ export interface MobileTokenPayload {
 }
 
 export function hashPin(pin: string): string {
-  const salt = randomBytes(16).toString('hex');
-  const derived = scryptSync(pin, salt, 64).toString('hex');
-  return `${SCRYPT_PREFIX}:${salt}:${derived}`;
+  return hashScryptSecret(pin);
 }
 
 export function verifyPin(pin: string, storedHash: string): boolean {
-  const parts = storedHash.split(':');
-  if (parts.length !== 3 || parts[0] !== SCRYPT_PREFIX) {
-    return false;
-  }
-
-  const [, salt, expectedHex] = parts;
-  if (!salt || !expectedHex) {
-    return false;
-  }
-
-  const expectedBuffer = Buffer.from(expectedHex, 'hex');
-  const actualBuffer = scryptSync(pin, salt, expectedBuffer.length);
-  if (actualBuffer.length !== expectedBuffer.length) {
-    return false;
-  }
-
-  return timingSafeEqual(actualBuffer, expectedBuffer);
+  return verifyScryptSecret(pin, storedHash);
 }
 
 function getMobileJwtSecret(): string {

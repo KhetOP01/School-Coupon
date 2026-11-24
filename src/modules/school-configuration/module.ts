@@ -9,6 +9,7 @@ import {
   STAFF_OIDC_CLIENT,
   STAFF_OIDC_FLOWS,
   STAFF_SESSION_AUTHORIZER,
+  STAFF_USERS,
   StaffAdminAuthConfig,
   StaffAdminSessions,
   StaffSessionAuthorizer,
@@ -17,6 +18,7 @@ import { createHash } from 'node:crypto';
 import { OpenIdStaffClient } from './infrastructure/open-id-staff-client';
 import { StaffAdminSessionRepository } from './infrastructure/staff-admin-session.repository';
 import { StaffOidcFlowRepository } from './infrastructure/staff-oidc-flow.repository';
+import { StaffUserRepository } from './infrastructure/staff-user.repository';
 import { StaffAdminAuthController } from './interface/http/staff-admin-auth.controller';
 
 function requiredSetting(name: string): string {
@@ -67,6 +69,10 @@ function requiredSetting(name: string): string {
     {
       provide: STAFF_OIDC_FLOWS,
       useClass: StaffOidcFlowRepository,
+    },
+    {
+      provide: STAFF_USERS,
+      useClass: StaffUserRepository,
     },
     {
       provide: STAFF_SESSION_AUTHORIZER,
