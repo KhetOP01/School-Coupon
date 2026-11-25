@@ -19,7 +19,21 @@ export default async function AdminPage() {
     redirect('/admin/login?error=session_error');
   }
 
-  const session = (await response.json()) as { expiresAt?: string };
+  const session = (await response.json()) as {
+    username?: string;
+    fullName?: string;
+    role?: 'staff' | 'admin';
+    expiresAt?: string;
+  };
 
-  return <AdminDashboard sessionExpiry={session.expiresAt} />;
+  return (
+    <AdminDashboard
+      sessionExpiry={session.expiresAt}
+      sessionUser={{
+        username: session.username ?? 'admin',
+        fullName: session.fullName ?? 'Staff Admin',
+        role: session.role ?? 'staff',
+      }}
+    />
+  );
 }

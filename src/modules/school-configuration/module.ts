@@ -20,6 +20,11 @@ import { StaffAdminSessionRepository } from './infrastructure/staff-admin-sessio
 import { StaffOidcFlowRepository } from './infrastructure/staff-oidc-flow.repository';
 import { StaffUserRepository } from './infrastructure/staff-user.repository';
 import { StaffAdminAuthController } from './interface/http/staff-admin-auth.controller';
+import { AdminRoleGuard } from './interface/http/admin-role.guard';
+import { StaffSessionGuard } from './interface/http/staff-session.guard';
+import { StaffUsersController } from './interface/http/staff-users.controller';
+import { CanteenStallsController } from './interface/http/canteen-stalls.controller';
+import { AdminMerchantsController } from './interface/http/admin-merchants.controller';
 
 function requiredSetting(name: string): string {
   const value = process.env[name];
@@ -30,8 +35,15 @@ function requiredSetting(name: string): string {
 }
 
 @Module({
-  controllers: [StaffAdminAuthController],
+  controllers: [
+    StaffAdminAuthController,
+    StaffUsersController,
+    CanteenStallsController,
+    AdminMerchantsController,
+  ],
   providers: [
+    AdminRoleGuard,
+    StaffSessionGuard,
     PostgresDatabase,
     {
       provide: POSTGRES_POOL,

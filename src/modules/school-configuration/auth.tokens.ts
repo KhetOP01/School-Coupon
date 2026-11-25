@@ -87,10 +87,40 @@ export interface StaffUser {
   fullName: string;
   role: 'staff' | 'admin';
   status: 'active' | 'suspended';
+  createdAt?: Date;
+  updatedAt?: Date;
+}
+
+export interface StaffUserSummary {
+  id: number;
+  username: string;
+  fullName: string;
+  role: 'staff' | 'admin';
+  status: 'active' | 'suspended';
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateStaffUserInput {
+  username: string;
+  passwordHash: string;
+  fullName: string;
+  role: 'staff' | 'admin';
+}
+
+export interface UpdateStaffUserInput {
+  fullName?: string;
+  role?: 'staff' | 'admin';
+  status?: 'active' | 'suspended';
+  passwordHash?: string;
 }
 
 export interface StaffUsers {
   findByUsername(username: string): Promise<StaffUser | null>;
+  findById(id: number): Promise<StaffUser | null>;
+  findAll(): Promise<StaffUserSummary[]>;
+  create(input: CreateStaffUserInput): Promise<StaffUserSummary>;
+  update(id: number, input: UpdateStaffUserInput): Promise<StaffUserSummary | null>;
 }
 
 export type StaffAdminPool = Pool;

@@ -392,3 +392,11 @@ VALUES
     'suspended'
   )
 ON CONFLICT (username) DO NOTHING;
+
+-- UC-11 Canteen Auction Stalls Seed Data
+INSERT INTO canteen_stalls (stall_code, winner_name, winner_phone, fee_percent, merchant_id)
+VALUES
+  ('A-01', 'ป้าแดง ข้าวราดแกง', '0811111111', 2.00, 1),
+  ('A-02', 'ลุงชัย ก๋วยเตี๋ยว', '0822222222', 2.50, NULL),
+  ('A-03', 'ป้าณี น้ำปั่น', '0833333333', 2.00, NULL)
+ON CONFLICT (stall_code) DO NOTHING;

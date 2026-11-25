@@ -14,7 +14,7 @@ export class ParentApiClient {
   private token: string | null;
 
   constructor(options?: { baseUrl?: string; parentId?: string }) {
-    this.baseUrl = options?.baseUrl ?? 'http://192.168.1.53'; // LAN IP for Expo Go
+    this.baseUrl = options?.baseUrl ?? 'http://192.168.1.89'; // LAN IP for Expo Go
     this.parentId = options?.parentId ?? 'parent-1';
     this.token = null;
   }
@@ -62,6 +62,36 @@ export class ParentApiClient {
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
       throw new Error(err.message ?? `เข้าสู่ระบบไม่สำเร็จ (${res.status})`);
+    }
+
+    const data = (await res.json()) as ParentLoginResponse;
+    this.setSession(data.token, data.parent.id);
+    return data;
+  }
+
+  /**
+   * ลงทะเบียนผู้ปกครองใหม่และผูกกับรหัสนักเรียน
+   */
+  async register(params: {
+    phone: string;
+    fullName: string;
+    pin: string;
+    studentCode: string;
+  }): Promise<ParentLoginResponse> {
+    const res = await fetch(`${this.baseUrl}/parent/auth/register`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        phone: params.phone.trim(),
+        fullName: params.fullName.trim(),
+        pin: params.pin.trim(),
+        studentCode: params.studentCode.trim(),
+      }),
+    });
+
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.message ?? `ลงทะเบียนผู้ปกครองไม่สำเร็จ (${res.status})`);
     }
 
     const data = (await res.json()) as ParentLoginResponse;

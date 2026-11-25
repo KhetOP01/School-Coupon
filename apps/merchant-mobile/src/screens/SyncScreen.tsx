@@ -95,6 +95,13 @@ export function SyncScreen() {
       offlineStorage.markAsSynced(successfullySyncedIds);
     }
 
+    try {
+      const cache = await merchantApi.fetchOfflineCardCache();
+      offlineStorage.syncCardCache(cache.cards, cache.syncedAt);
+    } catch {
+      // Ignore cache refresh failure after sync
+    }
+
     setSyncLog(logs);
     loadQueue();
     setSyncing(false);

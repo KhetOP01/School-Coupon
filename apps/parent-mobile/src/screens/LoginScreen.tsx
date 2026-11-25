@@ -166,6 +166,14 @@ export function LoginScreen({ topInset, onLoginSuccess }: LoginScreenProps) {
   const [settingsVisible, setSettingsVisible] = useState(false);
   const [baseUrlInput, setBaseUrlInput] = useState(parentApi.getBaseUrl());
 
+  const [registerVisible, setRegisterVisible] = useState(false);
+  const [regPhone, setRegPhone] = useState('');
+  const [regFullName, setRegFullName] = useState('');
+  const [regStudentCode, setRegStudentCode] = useState('');
+  const [regPin, setRegPin] = useState('');
+  const [regLoading, setRegLoading] = useState(false);
+  const [regError, setRegError] = useState<string | null>(null);
+
   async function submitLogin(targetPhone: string, targetPin: string) {
     if (!targetPhone.trim() || !targetPin.trim()) {
       setError('กรุณากรอกเบอร์โทรศัพท์และรหัส PIN ให้ครบถ้วน');
@@ -181,6 +189,35 @@ export function LoginScreen({ topInset, onLoginSuccess }: LoginScreenProps) {
       setError(err instanceof Error ? err.message : 'ไม่สามารถเข้าสู่ระบบได้');
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function submitRegister() {
+    if (
+      !regPhone.trim() ||
+      !regFullName.trim() ||
+      !regStudentCode.trim() ||
+      !/^\d{6}$/.test(regPin.trim())
+    ) {
+      setRegError('กรุณากรอกข้อมูลให้ครบ และตั้งรหัส PIN เป็นตัวเลข 6 หลัก');
+      return;
+    }
+
+    setRegError(null);
+    setRegLoading(true);
+    try {
+      const response = await parentApi.register({
+        phone: regPhone,
+        fullName: regFullName,
+        studentCode: regStudentCode,
+        pin: regPin,
+      });
+      setRegisterVisible(false);
+      onLoginSuccess(response);
+    } catch (err) {
+      setRegError(err instanceof Error ? err.message : 'ไม่สามารถลงทะเบียนได้');
+    } finally {
+      setRegLoading(false);
     }
   }
 
@@ -291,6 +328,27 @@ export function LoginScreen({ topInset, onLoginSuccess }: LoginScreenProps) {
                   </View>
                 )}
               </TouchableOpacity>
+
+              <TouchableOpacity
+                style={{
+                  marginTop: 12,
+                  paddingVertical: 11,
+                  borderRadius: 12,
+                  borderWidth: 1.5,
+                  borderColor: '#1E64EE',
+                  backgroundColor: '#EFF6FF',
+                  alignItems: 'center',
+                }}
+                onPress={() => {
+                  setRegError(null);
+                  setRegisterVisible(true);
+                }}
+                activeOpacity={0.8}
+              >
+                <Text style={{ color: '#1E40AF', fontWeight: '700', fontSize: 14 }}>
+                  ลงทะเบียนผู้ปกครองใหม่
+                </Text>
+              </TouchableOpacity>
             </View>
           </View>
 
@@ -309,6 +367,91 @@ export function LoginScreen({ topInset, onLoginSuccess }: LoginScreenProps) {
           </TouchableOpacity>
         </ScrollView>
       </KeyboardAvoidingView>
+
+      {/* Register Modal */}
+      <Modal
+        visible={registerVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setRegisterVisible(false)}
+      >
+        <View style={styles.modalBackdrop}>
+          <View style={styles.modalCard}>
+            <Text style={styles.modalTitle}>ลงทะเบียนผู้ปกครองใหม่</Text>
+            <Text style={{ fontSize: 13, color: '#64748B', marginBottom: 12 }}>
+              กรอกเบอร์โทรศัพท์ ชื่อผู้ปกครอง รหัสนักเรียน และตั้งรหัส PIN 6 หลัก
+            </Text>
+
+            {regError && (
+              <View style={[styles.errorBox, { marginBottom: 12 }]}>
+                <Text style={styles.errorText}>⚠️ {regError}</Text>
+              </View>
+            )}
+
+            <Text style={styles.modalLabel}>เบอร์โทรศัพท์</Text>
+            <TextInput
+              style={[styles.modalInput, { marginBottom: 10 }]}
+              value={regPhone}
+              onChangeText={setRegPhone}
+              keyboardType="phone-pad"
+              placeholder="เช่น 0855555555"
+              placeholderTextColor="#94A3B8"
+            />
+
+            <Text style={styles.modalLabel}>ชื่อ-นามสกุลผู้ปกครอง</Text>
+            <TextInput
+              style={[styles.modalInput, { marginBottom: 10 }]}
+              value={regFullName}
+              onChangeText={setRegFullName}
+              placeholder="เช่น คุณมานะ รักดี"
+              placeholderTextColor="#94A3B8"
+            />
+
+            <Text style={styles.modalLabel}>รหัสนักเรียน (เช่น STD-1001)</Text>
+            <TextInput
+              style={[styles.modalInput, { marginBottom: 10 }]}
+              value={regStudentCode}
+              onChangeText={setRegStudentCode}
+              autoCapitalize="characters"
+              placeholder="STD-1001"
+              placeholderTextColor="#94A3B8"
+            />
+
+            <Text style={styles.modalLabel}>ตั้งรหัส PIN (6 หลัก)</Text>
+            <TextInput
+              style={[styles.modalInput, { marginBottom: 14 }]}
+              value={regPin}
+              onChangeText={setRegPin}
+              keyboardType="number-pad"
+              secureTextEntry
+              maxLength={6}
+              placeholder="••••••"
+              placeholderTextColor="#94A3B8"
+            />
+
+            <View style={{ flexDirection: 'row', gap: 10, justifyContent: 'flex-end' }}>
+              <TouchableOpacity
+                style={styles.modalCancelBtn}
+                onPress={() => setRegisterVisible(false)}
+                disabled={regLoading}
+              >
+                <Text style={styles.modalCancelText}>ยกเลิก</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.modalSaveBtn}
+                onPress={() => void submitRegister()}
+                disabled={regLoading}
+              >
+                {regLoading ? (
+                  <ActivityIndicator color="#FFFFFF" />
+                ) : (
+                  <Text style={styles.modalSaveText}>ยืนยันลงทะเบียน</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
 
       {/* Server URL Modal */}
       <Modal

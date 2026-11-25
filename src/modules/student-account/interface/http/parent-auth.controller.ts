@@ -1,5 +1,7 @@
 import {
+  BadRequestException,
   Body,
+  ConflictException,
   Controller,
   ForbiddenException,
   Get,
@@ -7,12 +9,14 @@ import {
   HttpCode,
   HttpStatus,
   Inject,
+  NotFoundException,
   Post,
   UnauthorizedException,
 } from '@nestjs/common';
 import { IsNotEmpty, IsString } from 'class-validator';
 import { PostgresDatabase } from '../../../../shared/postgres-database';
 import {
+  hashPin,
   signMobileToken,
   verifyMobileToken,
   verifyPin,
@@ -26,6 +30,24 @@ class ParentLoginDto {
   @IsString()
   @IsNotEmpty()
   pin!: string;
+}
+
+class ParentRegisterDto {
+  @IsString()
+  @IsNotEmpty()
+  phone!: string;
+
+  @IsString()
+  @IsNotEmpty()
+  fullName!: string;
+
+  @IsString()
+  @IsNotEmpty()
+  pin!: string;
+
+  @IsString()
+  @IsNotEmpty()
+  studentCode!: string;
 }
 
 interface ParentRow {
@@ -97,6 +119,93 @@ export class ParentAuthController {
         id: parent.id,
         phone: parent.phone,
         fullName: parent.full_name,
+      },
+      students,
+    };
+  }
+
+  @Post('parent/auth/register')
+  @HttpCode(HttpStatus.CREATED)
+  async register(@Body() dto: ParentRegisterDto) {
+    const phone = dto.phone.trim();
+    const fullName = dto.fullName.trim();
+    const pin = dto.pin.trim();
+    const studentCode = dto.studentCode.trim();
+
+    if (!phone || !fullName || !studentCode || !/^\d{6}$/.test(pin)) {
+      throw new BadRequestException({
+        code: 'INVALID_REQUEST',
+        message: 'กรุณากรอกข้อมูลให้ครบถ้วน และตั้งรหัส PIN เป็นตัวเลข 6 หลัก',
+      });
+    }
+
+    const client = await this.db.pool.connect();
+    let createdParent: { id: number; phone: string; full_name: string };
+    try {
+      await client.query('BEGIN');
+
+      const existingParent = await client.query(
+        'SELECT 1 FROM parents WHERE phone = $1',
+        [phone],
+      );
+      if (existingParent.rowCount !== 0) {
+        throw new ConflictException({
+          code: 'PARENT_PHONE_EXISTS',
+          message: 'เบอร์โทรศัพท์นี้ลงทะเบียนในระบบแล้ว',
+        });
+      }
+
+      const studentResult = await client.query<{ id: number }>(
+        'SELECT id FROM students WHERE LOWER(student_code) = LOWER($1)',
+        [studentCode],
+      );
+      const student = studentResult.rows[0];
+      if (!student) {
+        throw new NotFoundException({
+          code: 'STUDENT_NOT_FOUND',
+          message: 'ไม่พบรหัสนักเรียนนี้ในระบบ กรุณาตรวจสอบกับโรงเรียน',
+        });
+      }
+
+      const insertParent = await client.query<{
+        id: number;
+        phone: string;
+        full_name: string;
+      }>(
+        `INSERT INTO parents (phone, pin_hash, full_name, status)
+         VALUES ($1, $2, $3, 'active')
+         RETURNING id, phone, full_name`,
+        [phone, hashPin(pin), fullName],
+      );
+      createdParent = insertParent.rows[0];
+
+      await client.query(
+        `INSERT INTO parent_students (parent_id, student_id, relationship)
+         VALUES ($1, $2, 'guardian')`,
+        [createdParent.id, student.id],
+      );
+
+      await client.query('COMMIT');
+    } catch (error) {
+      await client.query('ROLLBACK');
+      throw error;
+    } finally {
+      client.release();
+    }
+
+    const students = await this.loadStudentsForParent(createdParent.id);
+    const token = signMobileToken({
+      sub: String(createdParent.id),
+      role: 'parent',
+      name: createdParent.full_name,
+    });
+
+    return {
+      token,
+      parent: {
+        id: createdParent.id,
+        phone: createdParent.phone,
+        fullName: createdParent.full_name,
       },
       students,
     };

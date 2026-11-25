@@ -1,5 +1,6 @@
 import {
   MerchantLoginResponse,
+  OfflineCardCacheResponse,
   OfflinePaymentRecord,
   PaymentResponse,
   VoidResponse,
@@ -11,7 +12,7 @@ export class MerchantApiClient {
   private token: string | null;
 
   constructor(options?: { baseUrl?: string; merchantId?: string }) {
-    this.baseUrl = options?.baseUrl ?? 'http://192.168.1.53';
+    this.baseUrl = options?.baseUrl ?? 'http://192.168.1.89';
     this.merchantId = options?.merchantId ?? '1'; // Default test merchant
     this.token = null;
   }
@@ -67,6 +68,53 @@ export class MerchantApiClient {
     const data = (await res.json()) as MerchantLoginResponse;
     this.setSession(data.token, data.merchant.id);
     return data;
+  }
+
+  /**
+   * ลงทะเบียนร้านค้าใหม่โดยยืนยันกับข้อมูลผู้ชนะประมูลล็อค
+   */
+  async register(params: {
+    stallCode: string;
+    winnerPhone: string;
+    merchantName: string;
+    pin: string;
+  }): Promise<MerchantLoginResponse> {
+    const res = await fetch(`${this.baseUrl}/merchant/auth/register`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        stallCode: params.stallCode.trim(),
+        winnerPhone: params.winnerPhone.trim(),
+        merchantName: params.merchantName.trim(),
+        pin: params.pin.trim(),
+      }),
+    });
+
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.message ?? `ลงทะเบียนร้านค้าไม่สำเร็จ (${res.status})`);
+    }
+
+    const data = (await res.json()) as MerchantLoginResponse;
+    this.setSession(data.token, data.merchant.id);
+    return data;
+  }
+
+  /**
+   * ดึงสถานะบัตรและยอดเงินล่าสุดสำหรับใช้ตรวจสอบในโหมด Offline
+   */
+  async fetchOfflineCardCache(): Promise<OfflineCardCacheResponse> {
+    const res = await fetch(`${this.baseUrl}/merchant/offline-cache`, {
+      method: 'GET',
+      headers: this.headers,
+    });
+
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.message ?? `โหลดข้อมูลบัตรไม่สำเร็จ (${res.status})`);
+    }
+
+    return (await res.json()) as OfflineCardCacheResponse;
   }
 
   /**

@@ -173,12 +173,15 @@ paths:
         - StaffAdminSessionCookie: []
       responses:
         '200':
-          description: The current Staff session expiry.
+          description: The current Staff session profile and expiry.
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/StaffSession'
               example:
+                username: "admin"
+                fullName: "สมชาย ใจดี"
+                role: "admin"
                 expiresAt: "2026-11-05T15:00:00Z"
         '401':
           description: The session is missing, expired, or revoked.
@@ -220,6 +223,248 @@ paths:
               example:
                 code: SESSION_EXPIRED
                 message: "The Staff session has expired."
+  /merchant/auth/register:
+    post:
+      operationId: registerMerchantByStall
+      summary: Register a merchant account verified against canteen auction stall winner
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [stallCode, winnerPhone, merchantName, pin]
+              properties:
+                stallCode:
+                  type: string
+                  example: "A-02"
+                winnerPhone:
+                  type: string
+                  example: "0822222222"
+                merchantName:
+                  type: string
+                  example: "ร้านก๋วยเตี๋ยวลุงชัย"
+                pin:
+                  type: string
+                  example: "123456"
+      responses:
+        '201':
+          description: Merchant registered and signed in.
+        '403':
+          description: Winner phone does not match auction record.
+        '404':
+          description: Stall code not found.
+        '409':
+          description: Stall already registered.
+  /parent/auth/register:
+    post:
+      operationId: registerParentWithStudent
+      summary: Register a new parent account linked to a student code
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [phone, fullName, pin, studentCode]
+              properties:
+                phone:
+                  type: string
+                  example: "0855555555"
+                fullName:
+                  type: string
+                  example: "คุณมานะ รักดี"
+                pin:
+                  type: string
+                  example: "123456"
+                studentCode:
+                  type: string
+                  example: "STD-1001"
+      responses:
+        '201':
+          description: Parent registered and signed in.
+        '404':
+          description: Student code not found.
+        '409':
+          description: Parent phone already registered.
+  /admin/stalls:
+    get:
+      operationId: listCanteenStalls
+      summary: List canteen auction stalls (Admin only)
+      security:
+        - StaffAdminSessionCookie: []
+      responses:
+        '200':
+          description: List of canteen stalls.
+    post:
+      operationId: createCanteenStall
+      summary: Add a canteen auction stall winner (Admin only)
+      security:
+        - StaffAdminSessionCookie: []
+      responses:
+        '201':
+          description: Stall created.
+  /admin/merchants:
+    get:
+      operationId: listAdminMerchants
+      summary: List all merchants (Admin only)
+      security:
+        - StaffAdminSessionCookie: []
+      responses:
+        '200':
+          description: List of merchants.
+    post:
+      operationId: createAdminMerchant
+      summary: Create a new merchant account (Admin only)
+      security:
+        - StaffAdminSessionCookie: []
+      responses:
+        '201':
+          description: Merchant created.
+  /admin/merchants/{merchantId}:
+    patch:
+      operationId: updateAdminMerchant
+      summary: Update merchant profile, fee, status, or PIN (Admin only)
+      security:
+        - StaffAdminSessionCookie: []
+      parameters:
+        - name: merchantId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Merchant updated.
+  /merchant/offline-cache:
+    get:
+      operationId: getMerchantOfflineCache
+      summary: Get latest card statuses and balances for merchant offline cache
+      responses:
+        '200':
+          description: Latest card statuses and wallet balances.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OfflineCardCacheResponse'
+        '401':
+          description: Merchant authentication required.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Merchant access denied.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /admin/staff-users:
+    get:
+      operationId: listStaffUsers
+      summary: List all staff and admin user accounts (Admin only)
+      security:
+        - StaffAdminSessionCookie: []
+      responses:
+        '200':
+          description: List of staff and admin accounts.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - items
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/StaffUserSummary'
+        '403':
+          description: Admin role required.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    post:
+      operationId: createStaffUser
+      summary: Create a new staff or admin account (Admin only)
+      security:
+        - StaffAdminSessionCookie: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateStaffUserRequest'
+      responses:
+        '201':
+          description: Staff account created.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StaffUserSummary'
+        '400':
+          description: Invalid request.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Admin role required.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: Username already exists.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /admin/staff-users/{staffUserId}:
+    patch:
+      operationId: updateStaffUser
+      summary: Update staff user profile, role, status, or password (Admin only)
+      security:
+        - StaffAdminSessionCookie: []
+      parameters:
+        - name: staffUserId
+          in: path
+          required: true
+          schema:
+            type: integer
+          example: 2
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateStaffUserRequest'
+      responses:
+        '200':
+          description: Staff account updated.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StaffUserSummary'
+        '403':
+          description: Admin role required.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Staff user not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: Cannot suspend or demote own admin account.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
   /admin/students/{studentId}/card-reissue-preview:
     get:
       operationId: getCardReissuePreview
@@ -1261,8 +1506,21 @@ components:
     StaffSession:
       type: object
       required:
+        - username
+        - fullName
+        - role
         - expiresAt
       properties:
+        username:
+          type: string
+          example: "admin"
+        fullName:
+          type: string
+          example: "สมชาย ใจดี"
+        role:
+          type: string
+          enum: [staff, admin]
+          example: "admin"
         expiresAt:
           type: string
           format: date-time
@@ -1839,6 +2097,115 @@ components:
           type: string
           format: date-time
           example: '2026-11-10T23:59:59.000Z'
+    StaffUserSummary:
+      type: object
+      required:
+        - id
+        - username
+        - fullName
+        - role
+        - status
+        - createdAt
+        - updatedAt
+      properties:
+        id:
+          type: integer
+          example: 1
+        username:
+          type: string
+          example: "admin"
+        fullName:
+          type: string
+          example: "สมชาย ใจดี"
+        role:
+          type: string
+          enum: [staff, admin]
+          example: "admin"
+        status:
+          type: string
+          enum: [active, suspended]
+          example: "active"
+        createdAt:
+          type: string
+          format: date-time
+          example: "2026-11-24T10:55:00.000Z"
+        updatedAt:
+          type: string
+          format: date-time
+          example: "2026-11-24T10:55:00.000Z"
+    CreateStaffUserRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - username
+        - password
+        - fullName
+        - role
+      properties:
+        username:
+          type: string
+          example: "staff01"
+        password:
+          type: string
+          example: "staff1234"
+        fullName:
+          type: string
+          example: "สมหญิง ฝ่ายการเงิน"
+        role:
+          type: string
+          enum: [staff, admin]
+          example: "staff"
+    UpdateStaffUserRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        fullName:
+          type: string
+          example: "สมหญิง ฝ่ายการเงิน"
+        role:
+          type: string
+          enum: [staff, admin]
+          example: "admin"
+        status:
+          type: string
+          enum: [active, suspended]
+          example: "active"
+        password:
+          type: string
+          example: "newpass1234"
+    OfflineCardCacheResponse:
+      type: object
+      required:
+        - syncedAt
+        - cards
+      properties:
+        syncedAt:
+          type: string
+          format: date-time
+          example: "2026-11-25T06:00:00.000Z"
+        cards:
+          type: array
+          items:
+            type: object
+            required:
+              - rfidUid
+              - cardStatus
+              - walletBalance
+              - currentDailyLimit
+            properties:
+              rfidUid:
+                type: string
+                example: "E280F3020000000145A58295"
+              cardStatus:
+                type: string
+                enum: [active, suspended, lost, deactivated]
+                example: "active"
+              walletBalance:
+                type: string
+                example: "150.00"
+              currentDailyLimit:
+                type: string
+                example: "200.00"
 
 
 

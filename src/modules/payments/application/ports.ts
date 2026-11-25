@@ -22,6 +22,17 @@ export interface StudentPaymentAccountGateway {
   findStudentCardByUid(rfidUid: string): Promise<StudentCardPaymentInfo | null>;
 }
 
+export interface OfflineCardCacheItem {
+  readonly rfidUid: string;
+  readonly cardStatus: 'active' | 'suspended' | 'lost' | 'deactivated';
+  readonly walletBalance: string;
+  readonly currentDailyLimit: string;
+}
+
+export interface OfflineCardCacheGateway {
+  listOfflineCardCache(): Promise<OfflineCardCacheItem[]>;
+}
+
 export interface ExistingOfflinePayment {
   readonly payment: Payment;
   readonly walletBalance: string;
