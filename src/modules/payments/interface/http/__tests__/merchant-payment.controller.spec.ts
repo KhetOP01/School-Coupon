@@ -3,6 +3,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import request from 'supertest';
 import { ApiExceptionFilter } from '../../../../../shared/api-exception.filter';
 import { DomainError } from '../../../../../shared/domain-error';
+import { GetOfflineCardCache } from '../../../application/GetOfflineCardCache';
 import { ProcessOnlinePayment } from '../../../application/ProcessOnlinePayment';
 import { SyncOfflinePayment } from '../../../application/SyncOfflinePayment';
 import { VoidPayment } from '../../../application/VoidPayment';
@@ -17,6 +18,9 @@ describe('MerchantPaymentController', () => {
     execute: jest.fn(),
   };
   const mockVoidPayment = {
+    execute: jest.fn(),
+  };
+  const mockGetOfflineCardCache = {
     execute: jest.fn(),
   };
 
@@ -35,6 +39,10 @@ describe('MerchantPaymentController', () => {
         {
           provide: VoidPayment,
           useValue: mockVoidPayment,
+        },
+        {
+          provide: GetOfflineCardCache,
+          useValue: mockGetOfflineCardCache,
         },
       ],
     }).compile();

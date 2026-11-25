@@ -5,10 +5,24 @@ import CardReissueForm from './reissue-form';
 import CardManagementForm from './card-management-form';
 import SettlementApprovalForm from './settlement-approval-form';
 import StudentDirectory from './student-directory';
+import StaffUserManagement from './staff-user-management';
+import MerchantManagement from './merchant-management';
 
-type ActiveTab = 'directory' | 'reissue' | 'cards' | 'settlements';
+type ActiveTab = 'directory' | 'reissue' | 'cards' | 'settlements' | 'staffUsers' | 'stalls';
 
-export default function AdminDashboard({ sessionExpiry }: { sessionExpiry?: string }) {
+interface SessionUser {
+  username: string;
+  fullName: string;
+  role: 'staff' | 'admin';
+}
+
+export default function AdminDashboard({
+  sessionExpiry,
+  sessionUser = { username: 'admin', fullName: 'Staff Admin', role: 'admin' },
+}: {
+  sessionExpiry?: string;
+  sessionUser?: SessionUser;
+}) {
   const [activeTab, setActiveTab] = useState<ActiveTab>('directory');
   const [hoveredTab, setHoveredTab] = useState<ActiveTab | null>(null);
   const [selectedStudentId, setSelectedStudentId] = useState<number | undefined>(undefined);
@@ -49,10 +63,11 @@ export default function AdminDashboard({ sessionExpiry }: { sessionExpiry?: stri
     setActiveTab('cards');
   }
 
-  const navTabs: Array<{
+  const allNavTabs: Array<{
     id: ActiveTab;
     title: string;
     subtitle: string;
+    adminOnly?: boolean;
     icon: React.ReactNode;
   }> = [
     {
@@ -95,7 +110,32 @@ export default function AdminDashboard({ sessionExpiry }: { sessionExpiry?: stri
         </svg>
       ),
     },
+    {
+      id: 'staffUsers',
+      title: 'จัดการบัญชีผู้ใช้',
+      subtitle: '(Admin Only)',
+      adminOnly: true,
+      icon: (
+        <svg width="19" height="19" viewBox="0 0 24 24" fill="currentColor">
+          <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4zm7.71-5.29L18 7l-1.71 1.71 1.71 1.71 1.71-1.71z" />
+        </svg>
+      ),
+    },
+    {
+      id: 'stalls',
+      title: 'จัดการร้านค้า & ล็อค',
+      subtitle: '(Merchants)',
+      icon: (
+        <svg width="19" height="19" viewBox="0 0 24 24" fill="currentColor">
+          <path d="M20 4H4v2h16V4zm1 10v-2l-1-5H4l-1 5v2h1v6h10v-6h4v6h2v-6h1zm-9 4H6v-4h6v4z" />
+        </svg>
+      ),
+    },
   ];
+
+  const navTabs = allNavTabs.filter((tab) => !tab.adminOnly || sessionUser.role === 'admin');
+  const initials = sessionUser.role === 'admin' ? 'AD' : 'ST';
+  const roleLabel = sessionUser.role === 'admin' ? 'ผู้ดูแลระบบ (Admin)' : 'เจ้าหน้าที่ (Staff)';
 
   return (
     <div style={{ display: 'flex', minHeight: '100vh', background: '#eef4fb' }}>
@@ -316,10 +356,10 @@ export default function AdminDashboard({ sessionExpiry }: { sessionExpiry?: stri
                   justifyContent: 'center',
                 }}
               >
-                SA
+                {initials}
               </span>
               <span style={{ fontSize: '0.86rem', fontWeight: 600, color: '#0f172a', whiteSpace: 'nowrap' }}>
-                สมชาย ใจดี
+                {sessionUser.fullName}
               </span>
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#475569" strokeWidth="2">
                 <path d="m6 9 6 6 6-6" />
@@ -348,9 +388,9 @@ export default function AdminDashboard({ sessionExpiry }: { sessionExpiry?: stri
                     marginBottom: '0.4rem',
                   }}
                 >
-                  <div style={{ fontSize: '0.84rem', fontWeight: 600, color: '#0f172a' }}>สมชาย ใจดี</div>
+                  <div style={{ fontSize: '0.84rem', fontWeight: 600, color: '#0f172a' }}>{sessionUser.fullName}</div>
                   <div style={{ fontSize: '0.74rem', color: '#64748b' }}>
-                    Staff Admin{sessionExpiry ? ` • หมดอายุ ${new Date(sessionExpiry).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })}` : ''}
+                    {roleLabel}{sessionExpiry ? ` • หมดอายุ ${new Date(sessionExpiry).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })}` : ''}
                   </div>
                 </div>
                 <button
@@ -421,6 +461,12 @@ export default function AdminDashboard({ sessionExpiry }: { sessionExpiry?: stri
               )}
 
               {activeTab === 'settlements' && <SettlementApprovalForm />}
+
+              {activeTab === 'staffUsers' && sessionUser.role === 'admin' && (
+                <StaffUserManagement currentUsername={sessionUser.username} />
+              )}
+
+              {activeTab === 'stalls' && <MerchantManagement />}
             </main>
           </div>
         </div>

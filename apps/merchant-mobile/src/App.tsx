@@ -17,6 +17,7 @@ import { VoidScreen } from './screens/VoidScreen';
 import { SummaryScreen } from './screens/SummaryScreen';
 import { LoginScreen } from './screens/LoginScreen';
 import { merchantApi } from './api/merchant-api';
+import { offlineStorage } from './offline/offline-storage';
 import {
   MerchantLoginResponse,
   MerchantProfile,
@@ -121,8 +122,17 @@ function MerchantApp() {
   const [recentPayments, setRecentPayments] = useState<PaymentResponse[]>([]);
 
   const [settingsVisible, setSettingsVisible] = useState(false);
-  const [baseUrlInput, setBaseUrlInput] = useState('http://192.168.1.53');
+  const [baseUrlInput, setBaseUrlInput] = useState('http://192.168.1.89');
   const [merchantIdInput, setMerchantIdInput] = useState('1');
+
+  async function refreshOfflineCardCache() {
+    try {
+      const cache = await merchantApi.fetchOfflineCardCache();
+      offlineStorage.syncCardCache(cache.cards, cache.syncedAt);
+    } catch {
+      // Ignore when offline or unreachable; keep existing local cache
+    }
+  }
 
   function handleLoginSuccess(session: MerchantLoginResponse) {
     setMerchant(session.merchant);
@@ -130,6 +140,7 @@ function MerchantApp() {
     setMerchantIdInput(String(session.merchant.id));
     setBaseUrlInput(merchantApi.getBaseUrl());
     setActiveTab('pos');
+    void refreshOfflineCardCache();
   }
 
   function handleLogout() {
@@ -197,7 +208,15 @@ function MerchantApp() {
 
             <TouchableOpacity
               style={styles.statusPill}
-              onPress={() => setIsOffline((prev) => !prev)}
+              onPress={() =>
+                setIsOffline((prev) => {
+                  const next = !prev;
+                  if (!next) {
+                    void refreshOfflineCardCache();
+                  }
+                  return next;
+                })
+              }
               activeOpacity={0.75}
             >
               <View

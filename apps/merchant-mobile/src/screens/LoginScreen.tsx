@@ -178,6 +178,14 @@ export function LoginScreen({ topInset, onLoginSuccess }: LoginScreenProps) {
   const [settingsVisible, setSettingsVisible] = useState(false);
   const [baseUrlInput, setBaseUrlInput] = useState(merchantApi.getBaseUrl());
 
+  const [registerVisible, setRegisterVisible] = useState(false);
+  const [stallCodeInput, setStallCodeInput] = useState('');
+  const [winnerPhoneInput, setWinnerPhoneInput] = useState('');
+  const [merchantNameInput, setMerchantNameInput] = useState('');
+  const [registerPinInput, setRegisterPinInput] = useState('');
+  const [registerLoading, setRegisterLoading] = useState(false);
+  const [registerError, setRegisterError] = useState<string | null>(null);
+
   async function submitLogin(targetCode: string, targetPin: string) {
     if (!targetCode.trim() || !targetPin.trim()) {
       setError('กรุณากรอกรหัสร้านค้าและรหัส PIN ให้ครบถ้วน');
@@ -193,6 +201,35 @@ export function LoginScreen({ topInset, onLoginSuccess }: LoginScreenProps) {
       setError(err instanceof Error ? err.message : 'ไม่สามารถเข้าสู่ระบบได้');
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function submitRegister() {
+    if (
+      !stallCodeInput.trim() ||
+      !winnerPhoneInput.trim() ||
+      !merchantNameInput.trim() ||
+      !/^\d{6}$/.test(registerPinInput.trim())
+    ) {
+      setRegisterError('กรุณากรอกข้อมูลให้ครบ และตั้งรหัส PIN เป็นตัวเลข 6 หลัก');
+      return;
+    }
+
+    setRegisterError(null);
+    setRegisterLoading(true);
+    try {
+      const response = await merchantApi.register({
+        stallCode: stallCodeInput,
+        winnerPhone: winnerPhoneInput,
+        merchantName: merchantNameInput,
+        pin: registerPinInput,
+      });
+      setRegisterVisible(false);
+      onLoginSuccess(response);
+    } catch (err) {
+      setRegisterError(err instanceof Error ? err.message : 'ไม่สามารถลงทะเบียนร้านค้าได้');
+    } finally {
+      setRegisterLoading(false);
     }
   }
 
@@ -302,6 +339,27 @@ export function LoginScreen({ topInset, onLoginSuccess }: LoginScreenProps) {
                   </View>
                 )}
               </TouchableOpacity>
+
+              <TouchableOpacity
+                style={{
+                  marginTop: 12,
+                  paddingVertical: 11,
+                  borderRadius: 12,
+                  borderWidth: 1.5,
+                  borderColor: '#1E64EE',
+                  backgroundColor: '#EFF6FF',
+                  alignItems: 'center',
+                }}
+                onPress={() => {
+                  setRegisterError(null);
+                  setRegisterVisible(true);
+                }}
+                activeOpacity={0.8}
+              >
+                <Text style={{ color: '#1E40AF', fontWeight: '700', fontSize: 14 }}>
+                  ลงทะเบียนร้านค้าใหม่ (ผู้ชนะประมูลล็อค)
+                </Text>
+              </TouchableOpacity>
             </View>
           </View>
 
@@ -320,6 +378,117 @@ export function LoginScreen({ topInset, onLoginSuccess }: LoginScreenProps) {
           </TouchableOpacity>
         </ScrollView>
       </KeyboardAvoidingView>
+
+      {/* Register Modal */}
+      <Modal
+        visible={registerVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setRegisterVisible(false)}
+      >
+        <View
+          style={{
+            flex: 1,
+            backgroundColor: 'rgba(15, 23, 42, 0.55)',
+            justifyContent: 'center',
+            padding: 20,
+          }}
+        >
+          <View
+            style={{
+              backgroundColor: '#FFFFFF',
+              borderRadius: 20,
+              padding: 20,
+            }}
+          >
+            <Text style={{ fontSize: 18, fontWeight: '800', color: '#0F172A', marginBottom: 4 }}>
+              ลงทะเบียนร้านค้าใหม่
+            </Text>
+            <Text style={{ fontSize: 13, color: '#64748B', marginBottom: 14 }}>
+              ยืนยันตัวตนด้วยเลขที่ล็อคและเบอร์โทรของผู้ชนะประมูลที่แจ้งไว้กับโรงเรียน
+            </Text>
+
+            {registerError && (
+              <View style={[styles.errorBox, { marginBottom: 12 }]}>
+                <Text style={styles.errorText}>⚠️ {registerError}</Text>
+              </View>
+            )}
+
+            <Text style={styles.label}>เลขที่ล็อคประมูล (Stall Code)</Text>
+            <TextInput
+              style={[styles.input, { marginTop: 6, marginBottom: 10 }]}
+              value={stallCodeInput}
+              onChangeText={setStallCodeInput}
+              autoCapitalize="characters"
+              placeholder="เช่น A-02"
+              placeholderTextColor="#94A3B8"
+            />
+
+            <Text style={styles.label}>เบอร์โทรผู้ชนะประมูล</Text>
+            <TextInput
+              style={[styles.input, { marginTop: 6, marginBottom: 10 }]}
+              value={winnerPhoneInput}
+              onChangeText={setWinnerPhoneInput}
+              keyboardType="phone-pad"
+              placeholder="เช่น 0822222222"
+              placeholderTextColor="#94A3B8"
+            />
+
+            <Text style={styles.label}>ชื่อร้านค้าที่จะแสดงในระบบ</Text>
+            <TextInput
+              style={[styles.input, { marginTop: 6, marginBottom: 10 }]}
+              value={merchantNameInput}
+              onChangeText={setMerchantNameInput}
+              placeholder="เช่น ร้านก๋วยเตี๋ยวลุงชัย"
+              placeholderTextColor="#94A3B8"
+            />
+
+            <Text style={styles.label}>ตั้งรหัส PIN (6 หลัก)</Text>
+            <TextInput
+              style={[styles.input, { marginTop: 6, marginBottom: 16 }]}
+              value={registerPinInput}
+              onChangeText={setRegisterPinInput}
+              keyboardType="number-pad"
+              secureTextEntry
+              maxLength={6}
+              placeholder="••••••"
+              placeholderTextColor="#94A3B8"
+            />
+
+            <View style={{ flexDirection: 'row', gap: 10, justifyContent: 'flex-end' }}>
+              <TouchableOpacity
+                style={{
+                  paddingVertical: 10,
+                  paddingHorizontal: 16,
+                  borderRadius: 10,
+                  borderWidth: 1,
+                  borderColor: '#CBD5E1',
+                }}
+                onPress={() => setRegisterVisible(false)}
+                disabled={registerLoading}
+              >
+                <Text style={{ color: '#475569', fontWeight: '700' }}>ยกเลิก</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={{
+                  paddingVertical: 10,
+                  paddingHorizontal: 18,
+                  borderRadius: 10,
+                  backgroundColor: '#1E64EE',
+                }}
+                onPress={() => void submitRegister()}
+                disabled={registerLoading}
+              >
+                {registerLoading ? (
+                  <ActivityIndicator color="#FFFFFF" />
+                ) : (
+                  <Text style={{ color: '#FFFFFF', fontWeight: '700' }}>ยืนยันลงทะเบียน</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
 
       {/* Server URL Modal */}
       <Modal

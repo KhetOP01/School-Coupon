@@ -1,16 +1,47 @@
-import { OfflinePaymentRecord } from '../types';
+import {
+  OfflineCardCacheItem,
+  OfflineCardStatus,
+  OfflinePaymentRecord,
+} from '../types';
 
 export class OfflineStorageManager {
   private cachedBalances: Map<string, number> = new Map();
+  private cardStatuses: Map<string, OfflineCardStatus> = new Map();
+  private lastCacheSyncedAt: string | null = null;
   private queue: OfflinePaymentRecord[] = [];
 
   constructor() {
-    // Seed initial cached balances for the 5 real RFID cards
-    this.cachedBalances.set('E280F3020000000145A58295', 150.0);
-    this.cachedBalances.set('E280F3020000000145A58285', 200.0);
-    this.cachedBalances.set('E280F3020000000145A5828D', 100.0);
-    this.cachedBalances.set('E280F3020000000145A58289', 50.0);
-    this.cachedBalances.set('E280F3020000000145A58291', 300.0);
+    // Seed initial cached balances & active status for the 5 real RFID cards
+    const initialCards: Array<[string, number]> = [
+      ['E280F3020000000145A58295', 150.0],
+      ['E280F3020000000145A58285', 200.0],
+      ['E280F3020000000145A5828D', 100.0],
+      ['E280F3020000000145A58289', 50.0],
+      ['E280F3020000000145A58291', 300.0],
+    ];
+    for (const [uid, balance] of initialCards) {
+      this.cachedBalances.set(uid, balance);
+      this.cardStatuses.set(uid, 'active');
+    }
+  }
+
+  syncCardCache(cards: OfflineCardCacheItem[], syncedAt?: string) {
+    this.cachedBalances.clear();
+    this.cardStatuses.clear();
+    for (const card of cards) {
+      const bal = parseFloat(card.walletBalance);
+      this.cachedBalances.set(card.rfidUid, Number.isFinite(bal) ? bal : 0);
+      this.cardStatuses.set(card.rfidUid, card.cardStatus);
+    }
+    this.lastCacheSyncedAt = syncedAt ?? new Date().toISOString();
+  }
+
+  getLastCacheSyncedAt(): string | null {
+    return this.lastCacheSyncedAt;
+  }
+
+  getCardStatus(rfidUid: string): OfflineCardStatus | null {
+    return this.cardStatuses.get(rfidUid) ?? null;
   }
 
   getCachedBalance(rfidUid: string): number | null {
@@ -42,7 +73,7 @@ export class OfflineStorageManager {
   }
 
   /**
-   * BR-PAY-01: บันทึกรายการชำระเงินแบบ Offline
+   * BR-PAY-01: บันทึกรายการชำระเงินแบบ Offline พร้อมตรวจสถานะบัตรที่ซิงค์ไว้ล่าสุด
    */
   processOfflinePayment(params: {
     merchantId: number;
@@ -56,6 +87,16 @@ export class OfflineStorageManager {
       throw new Error(
         'แอปสะสมรายการ Offline เกิน 12 ชั่วโมงแล้ว กรุณาเชื่อมต่ออินเทอร์เน็ตเพื่อ Sync ข้อมูลก่อนทำรายการต่อ (BR-PAY-03)',
       );
+    }
+
+    const cardStatus = this.getCardStatus(params.rfidUid);
+    if (cardStatus !== null && cardStatus !== 'active') {
+      throw new Error(
+        'บัตรนี้ถูกอายัดหรือระงับการใช้งาน ไม่สามารถชำระแบบออฟไลน์ได้ (CARD_NOT_ACTIVE)',
+      );
+    }
+    if (cardStatus === null && this.lastCacheSyncedAt !== null) {
+      throw new Error('ไม่พบบัตรนี้ในระบบ กรุณาเชื่อมต่ออินเทอร์เน็ตเพื่อตรวจสอบ');
     }
 
     if (params.amount > 100.0) {

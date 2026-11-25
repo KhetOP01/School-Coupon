@@ -52,3 +52,17 @@ export interface MerchantLoginResponse {
   token: string;
   merchant: MerchantProfile;
 }
+
+export type OfflineCardStatus = 'active' | 'suspended' | 'lost' | 'deactivated';
+
+export interface OfflineCardCacheItem {
+  rfidUid: string;
+  cardStatus: OfflineCardStatus;
+  walletBalance: string;
+  currentDailyLimit: string;
+}
+
+export interface OfflineCardCacheResponse {
+  syncedAt: string;
+  cards: OfflineCardCacheItem[];
+}

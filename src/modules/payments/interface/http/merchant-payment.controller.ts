@@ -2,6 +2,7 @@ import {
   BadRequestException,
   Body,
   Controller,
+  Get,
   Headers,
   HttpCode,
   HttpStatus,
@@ -10,6 +11,7 @@ import {
   Post,
 } from '@nestjs/common';
 import { IsNotEmpty, IsOptional, IsString, IsUUID } from 'class-validator';
+import { GetOfflineCardCache } from '../../application/GetOfflineCardCache';
 import { ProcessOnlinePayment } from '../../application/ProcessOnlinePayment';
 import { SyncOfflinePayment } from '../../application/SyncOfflinePayment';
 import { VoidPayment } from '../../application/VoidPayment';
@@ -60,7 +62,22 @@ export class MerchantPaymentController {
     private readonly syncOfflinePayment: SyncOfflinePayment,
     @Inject(VoidPayment)
     private readonly voidPaymentUseCase: VoidPayment,
+    @Inject(GetOfflineCardCache)
+    private readonly getOfflineCardCache: GetOfflineCardCache,
   ) {}
+
+  @Get('merchant/offline-cache')
+  async offlineCache(
+    @Headers('authorization') authHeader: string | undefined,
+    @Headers('x-merchant-id') merchantIdHeader: string | undefined,
+  ) {
+    const merchant = extractMerchant(authHeader, merchantIdHeader);
+    const result = await this.getOfflineCardCache.execute(merchant);
+    return {
+      syncedAt: result.syncedAt.toISOString(),
+      cards: result.cards,
+    };
+  }
 
   @Post('merchant/payments')
   @HttpCode(HttpStatus.CREATED)

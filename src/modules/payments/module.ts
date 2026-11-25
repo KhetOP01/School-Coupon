@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { SystemClock } from '../../shared/clock';
 import { PostgresDatabase } from '../../shared/postgres-database';
+import { GetOfflineCardCache } from './application/GetOfflineCardCache';
 import { ProcessOnlinePayment } from './application/ProcessOnlinePayment';
 import { SyncOfflinePayment } from './application/SyncOfflinePayment';
 import { VoidPayment } from './application/VoidPayment';
@@ -62,6 +63,15 @@ export const PAYMENT_REPOSITORY = Symbol('PAYMENT_REPOSITORY');
         clock: SystemClock,
       ) => new VoidPayment(merchantGateway, paymentRepository, clock),
       inject: [MERCHANT_GATEWAY, PAYMENT_REPOSITORY, SystemClock],
+    },
+    {
+      provide: GetOfflineCardCache,
+      useFactory: (
+        merchantGateway: PostgresMerchantGateway,
+        studentGateway: PostgresStudentPaymentGateway,
+        clock: SystemClock,
+      ) => new GetOfflineCardCache(merchantGateway, studentGateway, clock),
+      inject: [MERCHANT_GATEWAY, STUDENT_PAYMENT_GATEWAY, SystemClock],
     },
   ],
   exports: [PAYMENT_REPOSITORY],

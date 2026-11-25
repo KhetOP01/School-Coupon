@@ -116,10 +116,10 @@ export class StaffAdminAuthController {
       expiresAt,
     });
 
-    response.setHeader(
-      'Set-Cookie',
+    response.setHeader('Set-Cookie', [
       `${SESSION_COOKIE_NAME}=${sessionToken}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${maxAge}`,
-    );
+      `${SESSION_COOKIE_NAME}=; Path=/admin; HttpOnly; SameSite=Lax; Max-Age=0`,
+    ]);
 
     return {
       username: user.username,
@@ -266,7 +266,12 @@ export class StaffAdminAuthController {
   @Get('session')
   async getSession(
     @Headers('cookie') cookieHeader: string | undefined,
-  ): Promise<{ expiresAt: string }> {
+  ): Promise<{
+    username: string;
+    fullName: string;
+    role: 'staff' | 'admin';
+    expiresAt: string;
+  }> {
     const sessionToken = readCookie(cookieHeader, SESSION_COOKIE_NAME);
     if (!sessionToken) {
       throw new UnauthorizedException({
@@ -281,7 +286,36 @@ export class StaffAdminAuthController {
         message: 'The Staff session has expired.',
       });
     }
-    return { expiresAt: session.expiresAt.toISOString() };
+
+    const user = await this.staffUsers.findByUsername(session.staffSubject);
+    if (user) {
+      if (user.status !== 'active') {
+        throw new UnauthorizedException({
+          code: 'SESSION_EXPIRED',
+          message: 'The Staff session has expired.',
+        });
+      }
+      return {
+        username: user.username,
+        fullName: user.fullName,
+        role: user.role,
+        expiresAt: session.expiresAt.toISOString(),
+      };
+    }
+
+    if (session.providerIssuer !== 'local') {
+      return {
+        username: session.staffSubject,
+        fullName: 'Staff Admin',
+        role: 'admin',
+        expiresAt: session.expiresAt.toISOString(),
+      };
+    }
+
+    throw new UnauthorizedException({
+      code: 'SESSION_EXPIRED',
+      message: 'The Staff session has expired.',
+    });
   }
 
   @Get('dev-login')

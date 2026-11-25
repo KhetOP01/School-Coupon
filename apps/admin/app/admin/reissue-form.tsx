@@ -1660,7 +1660,7 @@ function formatApiError(error: ApiError | null, status: number): string {
       return 'ไม่พบบัตร active/lost ที่เปลี่ยนได้';
     case 'AUTHENTICATION_REQUIRED':
     case 'SESSION_EXPIRED':
-      window.location.assign('/admin/auth/oidc/start');
+      window.location.assign('/admin/login?error=session_error');
       return 'กรุณาเข้าสู่ระบบใหม่';
     case 'STAFF_ACCESS_REQUIRED':
       return 'บัญชีนี้ไม่มีสิทธิ์ Staff';
