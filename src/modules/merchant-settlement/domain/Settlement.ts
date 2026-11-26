@@ -6,7 +6,6 @@ export interface CreateSettlementProps {
   merchantId: number;
   settlementDate: string;
   grossAmount: string;
-  feePercent: string;
   createdAt: Date;
 }
 
@@ -15,7 +14,6 @@ export interface RestoredSettlementProps {
   merchantId: number;
   settlementDate: string;
   grossAmount: string;
-  feeAmount: string;
   netAmount: string;
   status: SettlementStatus;
   approvedBy: string | null;
@@ -33,7 +31,6 @@ export class Settlement {
     readonly merchantId: number,
     readonly settlementDate: string,
     readonly grossAmount: string,
-    readonly feeAmount: string,
     readonly netAmount: string,
     status: SettlementStatus,
     approvedBy: string | null,
@@ -76,20 +73,14 @@ export class Settlement {
 
   static create(props: CreateSettlementProps): Settlement {
     const grossCents = parseAmountToCents(props.grossAmount);
-    const feeBasisPoints = parsePercentToBasisPoints(props.feePercent);
-
-    // feeAmount = gross * (feePercent / 100) = (grossCents * feeBasisPoints) / 10000
-    const feeCentsNumber = Math.round(Number(grossCents * BigInt(feeBasisPoints)) / 10000);
-    const feeCents = BigInt(feeCentsNumber);
-    const netCents = grossCents - feeCents;
+    const formattedAmount = formatCentsToString(grossCents);
 
     return new Settlement(
       null,
       props.merchantId,
       props.settlementDate,
-      formatCentsToString(grossCents),
-      formatCentsToString(feeCents),
-      formatCentsToString(netCents),
+      formattedAmount,
+      formattedAmount,
       'PENDING_APPROVAL',
       null,
       null,
@@ -103,7 +94,6 @@ export class Settlement {
       props.merchantId,
       props.settlementDate,
       props.grossAmount,
-      props.feeAmount,
       props.netAmount,
       props.status,
       props.approvedBy,
@@ -118,12 +108,6 @@ function parseAmountToCents(amountStr: string): bigint {
   const [intPart, decPart = ''] = trimmed.split('.');
   const paddedDec = decPart.padEnd(2, '0').slice(0, 2);
   return BigInt(intPart) * 100n + BigInt(paddedDec);
-}
-
-function parsePercentToBasisPoints(percentStr: string): number {
-  const trimmed = percentStr.trim();
-  const num = parseFloat(trimmed);
-  return Math.round(num * 100);
 }
 
 function formatCentsToString(cents: bigint): string {

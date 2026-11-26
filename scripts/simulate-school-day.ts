@@ -83,10 +83,10 @@ async function simulateSchoolDay() {
       [staffTokenHash],
     );
 
-    // Create Merchant (fee 3%)
+    // Create Merchant
     const mRes = await database.pool.query(
-      `INSERT INTO merchants (merchant_code, name, fee_percent, status)
-       VALUES ('MCH-CANTEEN-01', 'Canteen Stall 1', 3.00, 'active') RETURNING id`,
+      `INSERT INTO merchants (merchant_code, name, status)
+       VALUES ('MCH-CANTEEN-01', 'Canteen Stall 1', 'active') RETURNING id`,
     );
     const merchantId = mRes.rows[0].id;
 
@@ -111,7 +111,7 @@ async function simulateSchoolDay() {
     console.log(`${c.green}✓ Database seeded successfully.${c.reset}`);
     console.log(`  - นักเรียน: Somchai Jaidee (ID: ${studentId}, ยอดเงิน: ฿200.00, วงเงินต่อวัน: ฿150.00)`);
     console.log(`  - บัตร RFID: ${currentRfidUid} (Card ID: ${currentCardId}, Status: active)`);
-    console.log(`  - ร้านค้า: Canteen Stall 1 (ID: ${merchantId}, หักค่าธรรมเนียม: 3.0%)\n`);
+    console.log(`  - ร้านค้า: Canteen Stall 1 (ID: ${merchantId})\n`);
 
     // -------------------------------------------------------------
     // UC-01: ออกบัตรใหม่แทนบัตรหาย (Reissue RFID Card)
@@ -233,7 +233,6 @@ async function simulateSchoolDay() {
     );
     const settle = sRows.rows[0];
     console.log(`    - ยอดขายรวม (ไม่รวมรายการที่ Void): ฿${settle.gross_amount}`);
-    console.log(`    - ค่าธรรมเนียมหักเข้าโรงเรียน (3%): ฿${settle.fee_amount}`);
     console.log(`    - ยอดเงินสุทธิที่ร้านค้าจะได้รับ: ฿${settle.net_amount}`);
 
     // Staff Approves Settlement

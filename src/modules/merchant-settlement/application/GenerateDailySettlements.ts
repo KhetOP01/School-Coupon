@@ -44,7 +44,6 @@ export class GenerateDailySettlements {
         merchantId: sale.merchantId,
         settlementDate: command.settlementDate,
         grossAmount: sale.grossAmount,
-        feePercent: sale.feePercent,
         createdAt: this.clock.now(),
       });
 

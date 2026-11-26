@@ -263,44 +263,6 @@ export default function CardManagementForm({
             ระบบสำหรับตรวจสอบข้อมูลและจัดการสถานะบัตร พร้อมทั้งคืนเงินคงเหลือให้กับนักเรียน
           </p>
         </div>
-
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '0.6rem',
-            background: '#f4f8ff',
-            border: '1px solid #dbeafe',
-            borderRadius: '11px',
-            padding: '0.55rem 0.9rem',
-            fontSize: '0.79rem',
-            color: '#334155',
-            lineHeight: 1.35,
-          }}
-        >
-          <span
-            style={{
-              width: '20px',
-              height: '20px',
-              borderRadius: '9999px',
-              background: '#2563eb',
-              color: '#ffffff',
-              display: 'inline-flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontSize: '0.72rem',
-              fontWeight: 700,
-              flexShrink: 0,
-            }}
-          >
-            i
-          </span>
-          <span>
-            กรุณาตรวจสอบข้อมูลให้ถูกต้อง
-            <br />
-            ก่อนทำรายการทุกครั้ง
-          </span>
-        </div>
       </div>
 
       {/* 2-Column Action Cards */}

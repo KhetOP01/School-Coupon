@@ -2,7 +2,6 @@ import { Settlement } from '../domain/Settlement';
 
 export interface MerchantDailySales {
   readonly merchantId: number;
-  readonly feePercent: string;
   readonly grossAmount: string;
 }
 

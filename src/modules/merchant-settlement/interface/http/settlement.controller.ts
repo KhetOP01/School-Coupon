@@ -19,10 +19,8 @@ interface SettlementListRow {
   merchant_id: number;
   merchant_code: string;
   merchant_name: string;
-  fee_percent: string;
   settlement_date: Date | string;
   gross_amount: string;
-  fee_amount: string;
   net_amount: string;
   status: string;
   approved_by: string | null;
@@ -52,10 +50,8 @@ export class SettlementController {
         st.merchant_id,
         m.merchant_code,
         m.name AS merchant_name,
-        m.fee_percent::text AS fee_percent,
         st.settlement_date,
         st.gross_amount::text AS gross_amount,
-        st.fee_amount::text AS fee_amount,
         st.net_amount::text AS net_amount,
         st.status,
         st.approved_by,
@@ -72,13 +68,11 @@ export class SettlementController {
         merchantId: row.merchant_id,
         merchantCode: row.merchant_code,
         merchantName: row.merchant_name,
-        feePercent: Number(row.fee_percent).toFixed(2),
         settlementDate:
           row.settlement_date instanceof Date
             ? row.settlement_date.toISOString().slice(0, 10)
             : String(row.settlement_date).slice(0, 10),
         grossAmount: Number(row.gross_amount).toFixed(2),
-        feeAmount: Number(row.fee_amount).toFixed(2),
         netAmount: Number(row.net_amount).toFixed(2),
         status: row.status,
         approvedBy: row.approved_by,
@@ -109,7 +103,6 @@ export class SettlementController {
       merchantId: result.merchantId,
       settlementDate: result.settlementDate,
       grossAmount: result.grossAmount,
-      feeAmount: result.feeAmount,
       netAmount: result.netAmount,
       status: result.status,
       approvedBy: result.approvedBy,

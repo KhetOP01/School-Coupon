@@ -6,6 +6,7 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   Alert,
+  Modal,
   ScrollView,
 } from 'react-native';
 import { merchantApi } from '../api/merchant-api';
@@ -48,6 +49,7 @@ export function SyncScreen() {
   const [queue, setQueue] = useState<OfflinePaymentRecord[]>([]);
   const [syncing, setSyncing] = useState(false);
   const [syncLog, setSyncLog] = useState<Array<{ ok: boolean; text: string }>>([]);
+  const [noteModalVisible, setNoteModalVisible] = useState(false);
 
   function loadQueue() {
     setQueue(offlineStorage.getAllQueue());
@@ -125,6 +127,16 @@ export function SyncScreen() {
           <Text style={styles.title}>ซิงก์ข้อมูลออฟไลน์ (Offline Sync)</Text>
           <Text style={styles.subtitle}>UC-05: ส่งรายการค้างชำระขึ้นคลาวด์</Text>
         </View>
+        <TouchableOpacity
+          style={styles.infoIconBtn}
+          onPress={() => setNoteModalVisible(true)}
+          activeOpacity={0.7}
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          accessibilityRole="button"
+          accessibilityLabel="หมายเหตุการใช้งาน Offline Sync"
+        >
+          <Text style={styles.infoIconText}>i</Text>
+        </TouchableOpacity>
       </View>
 
       {/* 12-Hour Lock Warning Banner */}
@@ -248,18 +260,34 @@ export function SyncScreen() {
         )}
       </View>
 
-      {/* Bottom Note Banner */}
-      <View style={styles.noteCard}>
-        <View style={styles.bulbCircle}>
-          <Text style={styles.bulbIcon}>💡</Text>
+      {/* Note Info Modal */}
+      <Modal
+        visible={noteModalVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setNoteModalVisible(false)}
+      >
+        <View style={styles.modalBackdrop}>
+          <View style={styles.modalCard}>
+            <View style={styles.modalHeaderRow}>
+              <View style={styles.modalInfoBadge}>
+                <Text style={styles.modalInfoBadgeText}>i</Text>
+              </View>
+              <Text style={styles.modalTitle}>หมายเหตุ</Text>
+            </View>
+            <Text style={styles.modalBody}>
+              • ระบบจะซิงก์ข้อมูลโดยอัตโนมัติ หรือกดซิงก์ด้วยตนเองได้
+            </Text>
+            <TouchableOpacity
+              style={styles.modalCloseBtn}
+              onPress={() => setNoteModalVisible(false)}
+              activeOpacity={0.85}
+            >
+              <Text style={styles.modalCloseText}>รับทราบ</Text>
+            </TouchableOpacity>
+          </View>
         </View>
-        <View style={styles.noteTextWrap}>
-          <Text style={styles.noteTitle}>หมายเหตุ</Text>
-          <Text style={styles.noteBody}>
-            ระบบจะซิงก์ข้อมูลโดยอัตโนมัติ หรือกดซิงก์ด้วยตนเองได้
-          </Text>
-        </View>
-      </View>
+      </Modal>
     </ScrollView>
   );
 }
@@ -337,6 +365,21 @@ const styles = StyleSheet.create({
   },
   titleTextWrap: {
     flex: 1,
+  },
+  infoIconBtn: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: '#EFF6FF',
+    borderWidth: 1,
+    borderColor: '#BFDBFE',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  infoIconText: {
+    color: '#2563EB',
+    fontSize: 14,
+    fontWeight: '800',
   },
   title: {
     fontSize: 16,
@@ -588,39 +631,57 @@ const styles = StyleSheet.create({
   badgePendingText: {
     color: '#B45309',
   },
-  noteCard: {
-    backgroundColor: '#E8F1FF',
-    borderWidth: 1,
-    borderColor: '#DBEAFE',
-    borderRadius: 16,
-    paddingVertical: 11,
-    paddingHorizontal: 14,
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(15, 23, 42, 0.45)',
+    justifyContent: 'center',
+    padding: 20,
+  },
+  modalCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 18,
+    padding: 18,
+  },
+  modalHeaderRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
+    gap: 8,
+    marginBottom: 10,
   },
-  bulbCircle: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: '#DBEAFE',
+  modalInfoBadge: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: '#2563EB',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  bulbIcon: {
-    fontSize: 16,
-  },
-  noteTextWrap: {
-    flex: 1,
-  },
-  noteTitle: {
-    fontSize: 13.5,
+  modalInfoBadgeText: {
+    color: '#FFFFFF',
+    fontSize: 13,
     fontWeight: '800',
-    color: '#1D4ED8',
   },
-  noteBody: {
-    fontSize: 11.5,
+  modalTitle: {
+    fontSize: 15,
+    fontWeight: '800',
+    color: '#0F172A',
+    flexShrink: 1,
+  },
+  modalBody: {
+    fontSize: 13,
     color: '#334155',
-    marginTop: 1,
+    lineHeight: 20,
+    marginBottom: 16,
+  },
+  modalCloseBtn: {
+    backgroundColor: '#1E64EE',
+    borderRadius: 12,
+    paddingVertical: 10,
+    alignItems: 'center',
+  },
+  modalCloseText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '700',
   },
 });

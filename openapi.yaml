@@ -153,9 +153,17 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
-              example:
-                code: INVALID_CREDENTIALS
-                message: "ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง"
+              examples:
+                invalidUsername:
+                  summary: Username not found
+                  value:
+                    code: INVALID_USERNAME
+                    message: "ชื่อผู้ใช้งานไม่ถูกต้อง (ไม่พบบัญชีผู้ใช้นี้ในระบบ)"
+                invalidPassword:
+                  summary: Wrong password
+                  value:
+                    code: INVALID_PASSWORD
+                    message: "รหัสผ่านไม่ถูกต้อง"
         '403':
           description: The Staff user account is suspended.
           content:
@@ -259,14 +267,14 @@ paths:
   /parent/auth/register:
     post:
       operationId: registerParentWithStudent
-      summary: Register a new parent account linked to a student code
+      summary: Register a new parent account linked to one or more student codes
       requestBody:
         required: true
         content:
           application/json:
             schema:
               type: object
-              required: [phone, fullName, pin, studentCode]
+              required: [phone, fullName, pin]
               properties:
                 phone:
                   type: string
@@ -280,6 +288,11 @@ paths:
                 studentCode:
                   type: string
                   example: "STD-1001"
+                studentCodes:
+                  type: array
+                  items:
+                    type: string
+                  example: ["STD-1001", "STD-1002"]
       responses:
         '201':
           description: Parent registered and signed in.
@@ -324,7 +337,7 @@ paths:
   /admin/merchants/{merchantId}:
     patch:
       operationId: updateAdminMerchant
-      summary: Update merchant profile, fee, status, or PIN (Admin only)
+      summary: Update merchant profile, status, or PIN (Admin only)
       security:
         - StaffAdminSessionCookie: []
       parameters:
@@ -915,8 +928,7 @@ paths:
                 merchantId: 101
                 settlementDate: '2026-11-10'
                 grossAmount: '1000.00'
-                feeAmount: '20.00'
-                netAmount: '980.00'
+                netAmount: '1000.00'
                 status: 'APPROVED'
                 approvedBy: 'staff-admin'
                 approvedAt: '2026-11-10T23:59:59.000Z'
@@ -966,6 +978,61 @@ paths:
               example:
                 code: SETTLEMENT_NOT_PENDING
                 message: "Settlement is not in pending approval state."
+  /parent/students/{id}/spending-history:
+    get:
+      operationId: getStudentSpendingHistory
+      summary: ผู้ปกครองดูประวัติการใช้จ่ายของนักเรียนรายวัน/รายเดือน/รายปี
+      description: >
+        ดึงสรุปยอดใช้จ่ายและรายการชำระเงินของนักเรียนที่อยู่ภายใต้การดูแลของผู้ปกครอง
+        โดยกรองตามช่วงเวลา (day, month, year) ในเขตเวลา Asia/Bangkok.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            minimum: 1
+          example: 1
+        - name: period
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [day, month, year]
+            default: day
+          example: day
+        - name: date
+          in: query
+          required: false
+          schema:
+            type: string
+          description: "YYYY-MM-DD (day), YYYY-MM (month), or YYYY (year)"
+          example: '2026-11-26'
+      responses:
+        '200':
+          description: ประวัติและสรุปยอดใช้จ่ายของนักเรียน
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StudentSpendingHistoryResponse'
+        '400':
+          description: พารามิเตอร์ period หรือ date ไม่ถูกต้อง
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: ไม่ได้ยืนยันตัวตน
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: ผู้ปกครองไม่มีสิทธิ์ดูข้อมูลนักเรียนคนนี้
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
   /parent/students/{id}/daily-limit:
     patch:
       operationId: updateStudentDailyLimit
@@ -2056,7 +2123,6 @@ components:
         - merchantId
         - settlementDate
         - grossAmount
-        - feeAmount
         - netAmount
         - status
         - createdAt
@@ -2074,12 +2140,9 @@ components:
         grossAmount:
           type: string
           example: '1000.00'
-        feeAmount:
-          type: string
-          example: '20.00'
         netAmount:
           type: string
-          example: '980.00'
+          example: '1000.00'
         status:
           type: string
           enum: [PENDING_APPROVAL, APPROVED, PAID]
@@ -2206,6 +2269,102 @@ components:
               currentDailyLimit:
                 type: string
                 example: "200.00"
+    StudentSpendingHistoryResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - studentId
+        - period
+        - targetDate
+        - summary
+        - breakdown
+        - transactions
+      properties:
+        studentId:
+          type: integer
+          example: 1
+        period:
+          type: string
+          enum: [day, month, year]
+          example: day
+        targetDate:
+          type: string
+          example: '2026-11-26'
+        summary:
+          type: object
+          required:
+            - totalSpent
+            - completedCount
+            - voidedCount
+          properties:
+            totalSpent:
+              type: string
+              example: '85.00'
+            completedCount:
+              type: integer
+              example: 2
+            voidedCount:
+              type: integer
+              example: 0
+        breakdown:
+          type: array
+          items:
+            type: object
+            required:
+              - key
+              - label
+              - totalSpent
+              - completedCount
+            properties:
+              key:
+                type: string
+                example: '2026-11-26'
+              label:
+                type: string
+                example: '26 พ.ย.'
+              totalSpent:
+                type: string
+                example: '85.00'
+              completedCount:
+                type: integer
+                example: 2
+        transactions:
+          type: array
+          items:
+            type: object
+            required:
+              - paymentId
+              - merchantId
+              - merchantCode
+              - merchantName
+              - amount
+              - paymentMode
+              - status
+              - voidReason
+              - createdAt
+            properties:
+              paymentId:
+                type: string
+              merchantId:
+                type: integer
+              merchantCode:
+                type: string
+              merchantName:
+                type: string
+              amount:
+                type: string
+              paymentMode:
+                type: string
+                enum: [ONLINE, OFFLINE]
+              status:
+                type: string
+                enum: [COMPLETED, VOIDED]
+              voidReason:
+                type: string
+                nullable: true
+              createdAt:
+                type: string
+                format: date-time
 
 
 

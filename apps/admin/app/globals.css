@@ -1,0 +1,14 @@
+*,
+*::before,
+*::after {
+  font-family: inherit;
+}
+
+html,
+body,
+button,
+input,
+select,
+textarea {
+  font-family: var(--font-sarabun), 'TH Sarabun New', 'Sarabun', system-ui, sans-serif;
+}

@@ -12,7 +12,7 @@ export class MerchantApiClient {
   private token: string | null;
 
   constructor(options?: { baseUrl?: string; merchantId?: string }) {
-    this.baseUrl = options?.baseUrl ?? 'http://192.168.1.89';
+    this.baseUrl = options?.baseUrl ?? 'http://192.168.1.53';
     this.merchantId = options?.merchantId ?? '1'; // Default test merchant
     this.token = null;
   }
@@ -39,6 +39,27 @@ export class MerchantApiClient {
     this.merchantId = '1';
   }
 
+  /**
+   * ดึงข้อมูลร้านค้าปัจจุบันจาก token ที่บันทึกไว้
+   */
+  async getMe(): Promise<{ merchant: MerchantLoginResponse['merchant'] }> {
+    const res = await fetch(`${this.baseUrl}/merchant/auth/me`, {
+      method: 'GET',
+      headers: this.headers,
+    });
+
+    if (!res.ok) {
+      const err = (await res.json().catch(() => ({}))) as { message?: string };
+      const error = new Error(
+        err.message ?? `ไม่สามารถตรวจสอบสิทธิ์ร้านค้าได้ (${res.status})`,
+      ) as Error & { status?: number };
+      error.status = res.status;
+      throw error;
+    }
+
+    return (await res.json()) as { merchant: MerchantLoginResponse['merchant'] };
+  }
+
   private get headers(): HeadersInit {
     return {
       'Content-Type': 'application/json',
@@ -61,8 +82,15 @@ export class MerchantApiClient {
     });
 
     if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
-      throw new Error(err.message ?? `เข้าสู่ระบบร้านค้าไม่สำเร็จ (${res.status})`);
+      const err = (await res.json().catch(() => ({}))) as {
+        code?: string;
+        message?: string;
+      };
+      const error = new Error(
+        err.message ?? `เข้าสู่ระบบร้านค้าไม่สำเร็จ (${res.status})`,
+      ) as Error & { code?: string };
+      error.code = err.code;
+      throw error;
     }
 
     const data = (await res.json()) as MerchantLoginResponse;

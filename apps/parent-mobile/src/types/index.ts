@@ -51,3 +51,37 @@ export interface ParentLoginResponse {
   parent: ParentUser;
   students: StudentProfile[];
 }
+
+export type SpendingHistoryPeriod = 'day' | 'month' | 'year';
+
+export interface SpendingHistoryBreakdownItem {
+  key: string;
+  label: string;
+  totalSpent: string;
+  completedCount: number;
+}
+
+export interface SpendingHistoryTransaction {
+  paymentId: string;
+  merchantId: number;
+  merchantCode: string;
+  merchantName: string;
+  amount: string;
+  paymentMode: 'ONLINE' | 'OFFLINE';
+  status: 'COMPLETED' | 'VOIDED';
+  voidReason: string | null;
+  createdAt: string;
+}
+
+export interface StudentSpendingHistoryResponse {
+  studentId: number;
+  period: SpendingHistoryPeriod;
+  targetDate: string;
+  summary: {
+    totalSpent: string;
+    completedCount: number;
+    voidedCount: number;
+  };
+  breakdown: SpendingHistoryBreakdownItem[];
+  transactions: SpendingHistoryTransaction[];
+}

@@ -10,17 +10,28 @@ import {
   Image,
 } from 'react-native';
 import { parentApi } from '../api/parent-api';
+import { HeaderRightActions } from '../components/HeaderRightActions';
 import { StudentProfile } from '../types';
 
 interface TopUpScreenProps {
   student: StudentProfile;
+  students?: StudentProfile[];
+  onSelectStudent?: (studentId: number) => void;
   onSuccess: (newBalance: string) => void;
   onBack: () => void;
+  onLogout?: () => void;
 }
 
 const PRESET_AMOUNTS = ['50', '100', '200', '500', '1000', '2000'];
 
-export function TopUpScreen({ student, onSuccess, onBack }: TopUpScreenProps) {
+export function TopUpScreen({
+  student,
+  students,
+  onSelectStudent,
+  onSuccess,
+  onBack,
+  onLogout,
+}: TopUpScreenProps) {
   const [amount, setAmount] = useState('100');
   const [loading, setLoading] = useState(false);
   const [qrGenerated, setQrGenerated] = useState(false);
@@ -123,10 +134,19 @@ export function TopUpScreen({ student, onSuccess, onBack }: TopUpScreenProps) {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={onBack} style={styles.backButton}>
-          <Text style={styles.backButtonText}>‹ ย้อนกลับ</Text>
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>เติมเงินเข้าบัตร (Parent Top-Up)</Text>
+        <View style={styles.headerLeft}>
+          <TouchableOpacity onPress={onBack} style={styles.backButton}>
+            <Text style={styles.backButtonText}>‹ ย้อนกลับ</Text>
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>เติมเงินเข้าบัตร (Parent Top-Up)</Text>
+        </View>
+        <HeaderRightActions
+          student={student}
+          students={students}
+          onSelectStudent={onSelectStudent}
+          onLogout={onLogout}
+          variant="onLight"
+        />
       </View>
 
       <View style={styles.content}>
@@ -217,9 +237,15 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
     padding: 16,
     borderBottomWidth: 1,
     borderBottomColor: '#e2e8f0',
+  },
+  headerLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
   },
   backButton: {
     paddingRight: 12,

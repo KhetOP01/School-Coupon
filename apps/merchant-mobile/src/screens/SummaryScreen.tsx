@@ -44,9 +44,7 @@ function CoinStackIcon() {
 export function SummaryScreen({ merchantId, recentPayments = [] }: SummaryScreenProps) {
   const [infoVisible, setInfoVisible] = useState(false);
   const grossSales = recentPayments.reduce((acc, p) => acc + parseFloat(p.amount), 0);
-  const feeRate = 0.03;
-  const feeAmount = grossSales * feeRate;
-  const netAmount = grossSales - feeAmount;
+  const netAmount = grossSales;
 
   return (
     <ScrollView
@@ -119,11 +117,6 @@ export function SummaryScreen({ merchantId, recentPayments = [] }: SummaryScreen
         <View style={styles.detailRow}>
           <Text style={styles.detailLabel}>ยอดขายทั้งหมด (Gross Sales):</Text>
           <Text style={styles.detailVal}>฿{grossSales.toFixed(2)}</Text>
-        </View>
-
-        <View style={styles.detailRow}>
-          <Text style={styles.detailLabel}>ค่าธรรมเนียมโรงเรียน (3.0%):</Text>
-          <Text style={[styles.detailVal, styles.feeText]}>-฿{feeAmount.toFixed(2)}</Text>
         </View>
 
         <View style={styles.netHighlightRow}>
@@ -456,9 +449,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '700',
     color: '#0F172A',
-  },
-  feeText: {
-    color: '#DC2626',
   },
   netHighlightRow: {
     flexDirection: 'row',

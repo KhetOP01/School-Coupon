@@ -21,6 +21,7 @@ export default function LoginForm({ isLoggedOut, hasSessionError }: LoginFormPro
       ? 'เซสชันหมดอายุหรือไม่พบสิทธิ์การใช้งาน กรุณาเข้าสู่ระบบใหม่'
       : null,
   );
+  const [errorField, setErrorField] = useState<'username' | 'password' | null>(null);
 
   useEffect(() => {
     try {
@@ -36,13 +37,20 @@ export default function LoginForm({ isLoggedOut, hasSessionError }: LoginFormPro
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const trimmedUsername = username.trim();
-    if (!trimmedUsername || !password) {
-      setErrorMessage('กรุณากรอกชื่อผู้ใช้งานและรหัสผ่านให้ครบถ้วน');
+    if (!trimmedUsername) {
+      setErrorField('username');
+      setErrorMessage('กรุณากรอกชื่อผู้ใช้งาน');
+      return;
+    }
+    if (!password) {
+      setErrorField('password');
+      setErrorMessage('กรุณากรอกรหัสผ่าน');
       return;
     }
 
     setLoading(true);
     setErrorMessage(null);
+    setErrorField(null);
     setForgotNotice(false);
     try {
       const response = await fetch('/admin/auth/login', {
@@ -52,9 +60,13 @@ export default function LoginForm({ isLoggedOut, hasSessionError }: LoginFormPro
       });
 
       if (!response.ok) {
+        let code = '';
         let message = 'ไม่สามารถเข้าสู่ระบบได้ กรุณาลองใหม่อีกครั้ง';
         try {
-          const data = (await response.json()) as { message?: string };
+          const data = (await response.json()) as { code?: string; message?: string };
+          if (data.code) {
+            code = String(data.code);
+          }
           if (data.message) {
             message = data.message;
           }
@@ -62,6 +74,19 @@ export default function LoginForm({ isLoggedOut, hasSessionError }: LoginFormPro
           // Use fallback Thai error message when body is not JSON
         }
         setErrorMessage(message);
+        if (
+          code === 'INVALID_USERNAME' ||
+          (!message.includes('หรือ') && message.includes('ชื่อผู้ใช้งาน'))
+        ) {
+          setErrorField('username');
+        } else if (
+          code === 'INVALID_PASSWORD' ||
+          (!message.includes('หรือ') && message.includes('รหัสผ่าน'))
+        ) {
+          setErrorField('password');
+        } else {
+          setErrorField(null);
+        }
         setLoading(false);
         return;
       }
@@ -173,7 +198,13 @@ export default function LoginForm({ isLoggedOut, hasSessionError }: LoginFormPro
             autoComplete="username"
             aria-label="ชื่อผู้ใช้งาน (Username)"
             value={username}
-            onChange={(event) => setUsername(event.target.value)}
+            onChange={(event) => {
+              setUsername(event.target.value);
+              if (errorField === 'username') {
+                setErrorField(null);
+                setErrorMessage(null);
+              }
+            }}
             placeholder="ชื่อผู้ใช้งาน (Username)"
             disabled={loading}
             style={{
@@ -181,8 +212,8 @@ export default function LoginForm({ isLoggedOut, hasSessionError }: LoginFormPro
               boxSizing: 'border-box',
               padding: '0.84rem 0.95rem 0.84rem 2.75rem',
               borderRadius: '11px',
-              border: '1px solid #d7e0ec',
-              background: '#ffffff',
+              border: errorField === 'username' ? '1.5px solid #ef4444' : '1px solid #d7e0ec',
+              background: errorField === 'username' ? '#fef2f2' : '#ffffff',
               color: '#0f172a',
               fontSize: '0.94rem',
               outline: 'none',
@@ -213,7 +244,13 @@ export default function LoginForm({ isLoggedOut, hasSessionError }: LoginFormPro
             autoComplete="current-password"
             aria-label="รหัสผ่าน (Password)"
             value={password}
-            onChange={(event) => setPassword(event.target.value)}
+            onChange={(event) => {
+              setPassword(event.target.value);
+              if (errorField === 'password') {
+                setErrorField(null);
+                setErrorMessage(null);
+              }
+            }}
             placeholder="รหัสผ่าน (Password)"
             disabled={loading}
             style={{
@@ -221,8 +258,8 @@ export default function LoginForm({ isLoggedOut, hasSessionError }: LoginFormPro
               boxSizing: 'border-box',
               padding: '0.84rem 2.85rem 0.84rem 2.75rem',
               borderRadius: '11px',
-              border: '1px solid #d7e0ec',
-              background: '#ffffff',
+              border: errorField === 'password' ? '1.5px solid #ef4444' : '1px solid #d7e0ec',
+              background: errorField === 'password' ? '#fef2f2' : '#ffffff',
               color: '#0f172a',
               fontSize: '0.94rem',
               outline: 'none',

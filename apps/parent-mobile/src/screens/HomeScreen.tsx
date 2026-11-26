@@ -12,6 +12,7 @@ import {
   View,
 } from 'react-native';
 import { parentApi } from '../api/parent-api';
+import { HeaderRightActions } from '../components/HeaderRightActions';
 import { ParentUser, StudentProfile } from '../types';
 
 interface HomeScreenProps {
@@ -70,7 +71,6 @@ export function HomeScreen({
   const [isCustomSelected, setIsCustomSelected] = useState(false);
   const [loading, setLoading] = useState(false);
 
-  const [studentModalVisible, setStudentModalVisible] = useState(false);
   const [customModalVisible, setCustomModalVisible] = useState(false);
   const [customAmountDraft, setCustomAmountDraft] = useState('');
   const customInputRef = useRef<React.ComponentRef<typeof TextInput>>(null);
@@ -215,18 +215,12 @@ export function HomeScreen({
             <Text style={styles.headerTitle}>เติมเงินคูปองลูกน้อย</Text>
             <Text style={styles.headerSubtitle}>ผู้ปกครอง: {parent.fullName}</Text>
           </View>
-          <TouchableOpacity
-            style={styles.logoutPill}
-            onPress={() =>
-              Alert.alert('ออกจากระบบ', 'ต้องการออกจากระบบใช่หรือไม่?', [
-                { text: 'ยกเลิก', style: 'cancel' },
-                { text: 'ออกจากระบบ', style: 'destructive', onPress: onLogout },
-              ])
-            }
-            activeOpacity={0.8}
-          >
-            <Text style={styles.logoutPillText}>ออก</Text>
-          </TouchableOpacity>
+          <HeaderRightActions
+            student={student}
+            students={students}
+            onSelectStudent={onSelectStudent}
+            onLogout={onLogout}
+          />
         </View>
       </TouchableOpacity>
 
@@ -235,7 +229,7 @@ export function HomeScreen({
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
       >
-        {/* Student Selector Card */}
+        {/* Student Info Card */}
         <View style={styles.profileCard}>
           <StudentAvatar />
           <View style={styles.profileInfo}>
@@ -244,14 +238,6 @@ export function HomeScreen({
             </Text>
             <Text style={styles.studentCode}>รหัสนักเรียน : {student.studentCode}</Text>
           </View>
-          <TouchableOpacity
-            style={styles.switchChildBtn}
-            onPress={() => setStudentModalVisible(true)}
-            activeOpacity={0.75}
-          >
-            <Text style={styles.switchChildIcon}>⇄</Text>
-            <Text style={styles.switchChildText}>เปลี่ยนเด็ก</Text>
-          </TouchableOpacity>
         </View>
 
         {/* Hero Coupon Balance Card */}
@@ -408,52 +394,6 @@ export function HomeScreen({
               activeOpacity={0.85}
             >
               <Text style={styles.noteModalCloseText}>รับทราบ</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </Modal>
-
-      {/* Switch Student Modal */}
-      <Modal
-        visible={studentModalVisible}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setStudentModalVisible(false)}
-      >
-        <View style={styles.modalBackdrop}>
-          <View style={styles.modalCard}>
-            <Text style={styles.modalTitle}>เลือกบุตรหลาน</Text>
-            <Text style={styles.modalSubtitle}>เลือกรายชื่อนักเรียนที่ต้องการเติมเงินหรือตั้งค่า</Text>
-
-            {students.map((item) => {
-              const selected = item.id === student.id;
-              return (
-                <TouchableOpacity
-                  key={item.id}
-                  style={[styles.studentOptionRow, selected && styles.studentOptionActive]}
-                  onPress={() => {
-                    onSelectStudent(item.id);
-                    setStudentModalVisible(false);
-                  }}
-                >
-                  <View>
-                    <Text style={styles.studentOptionName}>
-                      {item.firstName} {item.lastName}
-                    </Text>
-                    <Text style={styles.studentOptionCode}>{item.studentCode}</Text>
-                  </View>
-                  <Text style={styles.studentOptionBal}>
-                    ฿{parseFloat(item.walletBalance).toFixed(2)}
-                  </Text>
-                </TouchableOpacity>
-              );
-            })}
-
-            <TouchableOpacity
-              style={styles.modalCloseBtn}
-              onPress={() => setStudentModalVisible(false)}
-            >
-              <Text style={styles.modalCloseText}>ปิด</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -636,19 +576,6 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'flex-start',
   },
-  logoutPill: {
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 999,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.35)',
-  },
-  logoutPillText: {
-    color: '#FFFFFF',
-    fontSize: 12,
-    fontWeight: '700',
-  },
   headerTitle: {
     color: '#FFFFFF',
     fontSize: 19,
@@ -748,27 +675,6 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#64748B',
     marginTop: 2,
-  },
-  switchChildBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-    backgroundColor: '#EFF5FF',
-    borderWidth: 1,
-    borderColor: '#DBEAFE',
-    paddingHorizontal: 12,
-    paddingVertical: 7,
-    borderRadius: 999,
-  },
-  switchChildIcon: {
-    color: '#1E64EE',
-    fontSize: 13,
-    fontWeight: '800',
-  },
-  switchChildText: {
-    color: '#1E3A8A',
-    fontSize: 12.5,
-    fontWeight: '700',
   },
   balanceCard: {
     backgroundColor: '#1E5EEA',

@@ -55,7 +55,6 @@ interface CanteenStallRow {
   stall_code: string;
   winner_name: string;
   winner_phone: string;
-  fee_percent: string;
   merchant_id: number | null;
 }
 
@@ -63,7 +62,6 @@ interface MerchantRow {
   id: number;
   merchant_code: string;
   name: string;
-  fee_percent: string;
   status: 'active' | 'suspended' | 'inactive';
   pin_hash: string | null;
 }
@@ -82,17 +80,24 @@ export class MerchantAuthController {
     const pin = dto.pin.trim();
 
     const result = await this.db.pool.query<MerchantRow>(
-      `SELECT id, merchant_code, name, fee_percent::text AS fee_percent, status, pin_hash
+      `SELECT id, merchant_code, name, status, pin_hash
        FROM merchants
        WHERE LOWER(merchant_code) = LOWER($1)`,
       [merchantCode],
     );
 
     const merchant = result.rows[0];
-    if (!merchant || !merchant.pin_hash || !verifyPin(pin, merchant.pin_hash)) {
+    if (!merchant) {
       throw new UnauthorizedException({
-        code: 'INVALID_CREDENTIALS',
-        message: 'รหัสร้านค้าหรือรหัส PIN ไม่ถูกต้อง',
+        code: 'INVALID_MERCHANT_CODE',
+        message: 'รหัสร้านค้าไม่ถูกต้อง (ไม่พบรหัสร้านนี้ในระบบ)',
+      });
+    }
+
+    if (!merchant.pin_hash || !verifyPin(pin, merchant.pin_hash)) {
+      throw new UnauthorizedException({
+        code: 'INVALID_PIN',
+        message: 'รหัส PIN ไม่ถูกต้อง',
       });
     }
 
@@ -116,7 +121,6 @@ export class MerchantAuthController {
         id: merchant.id,
         merchantCode: merchant.merchant_code,
         name: merchant.name,
-        feePercent: merchant.fee_percent,
       },
     };
   }
@@ -141,7 +145,7 @@ export class MerchantAuthController {
       await client.query('BEGIN');
 
       const stallResult = await client.query<CanteenStallRow>(
-        `SELECT id, stall_code, winner_name, winner_phone, fee_percent::text AS fee_percent, merchant_id
+        `SELECT id, stall_code, winner_name, winner_phone, merchant_id
          FROM canteen_stalls
          WHERE LOWER(stall_code) = LOWER($1)
          FOR UPDATE`,
@@ -177,12 +181,11 @@ export class MerchantAuthController {
         id: number;
         merchant_code: string;
         name: string;
-        fee_percent: string;
       }>(
-        `INSERT INTO merchants (merchant_code, name, fee_percent, status, pin_hash)
-         VALUES ($1, $2, $3, 'active', $4)
-         RETURNING id, merchant_code, name, fee_percent::text AS fee_percent`,
-        [merchantCode, merchantName, stall.fee_percent, pinHash],
+        `INSERT INTO merchants (merchant_code, name, status, pin_hash)
+         VALUES ($1, $2, 'active', $3)
+         RETURNING id, merchant_code, name`,
+        [merchantCode, merchantName, pinHash],
       );
 
       const created = insertResult.rows[0];
@@ -208,7 +211,6 @@ export class MerchantAuthController {
           id: created.id,
           merchantCode: created.merchant_code,
           name: created.name,
-          feePercent: created.fee_percent,
         },
       };
     } catch (error) {
@@ -233,7 +235,7 @@ export class MerchantAuthController {
 
     const merchantId = Number(payload.sub);
     const result = await this.db.pool.query<MerchantRow>(
-      `SELECT id, merchant_code, name, fee_percent::text AS fee_percent, status, pin_hash
+      `SELECT id, merchant_code, name, status, pin_hash
        FROM merchants
        WHERE id = $1`,
       [merchantId],
@@ -252,7 +254,6 @@ export class MerchantAuthController {
         id: merchant.id,
         merchantCode: merchant.merchant_code,
         name: merchant.name,
-        feePercent: merchant.fee_percent,
       },
     };
   }

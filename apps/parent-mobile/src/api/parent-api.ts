@@ -3,7 +3,9 @@ import {
   FreezeCardResponse,
   ParentLoginResponse,
   ParentUser,
+  SpendingHistoryPeriod,
   StudentProfile,
+  StudentSpendingHistoryResponse,
   TopUpRequest,
   TopUpResponse,
 } from '../types';
@@ -14,7 +16,7 @@ export class ParentApiClient {
   private token: string | null;
 
   constructor(options?: { baseUrl?: string; parentId?: string }) {
-    this.baseUrl = options?.baseUrl ?? 'http://192.168.1.89'; // LAN IP for Expo Go
+    this.baseUrl = options?.baseUrl ?? 'http://192.168.1.53'; // LAN IP for Expo Go
     this.parentId = options?.parentId ?? 'parent-1';
     this.token = null;
   }
@@ -60,8 +62,15 @@ export class ParentApiClient {
     });
 
     if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
-      throw new Error(err.message ?? `เข้าสู่ระบบไม่สำเร็จ (${res.status})`);
+      const err = (await res.json().catch(() => ({}))) as {
+        code?: string;
+        message?: string;
+      };
+      const error = new Error(err.message ?? `เข้าสู่ระบบไม่สำเร็จ (${res.status})`) as Error & {
+        code?: string;
+      };
+      error.code = err.code;
+      throw error;
     }
 
     const data = (await res.json()) as ParentLoginResponse;
@@ -70,14 +79,22 @@ export class ParentApiClient {
   }
 
   /**
-   * ลงทะเบียนผู้ปกครองใหม่และผูกกับรหัสนักเรียน
+   * ลงทะเบียนผู้ปกครองใหม่และผูกกับรหัสนักเรียน (รองรับหลายคน)
    */
   async register(params: {
     phone: string;
     fullName: string;
     pin: string;
-    studentCode: string;
+    studentCode?: string;
+    studentCodes?: string[];
   }): Promise<ParentLoginResponse> {
+    const codes = [
+      ...(params.studentCodes ?? []),
+      ...(params.studentCode ? [params.studentCode] : []),
+    ]
+      .map((c) => c.trim())
+      .filter(Boolean);
+
     const res = await fetch(`${this.baseUrl}/parent/auth/register`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -85,7 +102,8 @@ export class ParentApiClient {
         phone: params.phone.trim(),
         fullName: params.fullName.trim(),
         pin: params.pin.trim(),
-        studentCode: params.studentCode.trim(),
+        studentCode: codes[0] ?? '',
+        studentCodes: codes,
       }),
     });
 
@@ -108,8 +126,12 @@ export class ParentApiClient {
     });
 
     if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
-      throw new Error(err.message ?? `ไม่สามารถโหลดข้อมูลผู้ใช้ได้ (${res.status})`);
+      const err = (await res.json().catch(() => ({}))) as { message?: string };
+      const error = new Error(
+        err.message ?? `ไม่สามารถโหลดข้อมูลผู้ใช้ได้ (${res.status})`,
+      ) as Error & { status?: number };
+      error.status = res.status;
+      throw error;
     }
 
     return (await res.json()) as { parent: ParentUser; students: StudentProfile[] };
@@ -189,6 +211,32 @@ export class ParentApiClient {
     }
 
     return (await res.json()) as DailyLimitResponse;
+  }
+
+  /**
+   * ดูประวัติการใช้จ่ายของนักเรียนรายวัน / รายเดือน / รายปี
+   */
+  async getSpendingHistory(
+    studentId: number,
+    period: SpendingHistoryPeriod,
+    date: string,
+  ): Promise<StudentSpendingHistoryResponse> {
+    const query = new URLSearchParams({ period, date }).toString();
+    const res = await fetch(
+      `${this.baseUrl}/parent/students/${studentId}/spending-history?${query}`,
+      {
+        headers: this.headers,
+      },
+    );
+
+    if (!res.ok) {
+      const err = (await res.json().catch(() => ({}))) as { message?: string };
+      throw new Error(
+        err.message ?? `ไม่สามารถโหลดประวัติการใช้จ่ายได้ (${res.status})`,
+      );
+    }
+
+    return (await res.json()) as StudentSpendingHistoryResponse;
   }
 
   /**

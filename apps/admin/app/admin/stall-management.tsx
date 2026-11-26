@@ -7,7 +7,6 @@ interface CanteenStallItem {
   stallCode: string;
   winnerName: string;
   winnerPhone: string;
-  feePercent: string;
   merchantId: number | null;
   merchantCode: string | null;
   merchantName: string | null;
@@ -25,13 +24,11 @@ export default function StallManagement() {
   const [stallCode, setStallCode] = useState('');
   const [winnerName, setWinnerName] = useState('');
   const [winnerPhone, setWinnerPhone] = useState('');
-  const [feePercent, setFeePercent] = useState('2.00');
 
   // Edit modal state
   const [editTarget, setEditTarget] = useState<CanteenStallItem | null>(null);
   const [editWinnerName, setEditWinnerName] = useState('');
   const [editWinnerPhone, setEditWinnerPhone] = useState('');
-  const [editFeePercent, setEditFeePercent] = useState('2.00');
   const [savingEdit, setSavingEdit] = useState(false);
 
   // Delete confirm modal
@@ -84,7 +81,6 @@ export default function StallManagement() {
           stallCode: stallCode.trim().toUpperCase(),
           winnerName: winnerName.trim(),
           winnerPhone: winnerPhone.trim(),
-          feePercent: feePercent.trim() || '2.00',
         }),
       });
       if (response.status === 401) {
@@ -104,7 +100,6 @@ export default function StallManagement() {
       setStallCode('');
       setWinnerName('');
       setWinnerPhone('');
-      setFeePercent('2.00');
       setCreateOpen(false);
       setNotice(`เพิ่มล็อคประมูล "${body?.stallCode ?? ''}" เรียบร้อยแล้ว`);
     } catch {
@@ -118,7 +113,6 @@ export default function StallManagement() {
     setEditTarget(stall);
     setEditWinnerName(stall.winnerName);
     setEditWinnerPhone(stall.winnerPhone);
-    setEditFeePercent(stall.feePercent);
     setError('');
     setNotice('');
   }
@@ -143,7 +137,6 @@ export default function StallManagement() {
         body: JSON.stringify({
           winnerName: editWinnerName.trim(),
           winnerPhone: editWinnerPhone.trim(),
-          feePercent: editFeePercent.trim() || '2.00',
         }),
       });
       if (response.status === 401) {
@@ -302,7 +295,6 @@ export default function StallManagement() {
                   <th style={thStyle}>เลขที่ล็อค</th>
                   <th style={thStyle}>ผู้ชนะประมูล</th>
                   <th style={thStyle}>เบอร์โทรยืนยัน</th>
-                  <th style={thStyle}>ค่าธรรมเนียม</th>
                   <th style={thStyle}>สถานะลงทะเบียน</th>
                   <th style={{ ...thStyle, textAlign: 'right' }}>จัดการ</th>
                 </tr>
@@ -315,7 +307,6 @@ export default function StallManagement() {
                     </td>
                     <td style={tdStyle}>{stall.winnerName}</td>
                     <td style={tdStyle}>{stall.winnerPhone}</td>
-                    <td style={tdStyle}>{stall.feePercent}%</td>
                     <td style={tdStyle}>
                       {stall.merchantCode ? (
                         <span
@@ -403,7 +394,7 @@ export default function StallManagement() {
                 แก้ไขล็อคประมูล: {editTarget.stallCode}
               </h4>
               <p style={{ margin: 0, fontSize: '0.8rem', color: '#64748b' }}>
-                แก้ไขชื่อผู้ชนะประมูล เบอร์โทรยืนยัน หรือค่าธรรมเนียม (%)
+                แก้ไขชื่อผู้ชนะประมูลหรือเบอร์โทรยืนยัน
               </p>
             </div>
 
@@ -424,25 +415,14 @@ export default function StallManagement() {
               />
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
-              <div>
-                <label style={labelStyle}>เบอร์โทรยืนยัน</label>
-                <input
-                  type="text"
-                  value={editWinnerPhone}
-                  onChange={(e) => setEditWinnerPhone(e.target.value)}
-                  style={inputStyle}
-                />
-              </div>
-              <div>
-                <label style={labelStyle}>ค่าธรรมเนียม (%)</label>
-                <input
-                  type="text"
-                  value={editFeePercent}
-                  onChange={(e) => setEditFeePercent(e.target.value)}
-                  style={inputStyle}
-                />
-              </div>
+            <div>
+              <label style={labelStyle}>เบอร์โทรยืนยัน</label>
+              <input
+                type="text"
+                value={editWinnerPhone}
+                onChange={(e) => setEditWinnerPhone(e.target.value)}
+                style={inputStyle}
+              />
             </div>
 
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.55rem', marginTop: '0.35rem' }}>
@@ -628,27 +608,15 @@ export default function StallManagement() {
               />
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
-              <div>
-                <label style={labelStyle}>เบอร์โทรยืนยัน</label>
-                <input
-                  type="text"
-                  value={winnerPhone}
-                  onChange={(e) => setWinnerPhone(e.target.value)}
-                  placeholder="0844444444"
-                  style={inputStyle}
-                />
-              </div>
-              <div>
-                <label style={labelStyle}>ค่าธรรมเนียม (%)</label>
-                <input
-                  type="text"
-                  value={feePercent}
-                  onChange={(e) => setFeePercent(e.target.value)}
-                  placeholder="2.00"
-                  style={inputStyle}
-                />
-              </div>
+            <div>
+              <label style={labelStyle}>เบอร์โทรยืนยัน</label>
+              <input
+                type="text"
+                value={winnerPhone}
+                onChange={(e) => setWinnerPhone(e.target.value)}
+                placeholder="0844444444"
+                style={inputStyle}
+              />
             </div>
 
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.55rem', marginTop: '0.35rem' }}>

@@ -25,7 +25,6 @@ describe('ApproveSettlement Use Case', () => {
       merchantId: 101,
       settlementDate: '2026-11-10',
       grossAmount: '1000.00',
-      feePercent: '2.00',
       createdAt: now,
     });
     settlementRepo.findSettlementById.mockResolvedValue(settlement);
@@ -61,8 +60,7 @@ describe('ApproveSettlement Use Case', () => {
       merchantId: 101,
       settlementDate: '2026-11-10',
       grossAmount: '1000.00',
-      feeAmount: '20.00',
-      netAmount: '980.00',
+      netAmount: '1000.00',
       status: 'PAID',
       approvedBy: 'staff-admin-01',
       approvedAt: now,
@@ -89,8 +87,7 @@ describe('ApproveSettlement Use Case', () => {
       merchantId: 101,
       settlementDate: '2026-11-10',
       grossAmount: '1000.00',
-      feeAmount: '20.00',
-      netAmount: '980.00',
+      netAmount: '1000.00',
       status: 'APPROVED',
       approvedBy: 'staff-admin-01',
       approvedAt: now,
