@@ -140,13 +140,13 @@ describe('Staff Admin Local Password Authentication (UC-09)', () => {
     expect(stored.rows).toHaveLength(0);
   });
 
-  it('AC9.3: rejects unknown username or wrong password with 401 INVALID_CREDENTIALS', async () => {
+  it('AC9.3: rejects unknown username with 401 INVALID_USERNAME and wrong password with 401 INVALID_PASSWORD', async () => {
     const wrongUser = await request(app.getHttpServer())
       .post('/admin/auth/login')
       .send({ username: 'unknown', password: 'admin1234' })
       .expect(401);
 
-    expect(wrongUser.body.code).toBe('INVALID_CREDENTIALS');
+    expect(wrongUser.body.code).toBe('INVALID_USERNAME');
     expect(wrongUser.headers['set-cookie']).toBeUndefined();
 
     const wrongPassword = await request(app.getHttpServer())
@@ -154,8 +154,8 @@ describe('Staff Admin Local Password Authentication (UC-09)', () => {
       .send({ username: 'admin', password: 'wrong-password' })
       .expect(401);
 
-    expect(wrongPassword.body.code).toBe('INVALID_CREDENTIALS');
-    expect(wrongPassword.body.message).toBe(wrongUser.body.message);
+    expect(wrongPassword.body.code).toBe('INVALID_PASSWORD');
+    expect(wrongPassword.body.message).not.toBe(wrongUser.body.message);
     expect(wrongPassword.headers['set-cookie']).toBeUndefined();
 
     const stored = await database.pool.query('SELECT session_token_hash FROM staff_admin_sessions');

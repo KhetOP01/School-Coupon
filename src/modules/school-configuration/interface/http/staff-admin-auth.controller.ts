@@ -89,10 +89,17 @@ export class StaffAdminAuthController {
     }
 
     const user = await this.staffUsers.findByUsername(username);
-    if (!user || !verifyScryptSecret(password, user.passwordHash)) {
+    if (!user) {
       throw new UnauthorizedException({
-        code: 'INVALID_CREDENTIALS',
-        message: 'ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง',
+        code: 'INVALID_USERNAME',
+        message: 'ชื่อผู้ใช้งานไม่ถูกต้อง (ไม่พบบัญชีผู้ใช้นี้ในระบบ)',
+      });
+    }
+
+    if (!verifyScryptSecret(password, user.passwordHash)) {
+      throw new UnauthorizedException({
+        code: 'INVALID_PASSWORD',
+        message: 'รหัสผ่านไม่ถูกต้อง',
       });
     }
 

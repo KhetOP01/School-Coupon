@@ -32,10 +32,6 @@ class CreateMerchantDto {
 
   @IsOptional()
   @IsString()
-  feePercent?: string;
-
-  @IsOptional()
-  @IsString()
   pin?: string;
 
   @ValidateIf((_, value) => value !== null && value !== undefined)
@@ -47,10 +43,6 @@ class UpdateMerchantDto {
   @IsOptional()
   @IsString()
   name?: string;
-
-  @IsOptional()
-  @IsString()
-  feePercent?: string;
 
   @IsOptional()
   @IsIn(['active', 'suspended', 'inactive'])
@@ -69,7 +61,6 @@ interface MerchantListRow {
   id: number;
   merchant_code: string;
   name: string;
-  fee_percent: string;
   status: 'active' | 'suspended' | 'inactive';
   stall_code: string | null;
   created_at: Date;
@@ -87,7 +78,6 @@ export class AdminMerchantsController {
          m.id,
          m.merchant_code,
          m.name,
-         m.fee_percent::text AS fee_percent,
          m.status,
          s.stall_code,
          m.created_at
@@ -101,7 +91,6 @@ export class AdminMerchantsController {
         id: row.id,
         merchantCode: row.merchant_code,
         name: row.name,
-        feePercent: row.fee_percent,
         status: row.status,
         stallCode: row.stall_code,
         createdAt: row.created_at.toISOString(),
@@ -163,7 +152,6 @@ export class AdminMerchantsController {
   async create(@Body() dto: CreateMerchantDto) {
     const merchantCode = dto.merchantCode?.trim().toUpperCase() ?? '';
     const name = dto.name?.trim() ?? '';
-    const feeNum = Number(dto.feePercent ?? '2.00');
     const pin = dto.pin?.trim() ?? '';
 
     if (
@@ -171,14 +159,11 @@ export class AdminMerchantsController {
       merchantCode.length > 50 ||
       !name ||
       name.length > 150 ||
-      !Number.isFinite(feeNum) ||
-      feeNum < 0 ||
-      feeNum > 100 ||
       !/^\d{6}$/.test(pin)
     ) {
       throw new BadRequestException({
         code: 'INVALID_REQUEST',
-        message: 'กรุณากรอกรหัสร้าน ชื่อร้าน ค่าธรรมเนียม และ PIN ตัวเลข 6 หลักให้ครบถ้วน',
+        message: 'กรุณากรอกรหัสร้าน ชื่อร้าน และ PIN ตัวเลข 6 หลักให้ครบถ้วน',
       });
     }
 
@@ -198,10 +183,10 @@ export class AdminMerchantsController {
       }
 
       const result = await client.query<Omit<MerchantListRow, 'stall_code'>>(
-        `INSERT INTO merchants (merchant_code, name, fee_percent, status, pin_hash)
-         VALUES ($1, $2, $3, 'active', $4)
-         RETURNING id, merchant_code, name, fee_percent::text AS fee_percent, status, created_at`,
-        [merchantCode, name, feeNum.toFixed(2), hashPin(pin)],
+        `INSERT INTO merchants (merchant_code, name, status, pin_hash)
+         VALUES ($1, $2, 'active', $3)
+         RETURNING id, merchant_code, name, status, created_at`,
+        [merchantCode, name, hashPin(pin)],
       );
 
       const row = result.rows[0];
@@ -215,7 +200,6 @@ export class AdminMerchantsController {
         id: row.id,
         merchantCode: row.merchant_code,
         name: row.name,
-        feePercent: row.fee_percent,
         status: row.status,
         stallCode: assignedStallCode,
         createdAt: row.created_at.toISOString(),
@@ -242,7 +226,6 @@ export class AdminMerchantsController {
            m.id,
            m.merchant_code,
            m.name,
-           m.fee_percent::text AS fee_percent,
            m.status,
            s.stall_code,
            m.created_at
@@ -260,19 +243,17 @@ export class AdminMerchantsController {
       }
 
       const name = dto.name !== undefined ? dto.name.trim() : existing.name;
-      const feeNum =
-        dto.feePercent !== undefined ? Number(dto.feePercent) : Number(existing.fee_percent);
       const status = dto.status ?? existing.status;
 
-      if (!name || name.length > 150 || !Number.isFinite(feeNum) || feeNum < 0 || feeNum > 100) {
+      if (!name || name.length > 150) {
         throw new BadRequestException({
           code: 'INVALID_REQUEST',
-          message: 'กรุณากรอกชื่อร้านค้าและค่าธรรมเนียมให้ถูกต้อง',
+          message: 'กรุณากรอกชื่อร้านค้าให้ถูกต้อง',
         });
       }
 
       let pinHashClause = '';
-      const values: unknown[] = [name, feeNum.toFixed(2), status];
+      const values: unknown[] = [name, status];
       if (dto.pin !== undefined && dto.pin.trim() !== '') {
         const pin = dto.pin.trim();
         if (!/^\d{6}$/.test(pin)) {
@@ -288,7 +269,7 @@ export class AdminMerchantsController {
       values.push(id);
       await client.query(
         `UPDATE merchants
-         SET name = $1, fee_percent = $2, status = $3${pinHashClause}
+         SET name = $1, status = $2${pinHashClause}
          WHERE id = $${values.length}`,
         values,
       );
@@ -303,7 +284,6 @@ export class AdminMerchantsController {
         id: existing.id,
         merchantCode: existing.merchant_code,
         name,
-        feePercent: feeNum.toFixed(2),
         status,
         stallCode: resultingStallCode,
         createdAt: existing.created_at.toISOString(),

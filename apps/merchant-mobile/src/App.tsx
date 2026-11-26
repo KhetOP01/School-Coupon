@@ -1,13 +1,15 @@
-import React, { useState } from 'react';
+import { SARABUN_FONTS } from './theme/sarabun';
+import React, { useEffect, useState } from 'react';
 import { registerRootComponent } from 'expo';
+import { useFonts } from 'expo-font';
 import {
+  ActivityIndicator,
+  Alert,
   View,
   Text,
   TouchableOpacity,
   StyleSheet,
   StatusBar,
-  Modal,
-  TextInput,
   Platform,
 } from 'react-native';
 import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -17,6 +19,12 @@ import { VoidScreen } from './screens/VoidScreen';
 import { SummaryScreen } from './screens/SummaryScreen';
 import { LoginScreen } from './screens/LoginScreen';
 import { merchantApi } from './api/merchant-api';
+import {
+  clearRememberedMerchantAuth,
+  clearRememberedMerchantSessionOnly,
+  loadRememberedMerchantAuth,
+  saveRememberedMerchantAuth,
+} from './auth/merchant-auth-storage';
 import { offlineStorage } from './offline/offline-storage';
 import {
   MerchantLoginResponse,
@@ -116,14 +124,11 @@ function MerchantApp() {
   const bottomInset = Math.max(insets.bottom, 10);
 
   const [merchant, setMerchant] = useState<MerchantProfile | null>(null);
+  const [hydratingSession, setHydratingSession] = useState<boolean>(true);
   const [activeTab, setActiveTab] = useState<Tab>('pos');
   const [merchantId, setMerchantId] = useState<number>(1);
   const [isOffline, setIsOffline] = useState<boolean>(false);
   const [recentPayments, setRecentPayments] = useState<PaymentResponse[]>([]);
-
-  const [settingsVisible, setSettingsVisible] = useState(false);
-  const [baseUrlInput, setBaseUrlInput] = useState('http://192.168.1.89');
-  const [merchantIdInput, setMerchantIdInput] = useState('1');
 
   async function refreshOfflineCardCache() {
     try {
@@ -134,21 +139,99 @@ function MerchantApp() {
     }
   }
 
-  function handleLoginSuccess(session: MerchantLoginResponse) {
+  useEffect(() => {
+    let cancelled = false;
+
+    async function restoreSession() {
+      try {
+        const saved = await loadRememberedMerchantAuth();
+        if (!saved?.rememberMe || !saved.session?.token) {
+          return;
+        }
+
+        const cachedSession = saved.session;
+        merchantApi.setSession(cachedSession.token, cachedSession.merchant.id);
+
+        try {
+          const fresh = await merchantApi.getMe();
+          if (cancelled) return;
+          const updatedSession: MerchantLoginResponse = {
+            token: cachedSession.token,
+            merchant: fresh.merchant,
+          };
+          setMerchant(fresh.merchant);
+          setMerchantId(fresh.merchant.id);
+          await saveRememberedMerchantAuth({
+            rememberMe: true,
+            merchantCode: fresh.merchant.merchantCode,
+            session: updatedSession,
+          });
+          void refreshOfflineCardCache();
+        } catch (err) {
+          if (cancelled) return;
+          const status =
+            err && typeof err === 'object' && 'status' in err
+              ? Number((err as { status?: number }).status)
+              : undefined;
+          if (status === 401 || status === 403) {
+            merchantApi.logout();
+            await clearRememberedMerchantSessionOnly();
+          } else {
+            // Allow cached session offline for POS continuity
+            setMerchant(cachedSession.merchant);
+            setMerchantId(cachedSession.merchant.id);
+            setIsOffline(true);
+          }
+        }
+      } finally {
+        if (!cancelled) {
+          setHydratingSession(false);
+        }
+      }
+    }
+
+    void restoreSession();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  function handleLoginSuccess(session: MerchantLoginResponse, rememberMe = false) {
     setMerchant(session.merchant);
     setMerchantId(session.merchant.id);
-    setMerchantIdInput(String(session.merchant.id));
-    setBaseUrlInput(merchantApi.getBaseUrl());
     setActiveTab('pos');
     void refreshOfflineCardCache();
+    if (rememberMe) {
+      void saveRememberedMerchantAuth({
+        rememberMe: true,
+        merchantCode: session.merchant.merchantCode,
+        session,
+      });
+    } else {
+      void clearRememberedMerchantAuth();
+    }
   }
 
   function handleLogout() {
     merchantApi.logout();
-    setSettingsVisible(false);
+    void clearRememberedMerchantSessionOnly();
     setMerchant(null);
     setRecentPayments([]);
     setActiveTab('pos');
+  }
+
+  if (hydratingSession) {
+    return (
+      <View
+        style={[
+          styles.screenWrapper,
+          { backgroundColor: '#EEF4FF', alignItems: 'center', justifyContent: 'center' },
+        ]}
+      >
+        <StatusBar barStyle="dark-content" />
+        <ActivityIndicator size="large" color="#1D63ED" />
+      </View>
+    );
   }
 
   if (!merchant) {
@@ -166,18 +249,6 @@ function MerchantApp() {
 
   function handleVoidSuccess(res: VoidResponse) {
     setRecentPayments((prev) => prev.filter((p) => p.paymentId !== res.paymentId));
-  }
-
-  function handleSaveSettings() {
-    if (baseUrlInput.trim()) {
-      merchantApi.setBaseUrl(baseUrlInput.trim());
-    }
-    const parsedId = parseInt(merchantIdInput, 10);
-    if (!isNaN(parsedId) && parsedId > 0) {
-      setMerchantId(parsedId);
-      merchantApi.setMerchantId(String(parsedId));
-    }
-    setSettingsVisible(false);
   }
 
   return (
@@ -231,11 +302,22 @@ function MerchantApp() {
             </TouchableOpacity>
 
             <TouchableOpacity
-              style={styles.gearBtn}
-              onPress={() => setSettingsVisible(true)}
-              activeOpacity={0.7}
+              style={styles.logoutBtn}
+              onPress={() =>
+                Alert.alert('ออกจากระบบ', 'ต้องการออกจากระบบใช่หรือไม่?', [
+                  { text: 'ยกเลิก', style: 'cancel' },
+                  { text: 'ออกจากระบบ', style: 'destructive', onPress: handleLogout },
+                ])
+              }
+              activeOpacity={0.8}
+              accessibilityRole="button"
+              accessibilityLabel="ออกจากระบบ"
             >
-              <Text style={styles.gearIcon}>⚙</Text>
+              <View style={styles.logoutIconBox}>
+                <View style={styles.logoutIconFrame} />
+                <View style={styles.logoutIconShaft} />
+                <View style={styles.logoutIconHead} />
+              </View>
             </TouchableOpacity>
           </View>
         </View>
@@ -246,7 +328,7 @@ function MerchantApp() {
             <PosScreen
               merchantId={merchantId}
               isOffline={isOffline}
-              pauseScanner={settingsVisible}
+              pauseScanner={false}
               onPaymentSuccess={handlePaymentSuccess}
             />
           )}
@@ -298,65 +380,28 @@ function MerchantApp() {
           })}
         </View>
       </View>
-
-      {/* POS Connection Settings Modal */}
-      <Modal
-        visible={settingsVisible}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setSettingsVisible(false)}
-      >
-        <View style={styles.modalBackdrop}>
-          <View style={styles.modalCard}>
-            <Text style={styles.modalTitle}>ตั้งค่าร้านค้าและการเชื่อมต่อ</Text>
-
-            <Text style={styles.modalLabel}>Server Base URL (Backend)</Text>
-            <TextInput
-              style={styles.modalInput}
-              value={baseUrlInput}
-              onChangeText={setBaseUrlInput}
-              autoCapitalize="none"
-              autoCorrect={false}
-              placeholder="http://192.168.1.53"
-            />
-
-            <Text style={styles.modalLabel}>รหัสร้านค้า (Merchant ID)</Text>
-            <TextInput
-              style={styles.modalInput}
-              value={merchantIdInput}
-              onChangeText={setMerchantIdInput}
-              keyboardType="numeric"
-              placeholder="1"
-            />
-
-            <View style={styles.modalButtonsRow}>
-              <TouchableOpacity
-                style={styles.modalLogoutBtn}
-                onPress={handleLogout}
-              >
-                <Text style={styles.modalLogoutText}>ออกจากระบบ</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.modalCancelBtn}
-                onPress={() => setSettingsVisible(false)}
-              >
-                <Text style={styles.modalCancelText}>ยกเลิก</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.modalSaveBtn}
-                onPress={handleSaveSettings}
-              >
-                <Text style={styles.modalSaveText}>บันทึก</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      </Modal>
     </View>
   );
 }
 
 export default function App() {
+  const [fontsLoaded, fontError] = useFonts(SARABUN_FONTS);
+
+  if (!fontsLoaded && !fontError) {
+    return (
+      <View
+        style={{
+          flex: 1,
+          backgroundColor: '#EEF4FF',
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}
+      >
+        <ActivityIndicator size="large" color="#1D63ED" />
+      </View>
+    );
+  }
+
   return (
     <SafeAreaProvider>
       <MerchantApp />
@@ -470,15 +515,48 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '700',
   },
-  gearBtn: {
-    width: 28,
-    height: 28,
+  logoutBtn: {
+    width: 36,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: 'rgba(255, 255, 255, 0.18)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.35)',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  gearIcon: {
-    color: '#FFFFFF',
-    fontSize: 20,
+  logoutIconBox: {
+    width: 17,
+    height: 15,
+    justifyContent: 'center',
+  },
+  logoutIconFrame: {
+    position: 'absolute',
+    left: 0,
+    width: 10,
+    height: 14,
+    borderRadius: 2.5,
+    borderWidth: 1.8,
+    borderRightWidth: 0,
+    borderColor: '#FFFFFF',
+  },
+  logoutIconShaft: {
+    position: 'absolute',
+    left: 6,
+    width: 9,
+    height: 2,
+    borderRadius: 1,
+    backgroundColor: '#FFFFFF',
+  },
+  logoutIconHead: {
+    position: 'absolute',
+    right: 1,
+    width: 6,
+    height: 6,
+    borderTopWidth: 2,
+    borderRightWidth: 2,
+    borderColor: '#FFFFFF',
+    transform: [{ rotate: '45deg' }],
   },
   content: {
     flex: 1,
@@ -666,76 +744,6 @@ const styles = StyleSheet.create({
   },
   navInactiveBar: {
     backgroundColor: 'transparent',
-  },
-  modalBackdrop: {
-    flex: 1,
-    backgroundColor: 'rgba(15, 23, 42, 0.45)',
-    justifyContent: 'center',
-    padding: 20,
-  },
-  modalCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 18,
-    padding: 18,
-  },
-  modalTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#0F172A',
-    marginBottom: 12,
-  },
-  modalLabel: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#475569',
-    marginBottom: 4,
-    marginTop: 8,
-  },
-  modalInput: {
-    borderWidth: 1,
-    borderColor: '#CBD5E1',
-    borderRadius: 10,
-    paddingHorizontal: 12,
-    paddingVertical: 9,
-    fontSize: 14,
-    color: '#0F172A',
-  },
-  modalButtonsRow: {
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
-    gap: 10,
-    marginTop: 18,
-  },
-  modalLogoutBtn: {
-    marginRight: 'auto',
-    paddingHorizontal: 14,
-    paddingVertical: 9,
-    borderRadius: 10,
-    backgroundColor: '#FEE2E2',
-  },
-  modalLogoutText: {
-    color: '#B91C1C',
-    fontWeight: '700',
-  },
-  modalCancelBtn: {
-    paddingHorizontal: 16,
-    paddingVertical: 9,
-    borderRadius: 10,
-    backgroundColor: '#F1F5F9',
-  },
-  modalCancelText: {
-    color: '#475569',
-    fontWeight: '600',
-  },
-  modalSaveBtn: {
-    paddingHorizontal: 18,
-    paddingVertical: 9,
-    borderRadius: 10,
-    backgroundColor: '#1D54C8',
-  },
-  modalSaveText: {
-    color: '#FFFFFF',
-    fontWeight: '700',
   },
 });
 

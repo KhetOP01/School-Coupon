@@ -25,8 +25,8 @@ describe('GenerateDailySettlements Use Case', () => {
 
   it('AC7.1: generates daily settlements for merchants with sales', async () => {
     salesGateway.getDailySalesByMerchant.mockResolvedValue([
-      { merchantId: 101, feePercent: '2.00', grossAmount: '1000.00' },
-      { merchantId: 102, feePercent: '3.00', grossAmount: '500.00' },
+      { merchantId: 101, grossAmount: '1000.00' },
+      { merchantId: 102, grossAmount: '500.00' },
     ]);
     settlementRepo.findSettlementByMerchantAndDate.mockResolvedValue(null);
     settlementRepo.saveSettlement.mockImplementation(async (s) => s);
@@ -40,13 +40,12 @@ describe('GenerateDailySettlements Use Case', () => {
 
   it('AC7.3: skips merchants who already have a settlement for the date (idempotent)', async () => {
     salesGateway.getDailySalesByMerchant.mockResolvedValue([
-      { merchantId: 101, feePercent: '2.00', grossAmount: '1000.00' },
+      { merchantId: 101, grossAmount: '1000.00' },
     ]);
     const existing = Settlement.create({
       merchantId: 101,
       settlementDate: '2026-11-10',
       grossAmount: '1000.00',
-      feePercent: '2.00',
       createdAt: now,
     });
     settlementRepo.findSettlementByMerchantAndDate.mockResolvedValue(existing);

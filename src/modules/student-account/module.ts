@@ -6,6 +6,7 @@ import { AuthorizeParentStudentAccess } from './application/AuthorizeParentStude
 import { FindStudentForTopUp } from './application/FindStudentForTopUp';
 import { FreezeCardUseCase } from './application/freeze-card';
 import { GetCardReissuePreview } from './application/get-card-reissue-preview';
+import { GetStudentSpendingHistory } from './application/GetStudentSpendingHistory';
 import { PaymentGateway, ParentStudentAccess } from './application/ports';
 import { RefundDepartingStudentUseCase } from './application/refund-departing-student';
 import { ReissueRfidCard } from './application/reissue-rfid-card';
@@ -25,11 +26,13 @@ import {
   PostgresTopUpRepository,
 } from './infrastructure/PostgresTopUpRepository';
 import { StudentAccountPostgresRepository } from './infrastructure/student-account-postgres.repository';
+import { PostgresStudentSpendingHistoryGateway } from './infrastructure/PostgresStudentSpendingHistoryGateway';
 import { CardReissuePreviewController } from './interface/http/card-reissue-preview.controller';
 import { AdminQueryController } from './interface/http/admin-query.controller';
 import { DailyLimitController } from './interface/http/daily-limit.controller';
 import { FreezeCardController } from './interface/http/freeze-card.controller';
 import { ParentAuthController } from './interface/http/parent-auth.controller';
+import { ParentSpendingHistoryController } from './interface/http/parent-spending-history.controller';
 import { RefundStudentController } from './interface/http/refund-student.controller';
 import { ReissueRfidCardController } from './interface/http/reissue-rfid-card.controller';
 import { StaffAuthGuard } from './interface/http/staff-auth.guard';
@@ -53,6 +56,7 @@ export const PARENT_STUDENT_ACCESS = Symbol('PARENT_STUDENT_ACCESS');
     DailyLimitController,
     AdminQueryController,
     ParentAuthController,
+    ParentSpendingHistoryController,
   ],
   providers: [
     PostgresDatabase,
@@ -187,6 +191,26 @@ export const PARENT_STUDENT_ACCESS = Symbol('PARENT_STUDENT_ACCESS');
         clock: SystemClock,
       ): SetDailyLimit => new SetDailyLimit(authorizeParent, repository, clock),
       inject: [AuthorizeParentStudentAccess, STUDENT_ACCOUNT_REPOSITORY, SystemClock],
+    },
+    {
+      provide: PostgresStudentSpendingHistoryGateway,
+      useFactory: (database: PostgresDatabase) =>
+        new PostgresStudentSpendingHistoryGateway(database.pool),
+      inject: [PostgresDatabase],
+    },
+    {
+      provide: GetStudentSpendingHistory,
+      useFactory: (
+        authorizeParent: AuthorizeParentStudentAccess,
+        gateway: PostgresStudentSpendingHistoryGateway,
+        clock: SystemClock,
+      ): GetStudentSpendingHistory =>
+        new GetStudentSpendingHistory(authorizeParent, gateway, clock),
+      inject: [
+        AuthorizeParentStudentAccess,
+        PostgresStudentSpendingHistoryGateway,
+        SystemClock,
+      ],
     },
   ],
 })

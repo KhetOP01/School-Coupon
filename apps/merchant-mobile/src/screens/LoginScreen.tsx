@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
+  Keyboard,
   KeyboardAvoidingView,
   Modal,
   Platform,
@@ -12,11 +13,13 @@ import {
   View,
 } from 'react-native';
 import { merchantApi } from '../api/merchant-api';
+import { loadRememberedMerchantAuth } from '../auth/merchant-auth-storage';
+import { resolveSarabunFont } from '../theme/sarabun';
 import { MerchantLoginResponse } from '../types';
 
 interface LoginScreenProps {
   topInset: number;
-  onLoginSuccess: (session: MerchantLoginResponse) => void;
+  onLoginSuccess: (session: MerchantLoginResponse, rememberMe: boolean) => void;
 }
 
 function StoreCrestBadge() {
@@ -169,14 +172,16 @@ function LoginArrowIcon() {
 }
 
 export function LoginScreen({ topInset, onLoginSuccess }: LoginScreenProps) {
+  const scrollRef = useRef<React.ComponentRef<typeof ScrollView>>(null);
   const [merchantCode, setMerchantCode] = useState('');
   const [pin, setPin] = useState('');
   const [showPin, setShowPin] = useState(false);
+  const [rememberMe, setRememberMe] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  const [settingsVisible, setSettingsVisible] = useState(false);
-  const [baseUrlInput, setBaseUrlInput] = useState(merchantApi.getBaseUrl());
+  const [errorField, setErrorField] = useState<'identifier' | 'pin' | null>(null);
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
+  const [heroHeight, setHeroHeight] = useState(topInset + 210);
 
   const [registerVisible, setRegisterVisible] = useState(false);
   const [stallCodeInput, setStallCodeInput] = useState('');
@@ -187,19 +192,78 @@ export function LoginScreen({ topInset, onLoginSuccess }: LoginScreenProps) {
   const [registerError, setRegisterError] = useState<string | null>(null);
   const [registeredSession, setRegisteredSession] = useState<MerchantLoginResponse | null>(null);
 
+  useEffect(() => {
+    let active = true;
+    void loadRememberedMerchantAuth().then((saved) => {
+      if (!active || !saved?.rememberMe) return;
+      setRememberMe(true);
+      if (saved.merchantCode) {
+        setMerchantCode((prev) => prev || saved.merchantCode);
+      }
+    });
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
+    const hideEvent = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
+    const showSub = Keyboard.addListener(showEvent, (e) => {
+      setKeyboardHeight(e.endCoordinates.height);
+    });
+    const hideSub = Keyboard.addListener(hideEvent, () => {
+      setKeyboardHeight(0);
+      scrollRef.current?.scrollTo({ y: 0, animated: true });
+    });
+    return () => {
+      showSub.remove();
+      hideSub.remove();
+    };
+  }, []);
+
+  function scrollToField(offsetY: number) {
+    setTimeout(() => {
+      scrollRef.current?.scrollTo({ y: offsetY, animated: true });
+    }, 120);
+  }
+
   async function submitLogin(targetCode: string, targetPin: string) {
-    if (!targetCode.trim() || !targetPin.trim()) {
-      setError('กรุณากรอกรหัสร้านค้าและรหัส PIN ให้ครบถ้วน');
+    if (!targetCode.trim()) {
+      setErrorField('identifier');
+      setError('กรุณากรอกรหัสร้านค้า');
+      return;
+    }
+    if (!targetPin.trim()) {
+      setErrorField('pin');
+      setError('กรุณากรอกรหัส PIN 6 หลัก');
       return;
     }
 
     setError(null);
+    setErrorField(null);
     setLoading(true);
     try {
       const response = await merchantApi.login(targetCode, targetPin);
-      onLoginSuccess(response);
+      onLoginSuccess(response, rememberMe);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'ไม่สามารถเข้าสู่ระบบได้');
+      const code =
+        err && typeof err === 'object' && 'code' in err ? String(err.code) : '';
+      const message = err instanceof Error ? err.message : 'ไม่สามารถเข้าสู่ระบบได้';
+      setError(message);
+      if (
+        code === 'INVALID_MERCHANT_CODE' ||
+        (!message.includes('หรือ') && message.includes('รหัสร้านค้า'))
+      ) {
+        setErrorField('identifier');
+      } else if (
+        code === 'INVALID_PIN' ||
+        (!message.includes('หรือ') && (message.includes('PIN') || message.includes('รหัส')))
+      ) {
+        setErrorField('pin');
+      } else {
+        setErrorField(null);
+      }
     } finally {
       setLoading(false);
     }
@@ -236,37 +300,40 @@ export function LoginScreen({ topInset, onLoginSuccess }: LoginScreenProps) {
 
   return (
     <View style={styles.screen}>
-      {/* Top Overscroll Navy Fill */}
-      <View style={[styles.topOverscrollBg, { height: topInset + 140 }]} />
-
       {/* Subtle Bottom Decorative Landscape */}
       <BottomSchoolSilhouette />
 
-      <KeyboardAvoidingView
-        style={styles.flex}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      {/* Fixed Top Royal Blue Hero Banner (stays put while card scrolls) */}
+      <View
+        onLayout={(e) => setHeroHeight(e.nativeEvent.layout.height)}
+        style={[styles.heroHeader, styles.heroHeaderFixed, { paddingTop: topInset + 22 }]}
       >
-        <ScrollView
-          contentContainerStyle={styles.scrollContent}
-          keyboardShouldPersistTaps="handled"
-          showsVerticalScrollIndicator={false}
-        >
-          {/* Top Royal Blue Hero Banner */}
-          <View style={[styles.heroHeader, { paddingTop: topInset + 22 }]}>
-            <View style={styles.heroBlobLeft} pointerEvents="none" />
-            <View style={styles.heroBlobRight} pointerEvents="none" />
-            <CouponWatermark />
-            <StoreWatermark />
+        <View style={styles.heroBlobLeft} pointerEvents="none" />
+        <View style={styles.heroBlobRight} pointerEvents="none" />
+        <CouponWatermark />
+        <StoreWatermark />
 
-            <StoreCrestBadge />
-            <Text style={styles.heroTitle}>School Coupon POS</Text>
-            <Text style={styles.heroSubtitle}>ระบบรับชำระเงินสำหรับร้านค้าในโรงเรียน</Text>
+        <StoreCrestBadge />
+        <Text style={styles.heroTitle}>School Coupon POS</Text>
+        <Text style={styles.heroSubtitle}>ระบบรับชำระเงินสำหรับร้านค้าในโรงเรียน</Text>
 
-            <View style={styles.heroIndicatorRow}>
-              <View style={styles.heroIndicatorActive} />
-              <View style={styles.heroIndicatorMuted} />
-            </View>
-          </View>
+        <View style={styles.heroIndicatorRow}>
+          <View style={styles.heroIndicatorActive} />
+          <View style={styles.heroIndicatorMuted} />
+        </View>
+      </View>
+
+      <ScrollView
+        ref={scrollRef}
+        style={styles.cardScrollView}
+        contentContainerStyle={[
+          styles.scrollContent,
+          { paddingTop: Math.max(heroHeight - 24, topInset + 165) },
+          keyboardHeight > 0 && { paddingBottom: keyboardHeight + 36 },
+        ]}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+      >
 
           {/* Main Login Card */}
           <View style={styles.cardWrap}>
@@ -281,7 +348,7 @@ export function LoginScreen({ topInset, onLoginSuccess }: LoginScreenProps) {
 
               {error && (
                 <View style={styles.errorBox}>
-                  <Text style={styles.errorText}>⚠️ {error}</Text>
+                  <Text style={styles.errorText}>{error}</Text>
                 </View>
               )}
 
@@ -290,9 +357,16 @@ export function LoginScreen({ topInset, onLoginSuccess }: LoginScreenProps) {
                 <Text style={styles.label}>รหัสร้านค้า (Merchant Code)</Text>
               </View>
               <TextInput
-                style={styles.input}
+                style={[styles.input, errorField === 'identifier' && styles.inputError]}
                 value={merchantCode}
-                onChangeText={setMerchantCode}
+                onChangeText={(text) => {
+                  setMerchantCode(text);
+                  if (errorField === 'identifier') {
+                    setErrorField(null);
+                    setError(null);
+                  }
+                }}
+                onFocus={() => scrollToField(75)}
                 autoCapitalize="characters"
                 autoCorrect={false}
                 placeholder="เช่น M-001"
@@ -304,11 +378,18 @@ export function LoginScreen({ topInset, onLoginSuccess }: LoginScreenProps) {
                 <FieldLabelIcon kind="pin" />
                 <Text style={styles.label}>รหัส PIN (6 หลัก)</Text>
               </View>
-              <View style={styles.pinInputWrap}>
+              <View style={[styles.pinInputWrap, errorField === 'pin' && styles.inputError]}>
                 <TextInput
                   style={styles.pinInput}
                   value={pin}
-                  onChangeText={setPin}
+                  onChangeText={(text) => {
+                    setPin(text);
+                    if (errorField === 'pin') {
+                      setErrorField(null);
+                      setError(null);
+                    }
+                  }}
+                  onFocus={() => scrollToField(160)}
                   keyboardType="number-pad"
                   secureTextEntry={!showPin}
                   placeholder="••••••"
@@ -324,6 +405,19 @@ export function LoginScreen({ topInset, onLoginSuccess }: LoginScreenProps) {
                   <EyeIcon visible={showPin} />
                 </TouchableOpacity>
               </View>
+
+              <TouchableOpacity
+                style={styles.rememberRow}
+                onPress={() => setRememberMe((prev) => !prev)}
+                activeOpacity={0.75}
+                accessibilityRole="checkbox"
+                accessibilityState={{ checked: rememberMe }}
+              >
+                <View style={[styles.rememberBox, rememberMe && styles.rememberBoxChecked]}>
+                  {rememberMe && <Text style={styles.rememberCheck}>✓</Text>}
+                </View>
+                <Text style={styles.rememberText}>จดจำการเข้าสู่ระบบ</Text>
+              </TouchableOpacity>
 
               <TouchableOpacity
                 style={[styles.loginBtn, loading && styles.loginBtnDisabled]}
@@ -357,28 +451,13 @@ export function LoginScreen({ topInset, onLoginSuccess }: LoginScreenProps) {
                 }}
                 activeOpacity={0.8}
               >
-                <Text style={{ color: '#1E40AF', fontWeight: '700', fontSize: 14 }}>
+                <Text style={{ color: '#1E40AF', fontFamily: resolveSarabunFont('700'), fontSize: 14 }}>
                   ลงทะเบียนร้านค้าใหม่ (ผู้ชนะประมูลล็อค)
                 </Text>
               </TouchableOpacity>
             </View>
           </View>
-
-          {/* Server URL Settings Trigger */}
-          <TouchableOpacity
-            style={styles.serverLinkBtn}
-            onPress={() => {
-              setBaseUrlInput(merchantApi.getBaseUrl());
-              setSettingsVisible(true);
-            }}
-            activeOpacity={0.7}
-          >
-            <Text style={styles.serverLinkText}>
-              ⚙ ตั้งค่า Server URL ({merchantApi.getBaseUrl()})
-            </Text>
-          </TouchableOpacity>
         </ScrollView>
-      </KeyboardAvoidingView>
 
       {/* Register Modal */}
       <Modal
@@ -387,31 +466,37 @@ export function LoginScreen({ topInset, onLoginSuccess }: LoginScreenProps) {
         animationType="fade"
         onRequestClose={() => setRegisterVisible(false)}
       >
-        <View
+        <KeyboardAvoidingView
           style={{
             flex: 1,
             backgroundColor: 'rgba(15, 23, 42, 0.55)',
             justifyContent: 'center',
             padding: 20,
           }}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         >
-          <View
-            style={{
-              backgroundColor: '#FFFFFF',
-              borderRadius: 20,
-              padding: 20,
-            }}
+          <ScrollView
+            contentContainerStyle={{ flexGrow: 1, justifyContent: 'center' }}
+            keyboardShouldPersistTaps="handled"
+            showsVerticalScrollIndicator={false}
           >
-            <Text style={{ fontSize: 18, fontWeight: '800', color: '#0F172A', marginBottom: 4 }}>
+            <View
+              style={{
+                backgroundColor: '#FFFFFF',
+                borderRadius: 20,
+                padding: 20,
+              }}
+            >
+            <Text style={{ fontSize: 18, fontFamily: resolveSarabunFont('800'), color: '#0F172A', marginBottom: 4 }}>
               ลงทะเบียนร้านค้าใหม่
             </Text>
-            <Text style={{ fontSize: 13, color: '#64748B', marginBottom: 14 }}>
+            <Text style={{ fontSize: 13, fontFamily: resolveSarabunFont('400'), color: '#64748B', marginBottom: 14 }}>
               ยืนยันตัวตนด้วยเลขที่ล็อคและเบอร์โทรของผู้ชนะประมูลที่แจ้งไว้กับโรงเรียน
             </Text>
 
             {registerError && (
               <View style={[styles.errorBox, { marginBottom: 12 }]}>
-                <Text style={styles.errorText}>⚠️ {registerError}</Text>
+                <Text style={styles.errorText}>{registerError}</Text>
               </View>
             )}
 
@@ -468,7 +553,7 @@ export function LoginScreen({ topInset, onLoginSuccess }: LoginScreenProps) {
                 onPress={() => setRegisterVisible(false)}
                 disabled={registerLoading}
               >
-                <Text style={{ color: '#475569', fontWeight: '700' }}>ยกเลิก</Text>
+                <Text style={{ color: '#475569', fontFamily: resolveSarabunFont('700') }}>ยกเลิก</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={{
@@ -483,12 +568,13 @@ export function LoginScreen({ topInset, onLoginSuccess }: LoginScreenProps) {
                 {registerLoading ? (
                   <ActivityIndicator color="#FFFFFF" />
                 ) : (
-                  <Text style={{ color: '#FFFFFF', fontWeight: '700' }}>ยืนยันลงทะเบียน</Text>
+                  <Text style={{ color: '#FFFFFF', fontFamily: resolveSarabunFont('700') }}>ยืนยันลงทะเบียน</Text>
                 )}
               </TouchableOpacity>
             </View>
           </View>
-        </View>
+          </ScrollView>
+        </KeyboardAvoidingView>
       </Modal>
 
       {/* Register Success Modal */}
@@ -500,7 +586,7 @@ export function LoginScreen({ topInset, onLoginSuccess }: LoginScreenProps) {
           const session = registeredSession;
           setRegisteredSession(null);
           if (session) {
-            onLoginSuccess(session);
+            onLoginSuccess(session, rememberMe);
           }
         }}
       >
@@ -520,10 +606,10 @@ export function LoginScreen({ topInset, onLoginSuccess }: LoginScreenProps) {
               alignItems: 'center',
             }}
           >
-            <Text style={{ fontSize: 18, fontWeight: '800', color: '#0F172A', marginBottom: 6 }}>
+            <Text style={{ fontSize: 18, fontFamily: resolveSarabunFont('800'), color: '#0F172A', marginBottom: 6 }}>
               ลงทะเบียนร้านค้าสำเร็จ
             </Text>
-            <Text style={{ fontSize: 13, color: '#64748B', textAlign: 'center', marginBottom: 14 }}>
+            <Text style={{ fontSize: 13, fontFamily: resolveSarabunFont('400'), color: '#64748B', textAlign: 'center', marginBottom: 14 }}>
               กรุณาจดรหัสร้านค้าด้านล่างไว้ใช้คู่กับ PIN 6 หลัก สำหรับเข้าสู่ระบบครั้งถัดไป
             </Text>
             <View
@@ -539,13 +625,13 @@ export function LoginScreen({ topInset, onLoginSuccess }: LoginScreenProps) {
                 width: '100%',
               }}
             >
-              <Text style={{ fontSize: 12, fontWeight: '700', color: '#1E40AF', marginBottom: 2 }}>
+              <Text style={{ fontSize: 12, fontFamily: resolveSarabunFont('700'), color: '#1E40AF', marginBottom: 2 }}>
                 รหัสร้านค้าของคุณ
               </Text>
-              <Text style={{ fontSize: 24, fontWeight: '900', color: '#1E3A8A', letterSpacing: 1 }}>
+              <Text style={{ fontSize: 24, fontFamily: resolveSarabunFont('800'), color: '#1E3A8A', letterSpacing: 1 }}>
                 {registeredSession?.merchant.merchantCode ?? ''}
               </Text>
-              <Text style={{ fontSize: 13, fontWeight: '600', color: '#334155', marginTop: 2 }}>
+              <Text style={{ fontSize: 13, fontFamily: resolveSarabunFont('600'), color: '#334155', marginTop: 2 }}>
                 {registeredSession?.merchant.name ?? ''}
               </Text>
             </View>
@@ -561,57 +647,15 @@ export function LoginScreen({ topInset, onLoginSuccess }: LoginScreenProps) {
                 const session = registeredSession;
                 setRegisteredSession(null);
                 if (session) {
-                  onLoginSuccess(session);
+                  onLoginSuccess(session, rememberMe);
                 }
               }}
               activeOpacity={0.85}
             >
-              <Text style={{ color: '#FFFFFF', fontWeight: '800', fontSize: 15 }}>
+              <Text style={{ color: '#FFFFFF', fontFamily: resolveSarabunFont('800'), fontSize: 15 }}>
                 เข้าสู่หน้าขาย (POS)
               </Text>
             </TouchableOpacity>
-          </View>
-        </View>
-      </Modal>
-
-      {/* Server URL Modal */}
-      <Modal
-        visible={settingsVisible}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setSettingsVisible(false)}
-      >
-        <View style={styles.modalBackdrop}>
-          <View style={styles.modalCard}>
-            <Text style={styles.modalTitle}>ตั้งค่าการเชื่อมต่อ Server</Text>
-            <Text style={styles.modalLabel}>Server Base URL (Backend)</Text>
-            <TextInput
-              style={styles.modalInput}
-              value={baseUrlInput}
-              onChangeText={setBaseUrlInput}
-              autoCapitalize="none"
-              autoCorrect={false}
-              placeholder="http://192.168.1.53"
-            />
-            <View style={styles.modalActionsRow}>
-              <TouchableOpacity
-                style={styles.modalCancelBtn}
-                onPress={() => setSettingsVisible(false)}
-              >
-                <Text style={styles.modalCancelText}>ยกเลิก</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.modalConfirmBtn}
-                onPress={() => {
-                  if (baseUrlInput.trim()) {
-                    merchantApi.setBaseUrl(baseUrlInput.trim());
-                  }
-                  setSettingsVisible(false);
-                }}
-              >
-                <Text style={styles.modalConfirmText}>บันทึก</Text>
-              </TouchableOpacity>
-            </View>
           </View>
         </View>
       </Modal>
@@ -625,12 +669,16 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#EAF2FF',
   },
-  topOverscrollBg: {
+  heroHeaderFixed: {
     position: 'absolute',
     top: 0,
     left: 0,
     right: 0,
-    backgroundColor: '#123E99',
+    zIndex: 1,
+  },
+  cardScrollView: {
+    flex: 1,
+    zIndex: 2,
   },
   scrollContent: {
     flexGrow: 1,
@@ -863,7 +911,6 @@ const styles = StyleSheet.create({
   },
   cardWrap: {
     paddingHorizontal: 18,
-    marginTop: -24,
   },
   card: {
     backgroundColor: '#FFFFFF',
@@ -1006,6 +1053,11 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     paddingRight: 10,
   },
+  inputError: {
+    borderWidth: 1.5,
+    borderColor: '#EF4444',
+    backgroundColor: '#FEF2F2',
+  },
   pinInput: {
     flex: 1,
     paddingHorizontal: 15,
@@ -1066,13 +1118,44 @@ const styles = StyleSheet.create({
     backgroundColor: '#5F75A6',
     transform: [{ rotate: '-35deg' }],
   },
+  rememberRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginTop: 14,
+  },
+  rememberBox: {
+    width: 20,
+    height: 20,
+    borderRadius: 6,
+    borderWidth: 1.5,
+    borderColor: '#94A3B8',
+    backgroundColor: '#F8FAFC',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  rememberBoxChecked: {
+    borderColor: '#1D63ED',
+    backgroundColor: '#1D63ED',
+  },
+  rememberCheck: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: '800',
+    lineHeight: 14,
+  },
+  rememberText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#334155',
+  },
   loginBtn: {
     backgroundColor: '#1D63ED',
     borderRadius: 15,
     paddingVertical: 15,
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: 22,
+    marginTop: 16,
     shadowColor: '#1D63ED',
     shadowOffset: { width: 0, height: 5 },
     shadowOpacity: 0.28,
@@ -1123,16 +1206,6 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 16.5,
     fontWeight: '800',
-  },
-  serverLinkBtn: {
-    marginTop: 20,
-    alignItems: 'center',
-    paddingVertical: 8,
-  },
-  serverLinkText: {
-    fontSize: 12.5,
-    color: '#475569',
-    fontWeight: '600',
   },
   bottomDecorWrap: {
     position: 'absolute',

@@ -7,7 +7,6 @@ interface SettlementRow {
   merchant_id: number;
   settlement_date: string;
   gross_amount: string;
-  fee_amount: string;
   net_amount: string;
   status: SettlementStatus;
   approved_by: string | null;
@@ -25,7 +24,6 @@ export class PostgresSettlementRepository implements SettlementRepository {
          merchant_id,
          to_char(settlement_date, 'YYYY-MM-DD') AS settlement_date,
          gross_amount::text AS gross_amount,
-         fee_amount::text AS fee_amount,
          net_amount::text AS net_amount,
          status,
          approved_by,
@@ -46,7 +44,6 @@ export class PostgresSettlementRepository implements SettlementRepository {
       merchantId: row.merchant_id,
       settlementDate: row.settlement_date,
       grossAmount: row.gross_amount,
-      feeAmount: row.fee_amount,
       netAmount: row.net_amount,
       status: row.status,
       approvedBy: row.approved_by,
@@ -65,7 +62,6 @@ export class PostgresSettlementRepository implements SettlementRepository {
          merchant_id,
          to_char(settlement_date, 'YYYY-MM-DD') AS settlement_date,
          gross_amount::text AS gross_amount,
-         fee_amount::text AS fee_amount,
          net_amount::text AS net_amount,
          status,
          approved_by,
@@ -86,7 +82,6 @@ export class PostgresSettlementRepository implements SettlementRepository {
       merchantId: row.merchant_id,
       settlementDate: row.settlement_date,
       grossAmount: row.gross_amount,
-      feeAmount: row.fee_amount,
       netAmount: row.net_amount,
       status: row.status,
       approvedBy: row.approved_by,
@@ -101,18 +96,16 @@ export class PostgresSettlementRepository implements SettlementRepository {
          merchant_id,
          settlement_date,
          gross_amount,
-         fee_amount,
          net_amount,
          status,
          created_at
        )
-       VALUES ($1, $2::date, $3, $4, $5, $6, $7)
+       VALUES ($1, $2::date, $3, $4, $5, $6)
        RETURNING
          id,
          merchant_id,
          to_char(settlement_date, 'YYYY-MM-DD') AS settlement_date,
          gross_amount::text AS gross_amount,
-         fee_amount::text AS fee_amount,
          net_amount::text AS net_amount,
          status,
          approved_by,
@@ -122,7 +115,6 @@ export class PostgresSettlementRepository implements SettlementRepository {
         settlement.merchantId,
         settlement.settlementDate,
         settlement.grossAmount,
-        settlement.feeAmount,
         settlement.netAmount,
         settlement.status,
         settlement.createdAt,
@@ -135,7 +127,6 @@ export class PostgresSettlementRepository implements SettlementRepository {
       merchantId: row.merchant_id,
       settlementDate: row.settlement_date,
       grossAmount: row.gross_amount,
-      feeAmount: row.fee_amount,
       netAmount: row.net_amount,
       status: row.status,
       approvedBy: row.approved_by,
@@ -156,7 +147,6 @@ export class PostgresSettlementRepository implements SettlementRepository {
          merchant_id,
          to_char(settlement_date, 'YYYY-MM-DD') AS settlement_date,
          gross_amount::text AS gross_amount,
-         fee_amount::text AS fee_amount,
          net_amount::text AS net_amount,
          status,
          approved_by,
@@ -176,7 +166,6 @@ export class PostgresSettlementRepository implements SettlementRepository {
       merchantId: row.merchant_id,
       settlementDate: row.settlement_date,
       grossAmount: row.gross_amount,
-      feeAmount: row.fee_amount,
       netAmount: row.net_amount,
       status: row.status,
       approvedBy: row.approved_by,

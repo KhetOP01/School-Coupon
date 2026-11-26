@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
+  Keyboard,
   KeyboardAvoidingView,
   Modal,
   Platform,
@@ -12,11 +13,13 @@ import {
   View,
 } from 'react-native';
 import { parentApi } from '../api/parent-api';
+import { loadRememberedParentAuth } from '../auth/parent-auth-storage';
+import { resolveSarabunFont } from '../theme/sarabun';
 import { ParentLoginResponse } from '../types';
 
 interface LoginScreenProps {
   topInset: number;
-  onLoginSuccess: (session: ParentLoginResponse) => void;
+  onLoginSuccess: (session: ParentLoginResponse, rememberMe: boolean) => void;
 }
 
 function SchoolCrestBadge() {
@@ -157,49 +160,111 @@ function EyeIcon({ visible }: { visible: boolean }) {
 }
 
 export function LoginScreen({ topInset, onLoginSuccess }: LoginScreenProps) {
+  const scrollRef = useRef<React.ComponentRef<typeof ScrollView>>(null);
   const [phone, setPhone] = useState('');
   const [pin, setPin] = useState('');
   const [showPin, setShowPin] = useState(false);
+  const [rememberMe, setRememberMe] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  const [settingsVisible, setSettingsVisible] = useState(false);
-  const [baseUrlInput, setBaseUrlInput] = useState(parentApi.getBaseUrl());
+  const [errorField, setErrorField] = useState<'identifier' | 'pin' | null>(null);
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
+  const [heroHeight, setHeroHeight] = useState(topInset + 210);
 
   const [registerVisible, setRegisterVisible] = useState(false);
   const [regPhone, setRegPhone] = useState('');
   const [regFullName, setRegFullName] = useState('');
-  const [regStudentCode, setRegStudentCode] = useState('');
+  const [regStudentCodes, setRegStudentCodes] = useState<string[]>(['']);
   const [regPin, setRegPin] = useState('');
   const [regLoading, setRegLoading] = useState(false);
   const [regError, setRegError] = useState<string | null>(null);
 
+  useEffect(() => {
+    let active = true;
+    void loadRememberedParentAuth().then((saved) => {
+      if (!active || !saved?.rememberMe) return;
+      setRememberMe(true);
+      if (saved.phone) {
+        setPhone((prev) => prev || saved.phone);
+      }
+    });
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
+    const hideEvent = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
+    const showSub = Keyboard.addListener(showEvent, (e) => {
+      setKeyboardHeight(e.endCoordinates.height);
+    });
+    const hideSub = Keyboard.addListener(hideEvent, () => {
+      setKeyboardHeight(0);
+      scrollRef.current?.scrollTo({ y: 0, animated: true });
+    });
+    return () => {
+      showSub.remove();
+      hideSub.remove();
+    };
+  }, []);
+
+  function scrollToField(offsetY: number) {
+    setTimeout(() => {
+      scrollRef.current?.scrollTo({ y: offsetY, animated: true });
+    }, 120);
+  }
+
   async function submitLogin(targetPhone: string, targetPin: string) {
-    if (!targetPhone.trim() || !targetPin.trim()) {
-      setError('กรุณากรอกเบอร์โทรศัพท์และรหัส PIN ให้ครบถ้วน');
+    if (!targetPhone.trim()) {
+      setErrorField('identifier');
+      setError('กรุณากรอกเบอร์โทรศัพท์');
+      return;
+    }
+    if (!targetPin.trim()) {
+      setErrorField('pin');
+      setError('กรุณากรอกรหัส PIN 6 หลัก');
       return;
     }
 
     setError(null);
+    setErrorField(null);
     setLoading(true);
     try {
       const response = await parentApi.login(targetPhone, targetPin);
-      onLoginSuccess(response);
+      onLoginSuccess(response, rememberMe);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'ไม่สามารถเข้าสู่ระบบได้');
+      const code =
+        err && typeof err === 'object' && 'code' in err ? String(err.code) : '';
+      const message = err instanceof Error ? err.message : 'ไม่สามารถเข้าสู่ระบบได้';
+      setError(message);
+      if (
+        code === 'INVALID_PHONE' ||
+        (!message.includes('หรือ') && message.includes('เบอร์โทรศัพท์'))
+      ) {
+        setErrorField('identifier');
+      } else if (
+        code === 'INVALID_PIN' ||
+        (!message.includes('หรือ') && (message.includes('PIN') || message.includes('รหัส')))
+      ) {
+        setErrorField('pin');
+      } else {
+        setErrorField(null);
+      }
     } finally {
       setLoading(false);
     }
   }
 
   async function submitRegister() {
+    const cleanedCodes = regStudentCodes.map((c) => c.trim()).filter(Boolean);
     if (
       !regPhone.trim() ||
       !regFullName.trim() ||
-      !regStudentCode.trim() ||
+      cleanedCodes.length === 0 ||
       !/^\d{6}$/.test(regPin.trim())
     ) {
-      setRegError('กรุณากรอกข้อมูลให้ครบ และตั้งรหัส PIN เป็นตัวเลข 6 หลัก');
+      setRegError('กรุณากรอกข้อมูลให้ครบ (อย่างน้อย 1 รหัสนักเรียน) และตั้งรหัส PIN เป็นตัวเลข 6 หลัก');
       return;
     }
 
@@ -209,11 +274,11 @@ export function LoginScreen({ topInset, onLoginSuccess }: LoginScreenProps) {
       const response = await parentApi.register({
         phone: regPhone,
         fullName: regFullName,
-        studentCode: regStudentCode,
+        studentCodes: cleanedCodes,
         pin: regPin,
       });
       setRegisterVisible(false);
-      onLoginSuccess(response);
+      onLoginSuccess(response, rememberMe);
     } catch (err) {
       setRegError(err instanceof Error ? err.message : 'ไม่สามารถลงทะเบียนได้');
     } finally {
@@ -223,35 +288,38 @@ export function LoginScreen({ topInset, onLoginSuccess }: LoginScreenProps) {
 
   return (
     <View style={styles.screen}>
-      {/* Top Overscroll Navy Fill */}
-      <View style={[styles.topOverscrollBg, { height: topInset + 140 }]} />
-
-      <KeyboardAvoidingView
-        style={styles.flex}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      {/* Fixed Top Royal Blue Hero Banner (stays put while card scrolls) */}
+      <View
+        onLayout={(e) => setHeroHeight(e.nativeEvent.layout.height)}
+        style={[styles.heroHeader, styles.heroHeaderFixed, { paddingTop: topInset + 22 }]}
       >
-        <ScrollView
-          contentContainerStyle={styles.scrollContent}
-          keyboardShouldPersistTaps="handled"
-          showsVerticalScrollIndicator={false}
-        >
-          {/* Top Royal Blue Hero Banner */}
-          <View style={[styles.heroHeader, { paddingTop: topInset + 22 }]}>
-            <View style={styles.heroBlobLeft} pointerEvents="none" />
-            <View style={styles.heroBlobRight} pointerEvents="none" />
-            <CouponWatermark />
-            <SchoolWatermark />
+        <View style={styles.heroBlobLeft} pointerEvents="none" />
+        <View style={styles.heroBlobRight} pointerEvents="none" />
+        <CouponWatermark />
+        <SchoolWatermark />
 
-            <SchoolCrestBadge />
-            <Text style={styles.heroTitle}>School Coupon</Text>
-            <Text style={styles.heroSubtitle}>แอปพลิเคชันสำหรับผู้ปกครอง</Text>
+        <SchoolCrestBadge />
+        <Text style={styles.heroTitle}>School Coupon</Text>
+        <Text style={styles.heroSubtitle}>แอปพลิเคชันสำหรับผู้ปกครอง</Text>
 
-            {/* Decorative pill indicator */}
-            <View style={styles.heroIndicatorRow}>
-              <View style={styles.heroIndicatorActive} />
-              <View style={styles.heroIndicatorMuted} />
-            </View>
-          </View>
+        {/* Decorative pill indicator */}
+        <View style={styles.heroIndicatorRow}>
+          <View style={styles.heroIndicatorActive} />
+          <View style={styles.heroIndicatorMuted} />
+        </View>
+      </View>
+
+      <ScrollView
+        ref={scrollRef}
+        style={styles.cardScrollView}
+        contentContainerStyle={[
+          styles.scrollContent,
+          { paddingTop: Math.max(heroHeight - 24, topInset + 165) },
+          keyboardHeight > 0 && { paddingBottom: keyboardHeight + 36 },
+        ]}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+      >
 
           {/* Main Login Card */}
           <View style={styles.cardWrap}>
@@ -268,7 +336,7 @@ export function LoginScreen({ topInset, onLoginSuccess }: LoginScreenProps) {
 
               {error && (
                 <View style={styles.errorBox}>
-                  <Text style={styles.errorText}>⚠️ {error}</Text>
+                  <Text style={styles.errorText}>{error}</Text>
                 </View>
               )}
 
@@ -277,9 +345,16 @@ export function LoginScreen({ topInset, onLoginSuccess }: LoginScreenProps) {
                 <Text style={styles.label}>เบอร์โทรศัพท์</Text>
               </View>
               <TextInput
-                style={styles.input}
+                style={[styles.input, errorField === 'identifier' && styles.inputError]}
                 value={phone}
-                onChangeText={setPhone}
+                onChangeText={(text) => {
+                  setPhone(text);
+                  if (errorField === 'identifier') {
+                    setErrorField(null);
+                    setError(null);
+                  }
+                }}
+                onFocus={() => scrollToField(75)}
                 keyboardType="phone-pad"
                 autoCapitalize="none"
                 autoCorrect={false}
@@ -292,11 +367,18 @@ export function LoginScreen({ topInset, onLoginSuccess }: LoginScreenProps) {
                 <FieldLabelIcon kind="pin" />
                 <Text style={styles.label}>รหัส PIN (6 หลัก)</Text>
               </View>
-              <View style={styles.pinInputWrap}>
+              <View style={[styles.pinInputWrap, errorField === 'pin' && styles.inputError]}>
                 <TextInput
                   style={styles.pinInput}
                   value={pin}
-                  onChangeText={setPin}
+                  onChangeText={(text) => {
+                    setPin(text);
+                    if (errorField === 'pin') {
+                      setErrorField(null);
+                      setError(null);
+                    }
+                  }}
+                  onFocus={() => scrollToField(160)}
                   keyboardType="number-pad"
                   secureTextEntry={!showPin}
                   placeholder="••••••"
@@ -312,6 +394,19 @@ export function LoginScreen({ topInset, onLoginSuccess }: LoginScreenProps) {
                   <EyeIcon visible={showPin} />
                 </TouchableOpacity>
               </View>
+
+              <TouchableOpacity
+                style={styles.rememberRow}
+                onPress={() => setRememberMe((prev) => !prev)}
+                activeOpacity={0.75}
+                accessibilityRole="checkbox"
+                accessibilityState={{ checked: rememberMe }}
+              >
+                <View style={[styles.rememberBox, rememberMe && styles.rememberBoxChecked]}>
+                  {rememberMe && <Text style={styles.rememberCheck}>✓</Text>}
+                </View>
+                <Text style={styles.rememberText}>จดจำการเข้าสู่ระบบ</Text>
+              </TouchableOpacity>
 
               <TouchableOpacity
                 style={[styles.loginBtn, loading && styles.loginBtnDisabled]}
@@ -341,32 +436,18 @@ export function LoginScreen({ topInset, onLoginSuccess }: LoginScreenProps) {
                 }}
                 onPress={() => {
                   setRegError(null);
+                  setRegStudentCodes(['']);
                   setRegisterVisible(true);
                 }}
                 activeOpacity={0.8}
               >
-                <Text style={{ color: '#1E40AF', fontWeight: '700', fontSize: 14 }}>
+                <Text style={{ color: '#1E40AF', fontFamily: resolveSarabunFont('700'), fontSize: 14 }}>
                   ลงทะเบียนผู้ปกครองใหม่
                 </Text>
               </TouchableOpacity>
             </View>
           </View>
-
-          {/* Server URL Settings Trigger */}
-          <TouchableOpacity
-            style={styles.serverLinkBtn}
-            onPress={() => {
-              setBaseUrlInput(parentApi.getBaseUrl());
-              setSettingsVisible(true);
-            }}
-            activeOpacity={0.7}
-          >
-            <Text style={styles.serverLinkText}>
-              ⚙ ตั้งค่า Server URL ({parentApi.getBaseUrl()})
-            </Text>
-          </TouchableOpacity>
         </ScrollView>
-      </KeyboardAvoidingView>
 
       {/* Register Modal */}
       <Modal
@@ -375,16 +456,24 @@ export function LoginScreen({ topInset, onLoginSuccess }: LoginScreenProps) {
         animationType="fade"
         onRequestClose={() => setRegisterVisible(false)}
       >
-        <View style={styles.modalBackdrop}>
-          <View style={styles.modalCard}>
+        <KeyboardAvoidingView
+          style={styles.modalBackdrop}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        >
+          <ScrollView
+            contentContainerStyle={{ flexGrow: 1, justifyContent: 'center' }}
+            keyboardShouldPersistTaps="handled"
+            showsVerticalScrollIndicator={false}
+          >
+            <View style={styles.modalCard}>
             <Text style={styles.modalTitle}>ลงทะเบียนผู้ปกครองใหม่</Text>
-            <Text style={{ fontSize: 13, color: '#64748B', marginBottom: 12 }}>
+            <Text style={{ fontSize: 13, color: '#64748B', fontFamily: resolveSarabunFont('400'), marginBottom: 12 }}>
               กรอกเบอร์โทรศัพท์ ชื่อผู้ปกครอง รหัสนักเรียน และตั้งรหัส PIN 6 หลัก
             </Text>
 
             {regError && (
               <View style={[styles.errorBox, { marginBottom: 12 }]}>
-                <Text style={styles.errorText}>⚠️ {regError}</Text>
+                <Text style={styles.errorText}>{regError}</Text>
               </View>
             )}
 
@@ -407,17 +496,56 @@ export function LoginScreen({ topInset, onLoginSuccess }: LoginScreenProps) {
               placeholderTextColor="#94A3B8"
             />
 
-            <Text style={styles.modalLabel}>รหัสนักเรียน (เช่น STD-1001)</Text>
-            <TextInput
-              style={[styles.modalInput, { marginBottom: 10 }]}
-              value={regStudentCode}
-              onChangeText={setRegStudentCode}
-              autoCapitalize="characters"
-              placeholder="STD-1001"
-              placeholderTextColor="#94A3B8"
-            />
+            <View style={styles.regStudentHeaderRow}>
+              <Text style={[styles.modalLabel, { marginBottom: 0 }]}>
+                รหัสนักเรียน (เพิ่มได้หลายคน)
+              </Text>
+              <TouchableOpacity
+                style={styles.addChildBtn}
+                onPress={() => setRegStudentCodes((prev) => [...prev, ''])}
+                disabled={regLoading}
+                activeOpacity={0.75}
+              >
+                <Text style={styles.addChildBtnText}>+ เพิ่มลูก</Text>
+              </TouchableOpacity>
+            </View>
 
-            <Text style={styles.modalLabel}>ตั้งรหัส PIN (6 หลัก)</Text>
+            {regStudentCodes.map((codeValue, index) => (
+              <View key={index} style={styles.regStudentRow}>
+                <TextInput
+                  style={[styles.modalInput, styles.regStudentInput]}
+                  value={codeValue}
+                  onChangeText={(text) =>
+                    setRegStudentCodes((prev) =>
+                      prev.map((item, idx) => (idx === index ? text : item)),
+                    )
+                  }
+                  autoCapitalize="characters"
+                  placeholder={
+                    index === 0
+                      ? 'รหัสคนที่ 1 (เช่น STD-1001)'
+                      : `รหัสคนที่ ${index + 1} (เช่น STD-1002)`
+                  }
+                  placeholderTextColor="#94A3B8"
+                />
+                {regStudentCodes.length > 1 && (
+                  <TouchableOpacity
+                    style={styles.removeChildBtn}
+                    onPress={() =>
+                      setRegStudentCodes((prev) =>
+                        prev.filter((_, idx) => idx !== index),
+                      )
+                    }
+                    disabled={regLoading}
+                    activeOpacity={0.75}
+                  >
+                    <Text style={styles.removeChildBtnText}>✕</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+            ))}
+
+            <Text style={[styles.modalLabel, { marginTop: 4 }]}>ตั้งรหัส PIN (6 หลัก)</Text>
             <TextInput
               style={[styles.modalInput, { marginBottom: 14 }]}
               value={regPin}
@@ -438,61 +566,20 @@ export function LoginScreen({ topInset, onLoginSuccess }: LoginScreenProps) {
                 <Text style={styles.modalCancelText}>ยกเลิก</Text>
               </TouchableOpacity>
               <TouchableOpacity
-                style={styles.modalSaveBtn}
+                style={styles.modalConfirmBtn}
                 onPress={() => void submitRegister()}
                 disabled={regLoading}
               >
                 {regLoading ? (
                   <ActivityIndicator color="#FFFFFF" />
                 ) : (
-                  <Text style={styles.modalSaveText}>ยืนยันลงทะเบียน</Text>
+                  <Text style={styles.modalConfirmText}>ยืนยันลงทะเบียน</Text>
                 )}
               </TouchableOpacity>
             </View>
           </View>
-        </View>
-      </Modal>
-
-      {/* Server URL Modal */}
-      <Modal
-        visible={settingsVisible}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setSettingsVisible(false)}
-      >
-        <View style={styles.modalBackdrop}>
-          <View style={styles.modalCard}>
-            <Text style={styles.modalTitle}>ตั้งค่าการเชื่อมต่อ Server</Text>
-            <Text style={styles.modalLabel}>Server Base URL (Backend)</Text>
-            <TextInput
-              style={styles.modalInput}
-              value={baseUrlInput}
-              onChangeText={setBaseUrlInput}
-              autoCapitalize="none"
-              autoCorrect={false}
-              placeholder="http://192.168.1.53"
-            />
-            <View style={styles.modalActionsRow}>
-              <TouchableOpacity
-                style={styles.modalCancelBtn}
-                onPress={() => setSettingsVisible(false)}
-              >
-                <Text style={styles.modalCancelText}>ยกเลิก</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.modalConfirmBtn}
-                onPress={() => {
-                  if (baseUrlInput.trim()) {
-                    parentApi.setBaseUrl(baseUrlInput.trim());
-                  }
-                  setSettingsVisible(false);
-                }}
-              >
-                <Text style={styles.modalConfirmText}>บันทึก</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
+          </ScrollView>
+        </KeyboardAvoidingView>
       </Modal>
     </View>
   );
@@ -504,12 +591,16 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#EAF2FF',
   },
-  topOverscrollBg: {
+  heroHeaderFixed: {
     position: 'absolute',
     top: 0,
     left: 0,
     right: 0,
-    backgroundColor: '#123E99',
+    zIndex: 1,
+  },
+  cardScrollView: {
+    flex: 1,
+    zIndex: 2,
   },
   scrollContent: {
     flexGrow: 1,
@@ -781,7 +872,6 @@ const styles = StyleSheet.create({
   },
   cardWrap: {
     paddingHorizontal: 18,
-    marginTop: -24,
   },
   card: {
     backgroundColor: '#FFFFFF',
@@ -1028,6 +1118,11 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     paddingRight: 10,
   },
+  inputError: {
+    borderWidth: 1.5,
+    borderColor: '#EF4444',
+    backgroundColor: '#FEF2F2',
+  },
   pinInput: {
     flex: 1,
     paddingHorizontal: 15,
@@ -1088,13 +1183,44 @@ const styles = StyleSheet.create({
     backgroundColor: '#5F75A6',
     transform: [{ rotate: '-35deg' }],
   },
+  rememberRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginTop: 14,
+  },
+  rememberBox: {
+    width: 20,
+    height: 20,
+    borderRadius: 6,
+    borderWidth: 1.5,
+    borderColor: '#94A3B8',
+    backgroundColor: '#F8FAFC',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  rememberBoxChecked: {
+    borderColor: '#1D63ED',
+    backgroundColor: '#1D63ED',
+  },
+  rememberCheck: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: '800',
+    lineHeight: 14,
+  },
+  rememberText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#334155',
+  },
   loginBtn: {
     backgroundColor: '#1D63ED',
     borderRadius: 15,
     paddingVertical: 15,
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: 22,
+    marginTop: 16,
     shadowColor: '#1D63ED',
     shadowOffset: { width: 0, height: 5 },
     shadowOpacity: 0.28,
@@ -1121,16 +1247,6 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     lineHeight: 22,
     marginTop: -1,
-  },
-  serverLinkBtn: {
-    marginTop: 22,
-    alignItems: 'center',
-    paddingVertical: 8,
-  },
-  serverLinkText: {
-    fontSize: 12.5,
-    color: '#475569',
-    fontWeight: '600',
   },
   modalBackdrop: {
     flex: 1,
@@ -1182,12 +1298,60 @@ const styles = StyleSheet.create({
   },
   modalConfirmBtn: {
     paddingHorizontal: 18,
-    paddingVertical: 9,
+    paddingVertical: 10,
     borderRadius: 10,
     backgroundColor: '#1D63ED',
+    borderWidth: 1.5,
+    borderColor: '#1E40AF',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   modalConfirmText: {
     color: '#FFFFFF',
     fontWeight: '700',
+    fontSize: 14,
+  },
+  regStudentHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 6,
+  },
+  addChildBtn: {
+    backgroundColor: '#EFF6FF',
+    borderWidth: 1,
+    borderColor: '#2563EB',
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+  },
+  addChildBtnText: {
+    color: '#1D4ED8',
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  regStudentRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 8,
+  },
+  regStudentInput: {
+    flex: 1,
+  },
+  removeChildBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    backgroundColor: '#FEF2F2',
+    borderWidth: 1,
+    borderColor: '#FECACA',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  removeChildBtnText: {
+    color: '#DC2626',
+    fontSize: 13,
+    fontWeight: '800',
   },
 });

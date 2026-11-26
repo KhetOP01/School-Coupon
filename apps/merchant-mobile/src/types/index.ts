@@ -2,7 +2,6 @@ export interface MerchantProfile {
   id: number;
   merchantCode: string;
   name: string;
-  feePercent: string;
 }
 
 export interface PaymentRequest {
@@ -43,7 +42,6 @@ export interface VoidResponse {
 export interface DailySummary {
   date: string;
   grossSales: string;
-  feeAmount: string;
   netAmount: string;
   totalTransactions: number;
 }

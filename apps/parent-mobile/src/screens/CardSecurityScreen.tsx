@@ -10,13 +10,17 @@ import {
   View,
 } from 'react-native';
 import { parentApi } from '../api/parent-api';
+import { HeaderRightActions } from '../components/HeaderRightActions';
 import { StudentProfile } from '../types';
 
 interface CardSecurityScreenProps {
   student: StudentProfile;
+  students?: StudentProfile[];
   topInset?: number;
+  onSelectStudent?: (studentId: number) => void;
   onSuccess: (newStatus: 'lost') => void;
   onBack?: () => void;
+  onLogout?: () => void;
 }
 
 function CardChipIcon() {
@@ -30,8 +34,11 @@ function CardChipIcon() {
 
 export function CardSecurityScreen({
   student,
+  students,
   topInset = 0,
+  onSelectStudent,
   onSuccess,
+  onLogout,
 }: CardSecurityScreenProps) {
   const [loading, setLoading] = useState(false);
   const [noteModalVisible, setNoteModalVisible] = useState(false);
@@ -76,10 +83,20 @@ export function CardSecurityScreen({
     <View style={styles.screen}>
       {/* Top Royal Blue Rounded Header (matching HomeScreen) */}
       <View style={[styles.topHeader, { paddingTop: topInset + 10 }]}>
-        <Text style={styles.headerTitle}>จัดการบัตร RFID</Text>
-        <Text style={styles.headerSubtitle}>
-          ความปลอดภัยของบัตร {student.firstName} {student.lastName} ({student.studentCode})
-        </Text>
+        <View style={styles.headerRow}>
+          <View style={styles.headerTextCol}>
+            <Text style={styles.headerTitle}>จัดการบัตร RFID</Text>
+            <Text style={styles.headerSubtitle}>
+              ความปลอดภัยของบัตร {student.firstName} {student.lastName} ({student.studentCode})
+            </Text>
+          </View>
+          <HeaderRightActions
+            student={student}
+            students={students}
+            onSelectStudent={onSelectStudent}
+            onLogout={onLogout}
+          />
+        </View>
       </View>
 
       <ScrollView
@@ -235,6 +252,15 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.18,
     shadowRadius: 6,
     elevation: 5,
+  },
+  headerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 10,
+  },
+  headerTextCol: {
+    flex: 1,
   },
   headerTitle: {
     color: '#FFFFFF',

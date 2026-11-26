@@ -1,13 +1,22 @@
-import React, { useState } from 'react';
+import { SARABUN_FONTS } from './theme/sarabun';
+import React, { useEffect, useState } from 'react';
 import { registerRootComponent } from 'expo';
-import { Platform, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { useFonts } from 'expo-font';
+import { ActivityIndicator, Platform, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { HomeScreen } from './screens/HomeScreen';
 import { TopUpScreen } from './screens/TopUpScreen';
 import { DailyLimitScreen } from './screens/DailyLimitScreen';
 import { CardSecurityScreen } from './screens/CardSecurityScreen';
+import { SpendingHistoryScreen } from './screens/SpendingHistoryScreen';
 import { LoginScreen } from './screens/LoginScreen';
 import { parentApi } from './api/parent-api';
+import {
+  clearRememberedParentAuth,
+  clearRememberedParentSessionOnly,
+  loadRememberedParentAuth,
+  saveRememberedParentAuth,
+} from './auth/parent-auth-storage';
 import { ParentLoginResponse, ParentUser, StudentProfile } from './types';
 
 const INITIAL_STUDENTS: StudentProfile[] = [
@@ -83,8 +92,8 @@ const INITIAL_STUDENTS: StudentProfile[] = [
   },
 ];
 
-type ScreenType = 'home' | 'topup' | 'dailylimit' | 'card';
-type NavTab = 'home' | 'dailylimit' | 'card';
+type ScreenType = 'home' | 'history' | 'topup' | 'dailylimit' | 'card';
+type NavTab = 'home' | 'history' | 'dailylimit' | 'card';
 
 function ParentNavIcon({ tab, active }: { tab: NavTab; active: boolean }) {
   const color = active ? '#1E64EE' : '#6B7A99';
@@ -96,6 +105,18 @@ function ParentNavIcon({ tab, active }: { tab: NavTab; active: boolean }) {
           <View style={styles.walletNavFlap}>
             <View style={styles.walletNavDot} />
           </View>
+        </View>
+      </View>
+    );
+  }
+
+  if (tab === 'history') {
+    return (
+      <View style={styles.navIconWrap}>
+        <View style={[styles.historyNavDoc, { borderColor: color }]}>
+          <View style={[styles.historyNavLine, { backgroundColor: color }]} />
+          <View style={[styles.historyNavLineShort, { backgroundColor: color }]} />
+          <View style={[styles.historyNavLine, { backgroundColor: color }]} />
         </View>
       </View>
     );
@@ -132,26 +153,140 @@ function ParentApp() {
   const bottomInset = Math.max(insets.bottom, 10);
 
   const [parent, setParent] = useState<ParentUser | null>(null);
+  const [hydratingSession, setHydratingSession] = useState<boolean>(true);
   const [currentScreen, setCurrentScreen] = useState<ScreenType>('home');
   const [students, setStudents] = useState<StudentProfile[]>(INITIAL_STUDENTS);
   const [selectedStudentId, setSelectedStudentId] = useState<number>(1);
 
   const student = students.find((s) => s.id === selectedStudentId) ?? students[0];
 
-  function handleLoginSuccess(session: ParentLoginResponse) {
+  useEffect(() => {
+    let cancelled = false;
+
+    async function restoreSession() {
+      try {
+        const saved = await loadRememberedParentAuth();
+        if (!saved?.rememberMe || !saved.session?.token) {
+          return;
+        }
+
+        const cachedSession = saved.session;
+        parentApi.setSession(cachedSession.token, cachedSession.parent.id);
+
+        try {
+          const fresh = await parentApi.getMe();
+          if (cancelled) return;
+          const nextStudents =
+            fresh.students.length > 0 ? fresh.students : INITIAL_STUDENTS;
+          const preferredId =
+            saved.selectedStudentId &&
+            nextStudents.some((s) => s.id === saved.selectedStudentId)
+              ? saved.selectedStudentId
+              : nextStudents[0].id;
+          const updatedSession: ParentLoginResponse = {
+            token: cachedSession.token,
+            parent: fresh.parent,
+            students: fresh.students,
+          };
+          setParent(fresh.parent);
+          setStudents(nextStudents);
+          setSelectedStudentId(preferredId);
+          await saveRememberedParentAuth({
+            rememberMe: true,
+            phone: fresh.parent.phone,
+            session: updatedSession,
+            selectedStudentId: preferredId,
+          });
+        } catch (err) {
+          if (cancelled) return;
+          const status =
+            err && typeof err === 'object' && 'status' in err
+              ? Number((err as { status?: number }).status)
+              : undefined;
+          if (status === 401 || status === 403) {
+            parentApi.logout();
+            await clearRememberedParentSessionOnly();
+          } else {
+            const nextStudents =
+              cachedSession.students.length > 0
+                ? cachedSession.students
+                : INITIAL_STUDENTS;
+            const preferredId =
+              saved.selectedStudentId &&
+              nextStudents.some((s) => s.id === saved.selectedStudentId)
+                ? saved.selectedStudentId
+                : nextStudents[0].id;
+            setParent(cachedSession.parent);
+            setStudents(nextStudents);
+            setSelectedStudentId(preferredId);
+          }
+        }
+      } finally {
+        if (!cancelled) {
+          setHydratingSession(false);
+        }
+      }
+    }
+
+    void restoreSession();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  function handleSelectStudent(id: number) {
+    setSelectedStudentId(id);
+    void loadRememberedParentAuth().then((saved) => {
+      if (saved?.rememberMe && saved.session) {
+        return saveRememberedParentAuth({
+          ...saved,
+          selectedStudentId: id,
+        });
+      }
+      return undefined;
+    });
+  }
+
+  function handleLoginSuccess(session: ParentLoginResponse, rememberMe = false) {
     setParent(session.parent);
     const nextStudents = session.students.length > 0 ? session.students : INITIAL_STUDENTS;
     setStudents(nextStudents);
-    setSelectedStudentId(nextStudents[0].id);
+    const firstId = nextStudents[0].id;
+    setSelectedStudentId(firstId);
     setCurrentScreen('home');
+    if (rememberMe) {
+      void saveRememberedParentAuth({
+        rememberMe: true,
+        phone: session.parent.phone,
+        session,
+        selectedStudentId: firstId,
+      });
+    } else {
+      void clearRememberedParentAuth();
+    }
   }
 
   function handleLogout() {
     parentApi.logout();
+    void clearRememberedParentSessionOnly();
     setParent(null);
     setStudents(INITIAL_STUDENTS);
     setSelectedStudentId(1);
     setCurrentScreen('home');
+  }
+
+  if (hydratingSession) {
+    return (
+      <View
+        style={[
+          styles.root,
+          { backgroundColor: '#EEF4FF', alignItems: 'center', justifyContent: 'center' },
+        ]}
+      >
+        <StatusBar barStyle="dark-content" />
+        <ActivityIndicator size="large" color="#1D63ED" />
+      </View>
+    );
   }
 
   if (!parent) {
@@ -171,7 +306,10 @@ function ParentApp() {
 
   const showBottomNav = currentScreen !== 'topup';
   const usesBlueHeader =
-    currentScreen === 'home' || currentScreen === 'dailylimit' || currentScreen === 'card';
+    currentScreen === 'home' ||
+    currentScreen === 'history' ||
+    currentScreen === 'dailylimit' ||
+    currentScreen === 'card';
 
   return (
     <View
@@ -191,7 +329,7 @@ function ParentApp() {
             student={student}
             students={students}
             topInset={topInset}
-            onSelectStudent={(id) => setSelectedStudentId(id)}
+            onSelectStudent={handleSelectStudent}
             onBalanceUpdated={(newBalance) =>
               updateStudent((prev) => ({ ...prev, walletBalance: newBalance }))
             }
@@ -199,33 +337,51 @@ function ParentApp() {
           />
         )}
 
+        {currentScreen === 'history' && (
+          <SpendingHistoryScreen
+            student={student}
+            students={students}
+            topInset={topInset}
+            onSelectStudent={handleSelectStudent}
+            onLogout={handleLogout}
+          />
+        )}
+
         {currentScreen === 'topup' && (
           <TopUpScreen
             student={student}
+            students={students}
+            onSelectStudent={handleSelectStudent}
             onSuccess={(newBalance) => {
               updateStudent((prev) => ({ ...prev, walletBalance: newBalance }));
               setCurrentScreen('home');
             }}
             onBack={() => setCurrentScreen('home')}
+            onLogout={handleLogout}
           />
         )}
 
         {currentScreen === 'dailylimit' && (
           <DailyLimitScreen
             student={student}
+            students={students}
             topInset={topInset}
+            onSelectStudent={handleSelectStudent}
             onSuccess={(newNextLimit) => {
               updateStudent((prev) => ({ ...prev, nextDailyLimit: newNextLimit }));
               setCurrentScreen('home');
             }}
             onBack={() => setCurrentScreen('home')}
+            onLogout={handleLogout}
           />
         )}
 
         {currentScreen === 'card' && (
           <CardSecurityScreen
             student={student}
+            students={students}
             topInset={topInset}
+            onSelectStudent={handleSelectStudent}
             onSuccess={(newStatus) => {
               updateStudent((prev) => ({
                 ...prev,
@@ -234,6 +390,7 @@ function ParentApp() {
               setCurrentScreen('home');
             }}
             onBack={() => setCurrentScreen('home')}
+            onLogout={handleLogout}
           />
         )}
       </View>
@@ -243,6 +400,7 @@ function ParentApp() {
           {(
             [
               { id: 'home', label: 'เติมเงินคูปอง' },
+              { id: 'history', label: 'ประวัติใช้จ่าย' },
               { id: 'dailylimit', label: 'วงเงินรายวัน' },
               { id: 'card', label: 'บัตร RFID' },
             ] as const
@@ -270,6 +428,23 @@ function ParentApp() {
 }
 
 export default function App() {
+  const [fontsLoaded, fontError] = useFonts(SARABUN_FONTS);
+
+  if (!fontsLoaded && !fontError) {
+    return (
+      <View
+        style={{
+          flex: 1,
+          backgroundColor: '#EEF4FF',
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}
+      >
+        <ActivityIndicator size="large" color="#1D63ED" />
+      </View>
+    );
+  }
+
   return (
     <SafeAreaProvider>
       <ParentApp />
@@ -331,6 +506,25 @@ const styles = StyleSheet.create({
     height: 3,
     borderRadius: 1.5,
     backgroundColor: '#FFFFFF',
+  },
+  historyNavDoc: {
+    width: 18,
+    height: 20,
+    borderRadius: 3.5,
+    borderWidth: 2,
+    justifyContent: 'center',
+    paddingHorizontal: 2.5,
+    gap: 2.5,
+  },
+  historyNavLine: {
+    width: '100%',
+    height: 2,
+    borderRadius: 1,
+  },
+  historyNavLineShort: {
+    width: '68%',
+    height: 2,
+    borderRadius: 1,
   },
   limitOuterRing: {
     width: 20,

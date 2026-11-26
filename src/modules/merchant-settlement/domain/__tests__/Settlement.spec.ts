@@ -4,48 +4,41 @@ import { Settlement } from '../Settlement';
 describe('Settlement Aggregate Root', () => {
   const now = new Date('2026-11-10T23:59:59.000Z');
 
-  it('AC7.1: calculates fee and net amount correctly for a settlement', () => {
-    // Gross: 1000.00, Fee: 2.50% -> Fee amount = 25.00, Net = 975.00
+  it('AC7.1: sets net amount equal to gross amount without fee deduction', () => {
     const settlement = Settlement.create({
       merchantId: 101,
       settlementDate: '2026-11-10',
       grossAmount: '1000.00',
-      feePercent: '2.50',
       createdAt: now,
     });
 
     expect(settlement.merchantId).toBe(101);
     expect(settlement.settlementDate).toBe('2026-11-10');
     expect(settlement.grossAmount).toBe('1000.00');
-    expect(settlement.feeAmount).toBe('25.00');
-    expect(settlement.netAmount).toBe('975.00');
+    expect(settlement.netAmount).toBe('1000.00');
     expect(settlement.status).toBe('PENDING_APPROVAL');
     expect(settlement.approvedBy).toBeNull();
     expect(settlement.approvedAt).toBeNull();
   });
 
-  it('AC7.1: handles rounding correctly when fee has fractions of a cent', () => {
-    // Gross: 35.00, Fee: 2.00% -> Fee amount = 0.70, Net = 34.30
+  it('AC7.1: preserves exact gross cents formatting on settlement creation', () => {
     const s1 = Settlement.create({
       merchantId: 102,
       settlementDate: '2026-11-10',
       grossAmount: '35.00',
-      feePercent: '2.00',
       createdAt: now,
     });
-    expect(s1.feeAmount).toBe('0.70');
-    expect(s1.netAmount).toBe('34.30');
+    expect(s1.grossAmount).toBe('35.00');
+    expect(s1.netAmount).toBe('35.00');
 
-    // Gross: 33.33, Fee: 2.50% -> 33.33 * 0.025 = 0.83325 -> 0.83, Net = 32.50
     const s2 = Settlement.create({
       merchantId: 102,
       settlementDate: '2026-11-10',
       grossAmount: '33.33',
-      feePercent: '2.50',
       createdAt: now,
     });
-    expect(s2.feeAmount).toBe('0.83');
-    expect(s2.netAmount).toBe('32.50');
+    expect(s2.grossAmount).toBe('33.33');
+    expect(s2.netAmount).toBe('33.33');
   });
 
   it('AC7.2: approves a pending settlement', () => {
@@ -53,7 +46,6 @@ describe('Settlement Aggregate Root', () => {
       merchantId: 101,
       settlementDate: '2026-11-10',
       grossAmount: '500.00',
-      feePercent: '2.00',
       createdAt: now,
     });
 
@@ -71,8 +63,7 @@ describe('Settlement Aggregate Root', () => {
       merchantId: 101,
       settlementDate: '2026-11-10',
       grossAmount: '500.00',
-      feeAmount: '10.00',
-      netAmount: '490.00',
+      netAmount: '500.00',
       status: 'PAID',
       approvedBy: 'staff-001',
       approvedAt: now,
@@ -92,7 +83,6 @@ describe('Settlement Aggregate Root', () => {
       merchantId: 101,
       settlementDate: '2026-11-10',
       grossAmount: '500.00',
-      feePercent: '2.00',
       createdAt: now,
     });
 

@@ -13,7 +13,7 @@ import {
   Post,
   UnauthorizedException,
 } from '@nestjs/common';
-import { IsNotEmpty, IsString } from 'class-validator';
+import { IsArray, IsNotEmpty, IsOptional, IsString } from 'class-validator';
 import { PostgresDatabase } from '../../../../shared/postgres-database';
 import {
   hashPin,
@@ -45,9 +45,14 @@ class ParentRegisterDto {
   @IsNotEmpty()
   pin!: string;
 
+  @IsOptional()
   @IsString()
-  @IsNotEmpty()
-  studentCode!: string;
+  studentCode?: string;
+
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  studentCodes?: string[];
 }
 
 interface ParentRow {
@@ -92,10 +97,17 @@ export class ParentAuthController {
     );
 
     const parent = parentResult.rows[0];
-    if (!parent || !verifyPin(pin, parent.pin_hash)) {
+    if (!parent) {
       throw new UnauthorizedException({
-        code: 'INVALID_CREDENTIALS',
-        message: 'เบอร์โทรศัพท์หรือรหัส PIN ไม่ถูกต้อง',
+        code: 'INVALID_PHONE',
+        message: 'เบอร์โทรศัพท์ไม่ถูกต้อง (ไม่พบเบอร์นี้ในระบบ)',
+      });
+    }
+
+    if (!verifyPin(pin, parent.pin_hash)) {
+      throw new UnauthorizedException({
+        code: 'INVALID_PIN',
+        message: 'รหัส PIN ไม่ถูกต้อง',
       });
     }
 
@@ -130,9 +142,21 @@ export class ParentAuthController {
     const phone = dto.phone.trim();
     const fullName = dto.fullName.trim();
     const pin = dto.pin.trim();
-    const studentCode = dto.studentCode.trim();
 
-    if (!phone || !fullName || !studentCode || !/^\d{6}$/.test(pin)) {
+    const rawCodes = [
+      ...(dto.studentCodes ?? []),
+      ...(dto.studentCode ? [dto.studentCode] : []),
+    ];
+    const uniqueByLower = new Map<string, string>();
+    for (const raw of rawCodes) {
+      const cleaned = raw.trim();
+      if (cleaned && !uniqueByLower.has(cleaned.toLowerCase())) {
+        uniqueByLower.set(cleaned.toLowerCase(), cleaned);
+      }
+    }
+    const normalizedCodes = Array.from(uniqueByLower.values());
+
+    if (!phone || !fullName || normalizedCodes.length === 0 || !/^\d{6}$/.test(pin)) {
       throw new BadRequestException({
         code: 'INVALID_REQUEST',
         message: 'กรุณากรอกข้อมูลให้ครบถ้วน และตั้งรหัส PIN เป็นตัวเลข 6 หลัก',
@@ -155,15 +179,22 @@ export class ParentAuthController {
         });
       }
 
-      const studentResult = await client.query<{ id: number }>(
-        'SELECT id FROM students WHERE LOWER(student_code) = LOWER($1)',
-        [studentCode],
+      const lowerCodes = normalizedCodes.map((c) => c.toLowerCase());
+      const studentsResult = await client.query<{ id: number; student_code: string }>(
+        'SELECT id, student_code FROM students WHERE LOWER(student_code) = ANY($1)',
+        [lowerCodes],
       );
-      const student = studentResult.rows[0];
-      if (!student) {
+      const foundByLower = new Map<string, { id: number; student_code: string }>();
+      for (const row of studentsResult.rows) {
+        foundByLower.set(row.student_code.toLowerCase(), row);
+      }
+      const missingCodes = normalizedCodes.filter(
+        (code) => !foundByLower.has(code.toLowerCase()),
+      );
+      if (missingCodes.length > 0) {
         throw new NotFoundException({
           code: 'STUDENT_NOT_FOUND',
-          message: 'ไม่พบรหัสนักเรียนนี้ในระบบ กรุณาตรวจสอบกับโรงเรียน',
+          message: `ไม่พบรหัสนักเรียนในระบบ: ${missingCodes.join(', ')} กรุณาตรวจสอบกับโรงเรียน`,
         });
       }
 
@@ -179,11 +210,14 @@ export class ParentAuthController {
       );
       createdParent = insertParent.rows[0];
 
-      await client.query(
-        `INSERT INTO parent_students (parent_id, student_id, relationship)
-         VALUES ($1, $2, 'guardian')`,
-        [createdParent.id, student.id],
-      );
+      for (const student of foundByLower.values()) {
+        await client.query(
+          `INSERT INTO parent_students (parent_id, student_id, relationship)
+           VALUES ($1, $2, 'guardian')
+           ON CONFLICT (parent_id, student_id) DO NOTHING`,
+          [createdParent.id, student.id],
+        );
+      }
 
       await client.query('COMMIT');
     } catch (error) {

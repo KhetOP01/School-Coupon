@@ -205,10 +205,10 @@ ON CONFLICT (student_code) DO NOTHING;
 SELECT setval(pg_get_serial_sequence('students', 'id'), GREATEST((SELECT MAX(id) FROM students), 1), TRUE);
 
 -- UC-05 Seed Data
-INSERT INTO merchants (id, merchant_code, name, fee_percent, status)
+INSERT INTO merchants (id, merchant_code, name, status)
 VALUES
-  (501, 'M-501', 'Noodle Shop', 2.00, 'active'),
-  (502, 'M-502', 'Suspended Shop', 2.00, 'suspended')
+  (501, 'M-501', 'Noodle Shop', 'active'),
+  (502, 'M-502', 'Suspended Shop', 'suspended')
 ON CONFLICT (merchant_code) DO NOTHING;
 
 INSERT INTO students (id, student_code, first_name, last_name, wallet_balance, current_daily_limit, next_daily_limit)
@@ -236,18 +236,18 @@ SELECT setval(pg_get_serial_sequence('students', 'id'), GREATEST((SELECT MAX(id)
 SELECT setval(pg_get_serial_sequence('rfid_cards', 'id'), GREATEST((SELECT MAX(id) FROM rfid_cards), 1), TRUE);
 
 -- UC-07 Seed Data
-INSERT INTO merchants (id, merchant_code, name, fee_percent, status)
+INSERT INTO merchants (id, merchant_code, name, status)
 VALUES
-  (701, 'M-701', 'Juice Shop', 2.50, 'active'),
-  (702, 'M-702', 'Bakery', 3.00, 'active'),
-  (703, 'M-703', 'Book Stall', 1.50, 'active')
+  (701, 'M-701', 'Juice Shop', 'active'),
+  (702, 'M-702', 'Bakery', 'active'),
+  (703, 'M-703', 'Book Stall', 'active')
 ON CONFLICT (merchant_code) DO NOTHING;
 
-INSERT INTO settlements (id, merchant_id, settlement_date, gross_amount, fee_amount, net_amount, status, approved_by, approved_at)
+INSERT INTO settlements (id, merchant_id, settlement_date, gross_amount, net_amount, status, approved_by, approved_at)
 VALUES
-  (701, 701, CURRENT_DATE, 100.00, 2.50, 97.50, 'PENDING_APPROVAL', NULL, NULL),
-  (702, 702, CURRENT_DATE, 200.00, 6.00, 194.00, 'APPROVED', 'staff-admin', now()),
-  (703, 703, CURRENT_DATE, 50.00, 0.75, 49.25, 'PAID', 'staff-admin', now())
+  (701, 701, CURRENT_DATE, 100.00, 100.00, 'PENDING_APPROVAL', NULL, NULL),
+  (702, 702, CURRENT_DATE, 200.00, 200.00, 'APPROVED', 'staff-admin', now()),
+  (703, 703, CURRENT_DATE, 50.00, 50.00, 'PAID', 'staff-admin', now())
 ON CONFLICT (merchant_id, settlement_date) DO NOTHING;
 
 SELECT setval(pg_get_serial_sequence('merchants', 'id'), GREATEST((SELECT MAX(id) FROM merchants), 1), TRUE);
@@ -255,10 +255,10 @@ SELECT setval(pg_get_serial_sequence('settlements', 'id'), GREATEST((SELECT MAX(
 
 
 -- UC-06 Seed Data
-INSERT INTO merchants (id, merchant_code, name, fee_percent, status)
+INSERT INTO merchants (id, merchant_code, name, status)
 VALUES
-  (601, 'M-601', 'Drink Stall', 2.00, 'active'),
-  (602, 'M-602', 'Other Stall', 2.00, 'active')
+  (601, 'M-601', 'Drink Stall', 'active'),
+  (602, 'M-602', 'Other Stall', 'active')
 ON CONFLICT (merchant_code) DO NOTHING;
 
 INSERT INTO students (id, student_code, first_name, last_name, wallet_balance, current_daily_limit, next_daily_limit)
@@ -299,26 +299,26 @@ SELECT setval(pg_get_serial_sequence('students', 'id'), GREATEST((SELECT MAX(id)
 SELECT setval(pg_get_serial_sequence('rfid_cards', 'id'), GREATEST((SELECT MAX(id) FROM rfid_cards), 1), TRUE);
 
 -- UC-07 Seed Data
-INSERT INTO merchants (id, merchant_code, name, fee_percent, status)
+INSERT INTO merchants (id, merchant_code, name, status)
 VALUES
-  (701, 'M-701', 'Juice Shop', 2.50, 'active'),
-  (702, 'M-702', 'Bakery', 3.00, 'active'),
-  (703, 'M-703', 'Book Stall', 1.50, 'active')
+  (701, 'M-701', 'Juice Shop', 'active'),
+  (702, 'M-702', 'Bakery', 'active'),
+  (703, 'M-703', 'Book Stall', 'active')
 ON CONFLICT (merchant_code) DO NOTHING;
 
-INSERT INTO settlements (id, merchant_id, settlement_date, gross_amount, fee_amount, net_amount, status, approved_by, approved_at)
+INSERT INTO settlements (id, merchant_id, settlement_date, gross_amount, net_amount, status, approved_by, approved_at)
 VALUES
-  (701, 701, CURRENT_DATE, 100.00, 2.50, 97.50, 'PENDING_APPROVAL', NULL, NULL),
-  (702, 702, CURRENT_DATE, 200.00, 6.00, 194.00, 'APPROVED', 'staff-admin', now()),
-  (703, 703, CURRENT_DATE, 50.00, 0.75, 49.25, 'PAID', 'staff-admin', now())
+  (701, 701, CURRENT_DATE, 100.00, 100.00, 'PENDING_APPROVAL', NULL, NULL),
+  (702, 702, CURRENT_DATE, 200.00, 200.00, 'APPROVED', 'staff-admin', now()),
+  (703, 703, CURRENT_DATE, 50.00, 50.00, 'PAID', 'staff-admin', now())
 ON CONFLICT (merchant_id, settlement_date) DO NOTHING;
 
 SELECT setval(pg_get_serial_sequence('merchants', 'id'), GREATEST((SELECT MAX(id) FROM merchants), 1), TRUE);
 SELECT setval(pg_get_serial_sequence('settlements', 'id'), GREATEST((SELECT MAX(id) FROM settlements), 1), TRUE);
 
 -- Realistic Demo / Mobile App Seed Data (Merchant #1 + 5 Students with Real RFID UIDs)
-INSERT INTO merchants (id, merchant_code, name, fee_percent, status)
-VALUES (1, 'M-001', 'Pa Daeng Rice Shop', 2.00, 'active')
+INSERT INTO merchants (id, merchant_code, name, status)
+VALUES (1, 'M-001', 'Pa Daeng Rice Shop', 'active')
 ON CONFLICT (merchant_code) DO NOTHING;
 
 INSERT INTO students (id, student_code, first_name, last_name, wallet_balance, current_daily_limit, next_daily_limit)
@@ -394,9 +394,17 @@ VALUES
 ON CONFLICT (username) DO NOTHING;
 
 -- UC-11 Canteen Auction Stalls Seed Data
-INSERT INTO canteen_stalls (stall_code, winner_name, winner_phone, fee_percent, merchant_id)
+INSERT INTO canteen_stalls (stall_code, winner_name, winner_phone, merchant_id)
 VALUES
-  ('A-01', 'ป้าแดง ข้าวราดแกง', '0811111111', 2.00, 1),
-  ('A-02', 'ลุงชัย ก๋วยเตี๋ยว', '0822222222', 2.50, NULL),
-  ('A-03', 'ป้าณี น้ำปั่น', '0833333333', 2.00, NULL)
+  ('A-01', 'ป้าแดง ข้าวราดแกง', '0811111111', 1),
+  ('A-02', 'ลุงชัย ก๋วยเตี๋ยว', '0822222222', NULL),
+  ('A-03', 'ป้าณี น้ำปั่น', '0833333333', NULL)
 ON CONFLICT (stall_code) DO NOTHING;
+
+-- Demo Spending History Transactions for STD-1001 (Parent Mobile App)
+INSERT INTO payments (id, student_id, merchant_id, card_id, amount, payment_mode, status, created_at)
+VALUES
+  ('10000000-0000-0000-0000-000000000101', 1, 1, 1, 35.00, 'ONLINE', 'COMPLETED', '2026-11-26 07:45:00+07'),
+  ('10000000-0000-0000-0000-000000000102', 1, 701, 1, 25.00, 'ONLINE', 'COMPLETED', '2026-11-26 10:15:00+07'),
+  ('10000000-0000-0000-0000-000000000103', 1, 702, 1, 40.00, 'OFFLINE', 'COMPLETED', '2026-11-26 12:20:00+07')
+ON CONFLICT (id) DO NOTHING;

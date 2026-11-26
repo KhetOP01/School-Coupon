@@ -11,13 +11,17 @@ import {
   View,
 } from 'react-native';
 import { parentApi } from '../api/parent-api';
+import { HeaderRightActions } from '../components/HeaderRightActions';
 import { StudentProfile } from '../types';
 
 interface DailyLimitScreenProps {
   student: StudentProfile;
+  students?: StudentProfile[];
   topInset?: number;
+  onSelectStudent?: (studentId: number) => void;
   onSuccess: (newNextLimit: string) => void;
   onBack?: () => void;
+  onLogout?: () => void;
 }
 
 const PRESET_LIMITS = ['50', '100', '150', '200', '300', '500'] as const;
@@ -36,8 +40,11 @@ function TargetShieldBadge() {
 
 export function DailyLimitScreen({
   student,
+  students,
   topInset = 0,
+  onSelectStudent,
   onSuccess,
+  onLogout,
 }: DailyLimitScreenProps) {
   const [newLimit, setNewLimit] = useState(
     student.nextDailyLimit || student.currentDailyLimit,
@@ -72,10 +79,20 @@ export function DailyLimitScreen({
     <View style={styles.screen}>
       {/* Top Royal Blue Rounded Header (matching HomeScreen) */}
       <View style={[styles.topHeader, { paddingTop: topInset + 10 }]}>
-        <Text style={styles.headerTitle}>จำกัดวงเงินรายวัน</Text>
-        <Text style={styles.headerSubtitle}>
-          ควบคุมค่าใช้จ่ายของ {student.firstName} {student.lastName} ({student.studentCode})
-        </Text>
+        <View style={styles.headerRow}>
+          <View style={styles.headerTextCol}>
+            <Text style={styles.headerTitle}>จำกัดวงเงินรายวัน</Text>
+            <Text style={styles.headerSubtitle}>
+              ควบคุมค่าใช้จ่ายของ {student.firstName} {student.lastName} ({student.studentCode})
+            </Text>
+          </View>
+          <HeaderRightActions
+            student={student}
+            students={students}
+            onSelectStudent={onSelectStudent}
+            onLogout={onLogout}
+          />
+        </View>
       </View>
 
       <ScrollView
@@ -227,6 +244,15 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.18,
     shadowRadius: 6,
     elevation: 5,
+  },
+  headerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 10,
+  },
+  headerTextCol: {
+    flex: 1,
   },
   headerTitle: {
     color: '#FFFFFF',

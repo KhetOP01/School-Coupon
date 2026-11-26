@@ -111,6 +111,16 @@ export default function AdminDashboard({
       ),
     },
     {
+      id: 'stalls',
+      title: 'จัดการร้านค้า & ล็อค',
+      subtitle: '(Merchants)',
+      icon: (
+        <svg width="19" height="19" viewBox="0 0 24 24" fill="currentColor">
+          <path d="M20 4H4v2h16V4zm1 10v-2l-1-5H4l-1 5v2h1v6h10v-6h4v6h2v-6h1zm-9 4H6v-4h6v4z" />
+        </svg>
+      ),
+    },
+    {
       id: 'staffUsers',
       title: 'จัดการบัญชีผู้ใช้',
       subtitle: '(Admin Only)',
@@ -118,16 +128,6 @@ export default function AdminDashboard({
       icon: (
         <svg width="19" height="19" viewBox="0 0 24 24" fill="currentColor">
           <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4zm7.71-5.29L18 7l-1.71 1.71 1.71 1.71 1.71-1.71z" />
-        </svg>
-      ),
-    },
-    {
-      id: 'stalls',
-      title: 'จัดการร้านค้า & ล็อค',
-      subtitle: '(Merchants)',
-      icon: (
-        <svg width="19" height="19" viewBox="0 0 24 24" fill="currentColor">
-          <path d="M20 4H4v2h16V4zm1 10v-2l-1-5H4l-1 5v2h1v6h10v-6h4v6h2v-6h1zm-9 4H6v-4h6v4z" />
         </svg>
       ),
     },
@@ -262,27 +262,9 @@ export default function AdminDashboard({
           </nav>
         </div>
 
-        {/* Bottom Silhouette & Version */}
-        <div style={{ position: 'relative', paddingTop: '4.5rem' }}>
-          <svg
-            width="175"
-            height="100"
-            viewBox="0 0 180 110"
-            fill="none"
-            style={{
-              position: 'absolute',
-              left: '-10px',
-              bottom: '16px',
-              opacity: 0.08,
-              pointerEvents: 'none',
-            }}
-          >
-            <path d="M55 42L90 18L125 42V108H55V42Z" fill="#ffffff" />
-            <path d="M22 58L55 42V108H22V58Z" fill="#ffffff" />
-            <path d="M158 58L125 42V108H158V58Z" fill="#ffffff" />
-            <rect x="82" y="72" width="16" height="36" fill="#102044" />
-          </svg>
-          <div style={{ fontSize: '0.75rem', color: '#94a3b8', paddingLeft: '0.5rem', position: 'relative' }}>
+        {/* Version */}
+        <div style={{ paddingTop: '0.75rem' }}>
+          <div style={{ fontSize: '0.75rem', color: '#94a3b8', paddingLeft: '0.5rem' }}>
             v1.0.0
           </div>
         </div>

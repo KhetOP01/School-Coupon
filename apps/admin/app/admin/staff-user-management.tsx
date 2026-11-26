@@ -1,6 +1,7 @@
 'use client';
 
 import { FormEvent, useCallback, useEffect, useMemo, useState } from 'react';
+import StatusFilterButton from './status-filter-button';
 
 interface StaffUserItem {
   id: number;
@@ -16,12 +17,15 @@ interface StaffUserManagementProps {
   currentUsername: string;
 }
 
+type UserStatusFilter = 'all' | 'admin_active' | 'staff_active' | 'suspended';
+
 export default function StaffUserManagement({ currentUsername }: StaffUserManagementProps) {
   const [users, setUsers] = useState<StaffUserItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [busyId, setBusyId] = useState<number | null>(null);
   const [creating, setCreating] = useState(false);
   const [search, setSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState<UserStatusFilter>('all');
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
 
@@ -31,10 +35,6 @@ export default function StaffUserManagement({ currentUsername }: StaffUserManage
   const [newFullName, setNewFullName] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [newRole, setNewRole] = useState<'staff' | 'admin'>('staff');
-
-  // Password reset modal/inline state
-  const [resetTarget, setResetTarget] = useState<StaffUserItem | null>(null);
-  const [resetPassword, setResetPassword] = useState('');
 
   // Edit user modal state
   const [editTarget, setEditTarget] = useState<StaffUserItem | null>(null);
@@ -72,16 +72,30 @@ export default function StaffUserManagement({ currentUsername }: StaffUserManage
 
   const filteredUsers = useMemo(() => {
     const q = search.trim().toLowerCase();
-    if (!q) {
-      return users;
-    }
-    return users.filter(
-      (u) =>
+    return users.filter((u) => {
+      if (statusFilter === 'admin_active' && !(u.role === 'admin' && u.status === 'active')) {
+        return false;
+      }
+      if (statusFilter === 'staff_active' && !(u.role === 'staff' && u.status === 'active')) {
+        return false;
+      }
+      if (statusFilter === 'suspended' && u.status !== 'suspended') {
+        return false;
+      }
+      if (!q) {
+        return true;
+      }
+      return (
         u.username.toLowerCase().includes(q) ||
         u.fullName.toLowerCase().includes(q) ||
-        u.role.toLowerCase().includes(q),
-    );
-  }, [users, search]);
+        u.role.toLowerCase().includes(q)
+      );
+    });
+  }, [users, search, statusFilter]);
+
+  function toggleStatusFilter(next: Exclude<UserStatusFilter, 'all'>) {
+    setStatusFilter((prev) => (prev === next ? 'all' : next));
+  }
 
   async function handleCreateUser(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -172,26 +186,6 @@ export default function StaffUserManagement({ currentUsername }: StaffUserManage
     }
   }
 
-  async function handleResetPassword(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    if (!resetTarget) {
-      return;
-    }
-    if (resetPassword.length < 8) {
-      setError('รหัสผ่านใหม่ต้องมีอย่างน้อย 8 ตัวอักษร');
-      return;
-    }
-    const ok = await patchUser(
-      resetTarget,
-      { password: resetPassword },
-      `รีเซ็ตรหัสผ่านของ "${resetTarget.username}" เรียบร้อยแล้ว`,
-    );
-    if (ok) {
-      setResetTarget(null);
-      setResetPassword('');
-    }
-  }
-
   function openEditModal(user: StaffUserItem) {
     setEditTarget(user);
     setEditFullName(user.fullName);
@@ -268,9 +262,38 @@ export default function StaffUserManagement({ currentUsername }: StaffUserManage
             </p>
           </div>
           <div style={{ display: 'flex', gap: '0.6rem', flexWrap: 'wrap' }}>
-            <StatBadge label="Admin ใช้งานอยู่" value={adminCount} bg="#eff6ff" color="#1d4ed8" />
-            <StatBadge label="Staff ใช้งานอยู่" value={staffCount} bg="#ecfdf5" color="#047857" />
-            <StatBadge label="ถูกระงับ" value={suspendedCount} bg="#fef2f2" color="#b91c1c" />
+            <StatusFilterButton
+              label="ทั้งหมด"
+              value={users.length}
+              bg="#f1f5f9"
+              color="#334155"
+              active={statusFilter === 'all'}
+              onClick={() => setStatusFilter('all')}
+            />
+            <StatusFilterButton
+              label="Admin ใช้งานอยู่"
+              value={adminCount}
+              bg="#eff6ff"
+              color="#1d4ed8"
+              active={statusFilter === 'admin_active'}
+              onClick={() => toggleStatusFilter('admin_active')}
+            />
+            <StatusFilterButton
+              label="Staff ใช้งานอยู่"
+              value={staffCount}
+              bg="#ecfdf5"
+              color="#047857"
+              active={statusFilter === 'staff_active'}
+              onClick={() => toggleStatusFilter('staff_active')}
+            />
+            <StatusFilterButton
+              label="ถูกระงับ"
+              value={suspendedCount}
+              bg="#fef2f2"
+              color="#b91c1c"
+              active={statusFilter === 'suspended'}
+              onClick={() => toggleStatusFilter('suspended')}
+            />
           </div>
         </div>
       </section>
@@ -443,57 +466,26 @@ export default function StaffUserManagement({ currentUsername }: StaffUserManage
                           >
                             แก้ไข
                           </button>
-
-                          <button
-                            type="button"
-                            disabled={isBusy || (isSelf && user.role === 'admin')}
-                            onClick={() =>
-                              void patchUser(
-                                user,
-                                { role: user.role === 'admin' ? 'staff' : 'admin' },
-                                `เปลี่ยนบทบาทของ "${user.username}" เป็น ${user.role === 'admin' ? 'Staff' : 'Admin'} แล้ว`,
-                              )
-                            }
-                            style={actionBtnStyle(isBusy || (isSelf && user.role === 'admin'))}
-                          >
-                            {user.role === 'admin' ? 'ลดเป็น Staff' : 'ตั้งเป็น Admin'}
-                          </button>
-
-                          <button
-                            type="button"
-                            disabled={isBusy || isSelf}
-                            onClick={() =>
-                              void patchUser(
-                                user,
-                                { status: user.status === 'active' ? 'suspended' : 'active' },
-                                `${user.status === 'active' ? 'ระงับบัญชี' : 'เปิดใช้งานบัญชี'} "${user.username}" แล้ว`,
-                              )
-                            }
-                            style={actionBtnStyle(
-                              isBusy || isSelf,
-                              user.status === 'active' ? '#b91c1c' : '#047857',
-                            )}
-                          >
-                            {user.status === 'active' ? 'ระงับบัญชี' : 'เปิดใช้งาน'}
-                          </button>
-
-                          <button
-                            type="button"
-                            disabled={isBusy}
-                            onClick={() => {
-                              setResetTarget(user);
-                              setResetPassword('');
-                              setError('');
-                            }}
-                            style={actionBtnStyle(isBusy)}
-                          >
-                            รีเซ็ตรหัส
-                          </button>
                         </div>
                       </td>
                     </tr>
                   );
                 })}
+                {filteredUsers.length === 0 && (
+                  <tr>
+                    <td
+                      colSpan={5}
+                      style={{
+                        padding: '1.5rem 0.5rem',
+                        textAlign: 'center',
+                        color: '#64748b',
+                        fontSize: '0.86rem',
+                      }}
+                    >
+                      ไม่พบผู้ใช้งานที่ตรงกับตัวกรอง
+                    </td>
+                  </tr>
+                )}
               </tbody>
             </table>
           </div>
@@ -743,87 +735,6 @@ export default function StaffUserManagement({ currentUsername }: StaffUserManage
           </form>
         </div>
       )}
-
-      {/* Password Reset Modal */}
-      {resetTarget && (
-        <div
-          style={{
-            position: 'fixed',
-            inset: 0,
-            background: 'rgba(15, 23, 42, 0.45)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            zIndex: 50,
-            padding: '1rem',
-          }}
-        >
-          <form
-            onSubmit={handleResetPassword}
-            style={{
-              background: '#ffffff',
-              borderRadius: '16px',
-              padding: '1.4rem',
-              width: '100%',
-              maxWidth: '400px',
-              boxShadow: '0 18px 36px rgba(15, 23, 42, 0.2)',
-            }}
-          >
-            <h4 style={{ margin: '0 0 0.4rem', fontSize: '1rem', color: '#0f172a' }}>
-              รีเซ็ตรหัสผ่าน: {resetTarget.username}
-            </h4>
-            <p style={{ margin: '0 0 1rem', fontSize: '0.82rem', color: '#64748b' }}>
-              กรอกรหัสผ่านใหม่ความยาวอย่างน้อย 8 ตัวอักษร
-            </p>
-            {error && (
-              <div style={{ background: '#fef2f2', border: '1px solid #fecaca', color: '#991b1b', borderRadius: '10px', padding: '0.65rem 0.85rem', fontSize: '0.82rem', marginBottom: '0.75rem' }}>
-                {error}
-              </div>
-            )}
-            <input
-              type="password"
-              value={resetPassword}
-              onChange={(e) => setResetPassword(e.target.value)}
-              placeholder="รหัสผ่านใหม่"
-              autoFocus
-              style={{ ...inputStyle, marginBottom: '1rem' }}
-            />
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.55rem' }}>
-              <button
-                type="button"
-                onClick={() => setResetTarget(null)}
-                style={actionBtnStyle(false)}
-              >
-                ยกเลิก
-              </button>
-              <button
-                type="submit"
-                disabled={busyId === resetTarget.id}
-                style={{
-                  padding: '0.5rem 0.95rem',
-                  borderRadius: '8px',
-                  border: 'none',
-                  background: '#2563eb',
-                  color: '#ffffff',
-                  fontWeight: 700,
-                  fontSize: '0.84rem',
-                  cursor: 'pointer',
-                }}
-              >
-                บันทึกรหัสผ่านใหม่
-              </button>
-            </div>
-          </form>
-        </div>
-      )}
-    </div>
-  );
-}
-
-function StatBadge({ label, value, bg, color }: { label: string; value: number; bg: string; color: string }) {
-  return (
-    <div style={{ background: bg, color, padding: '0.4rem 0.75rem', borderRadius: '10px', fontSize: '0.8rem', fontWeight: 700 }}>
-      {label}: {value}
     </div>
   );
 }

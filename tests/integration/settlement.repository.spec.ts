@@ -32,8 +32,8 @@ describe('Settlement Postgres Repositories & Gateways', () => {
 
   it('AC7.1: aggregates gross sales correctly and excludes voided payments', async () => {
     const merchantRes = await pool.query<{ id: number }>(
-      `INSERT INTO merchants (merchant_code, name, fee_percent, status)
-       VALUES ('M-SETTLE-1', 'Settle Merchant', 2.50, 'active') RETURNING id`,
+      `INSERT INTO merchants (merchant_code, name, status)
+       VALUES ('M-SETTLE-1', 'Settle Merchant', 'active') RETURNING id`,
     );
     const merchantId = merchantRes.rows[0].id;
 
@@ -75,14 +75,13 @@ describe('Settlement Postgres Repositories & Gateways', () => {
     const sales = await salesGateway.getDailySalesByMerchant('2026-11-10');
     expect(sales).toHaveLength(1);
     expect(sales[0].merchantId).toBe(merchantId);
-    expect(sales[0].feePercent).toBe('2.50');
     expect(sales[0].grossAmount).toBe('150.00'); // 100 + 50 (30 voided excluded)
   });
 
   it('AC7.2: saves settlement and updates status on approval', async () => {
     const merchantRes = await pool.query<{ id: number }>(
-      `INSERT INTO merchants (merchant_code, name, fee_percent, status)
-       VALUES ('M-SETTLE-2', 'Settle Merchant 2', 2.00, 'active') RETURNING id`,
+      `INSERT INTO merchants (merchant_code, name, status)
+       VALUES ('M-SETTLE-2', 'Settle Merchant 2', 'active') RETURNING id`,
     );
     const merchantId = merchantRes.rows[0].id;
 
@@ -91,7 +90,6 @@ describe('Settlement Postgres Repositories & Gateways', () => {
       merchantId,
       settlementDate: '2026-11-10',
       grossAmount: '200.00',
-      feePercent: '2.00',
       createdAt: now,
     });
 
@@ -99,8 +97,7 @@ describe('Settlement Postgres Repositories & Gateways', () => {
     expect(saved.id).toBeDefined();
     expect(saved.status).toBe('PENDING_APPROVAL');
     expect(saved.grossAmount).toBe('200.00');
-    expect(saved.feeAmount).toBe('4.00');
-    expect(saved.netAmount).toBe('196.00');
+    expect(saved.netAmount).toBe('200.00');
 
     // Find by ID
     const found = await settlementRepo.findSettlementById(saved.id!);

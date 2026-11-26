@@ -2,12 +2,12 @@
 
 import { FormEvent, useCallback, useEffect, useState } from 'react';
 import StallManagement from './stall-management';
+import StatusFilterButton from './status-filter-button';
 
 interface AdminMerchantItem {
   id: number;
   merchantCode: string;
   name: string;
-  feePercent: string;
   status: 'active' | 'suspended' | 'inactive';
   stallCode: string | null;
   createdAt: string;
@@ -17,14 +17,16 @@ interface StallOptionItem {
   id: number;
   stallCode: string;
   winnerName: string;
-  feePercent: string;
   merchantId: number | null;
 }
+
+type MerchantStatusFilter = 'all' | 'active' | 'suspended' | 'inactive';
 
 export default function MerchantManagement() {
   const [subTab, setSubTab] = useState<'merchants' | 'stalls'>('merchants');
   const [merchants, setMerchants] = useState<AdminMerchantItem[]>([]);
   const [stalls, setStalls] = useState<StallOptionItem[]>([]);
+  const [statusFilter, setStatusFilter] = useState<MerchantStatusFilter>('all');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
@@ -34,14 +36,12 @@ export default function MerchantManagement() {
   const [creating, setCreating] = useState(false);
   const [newCode, setNewCode] = useState('');
   const [newName, setNewName] = useState('');
-  const [newFee, setNewFee] = useState('2.00');
   const [newPin, setNewPin] = useState('');
   const [newStallCode, setNewStallCode] = useState('');
 
   // Edit merchant modal
   const [editTarget, setEditTarget] = useState<AdminMerchantItem | null>(null);
   const [editName, setEditName] = useState('');
-  const [editFee, setEditFee] = useState('2.00');
   const [editStatus, setEditStatus] = useState<'active' | 'suspended' | 'inactive'>('active');
   const [editPin, setEditPin] = useState('');
   const [editStallCode, setEditStallCode] = useState('');
@@ -105,7 +105,6 @@ export default function MerchantManagement() {
         body: JSON.stringify({
           merchantCode: newCode.trim().toUpperCase(),
           name: newName.trim(),
-          feePercent: newFee.trim() || '2.00',
           pin: newPin.trim(),
           stallCode: newStallCode || null,
         }),
@@ -123,7 +122,6 @@ export default function MerchantManagement() {
       }
       setNewCode('');
       setNewName('');
-      setNewFee('2.00');
       setNewPin('');
       setNewStallCode('');
       setCreateOpen(false);
@@ -139,7 +137,6 @@ export default function MerchantManagement() {
   function openEditModal(item: AdminMerchantItem) {
     setEditTarget(item);
     setEditName(item.name);
-    setEditFee(item.feePercent);
     setEditStatus(item.status);
     setEditPin('');
     setEditStallCode(item.stallCode ?? '');
@@ -170,7 +167,6 @@ export default function MerchantManagement() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           name: editName.trim(),
-          feePercent: editFee.trim() || '2.00',
           status: editStatus,
           stallCode: editStallCode || null,
           ...(editPin.trim() ? { pin: editPin.trim() } : {}),
@@ -226,6 +222,18 @@ export default function MerchantManagement() {
     } finally {
       setDeleting(false);
     }
+  }
+
+  const activeCount = merchants.filter((m) => m.status === 'active').length;
+  const suspendedCount = merchants.filter((m) => m.status === 'suspended').length;
+  const inactiveCount = merchants.filter((m) => m.status === 'inactive').length;
+  const filteredMerchants =
+    statusFilter === 'all'
+      ? merchants
+      : merchants.filter((m) => m.status === statusFilter);
+
+  function toggleStatusFilter(next: Exclude<MerchantStatusFilter, 'all'>) {
+    setStatusFilter((prev) => (prev === next ? 'all' : next));
   }
 
   return (
@@ -284,13 +292,49 @@ export default function MerchantManagement() {
               gap: '1rem',
             }}
           >
-            <div>
-              <h2 style={{ margin: 0, fontSize: '1.15rem', fontWeight: 700, color: '#0f172a' }}>
-                จัดการร้านค้า (Merchants)
-              </h2>
-              <p style={{ margin: '0.25rem 0 0', fontSize: '0.84rem', color: '#64748b' }}>
-                เพิ่มร้านค้า แก้ไขชื่อร้าน ค่าธรรมเนียม สถานะ (เปิด/ระงับ) และรีเซ็ต PIN 6 หลัก
-              </p>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', flex: '1 1 360px' }}>
+              <div>
+                <h2 style={{ margin: 0, fontSize: '1.15rem', fontWeight: 700, color: '#0f172a' }}>
+                  จัดการร้านค้า (Merchants)
+                </h2>
+                <p style={{ margin: '0.25rem 0 0', fontSize: '0.84rem', color: '#64748b' }}>
+                  เพิ่มร้านค้า แก้ไขชื่อร้าน สถานะ (เปิด/ระงับ) และรีเซ็ต PIN 6 หลัก
+                </p>
+              </div>
+              <div style={{ display: 'flex', gap: '0.6rem', flexWrap: 'wrap' }}>
+                <StatusFilterButton
+                  label="ทั้งหมด"
+                  value={merchants.length}
+                  bg="#f1f5f9"
+                  color="#334155"
+                  active={statusFilter === 'all'}
+                  onClick={() => setStatusFilter('all')}
+                />
+                <StatusFilterButton
+                  label="เปิดใช้งาน"
+                  value={activeCount}
+                  bg="#ecfdf5"
+                  color="#047857"
+                  active={statusFilter === 'active'}
+                  onClick={() => toggleStatusFilter('active')}
+                />
+                <StatusFilterButton
+                  label="ถูกระงับ"
+                  value={suspendedCount}
+                  bg="#fef2f2"
+                  color="#b91c1c"
+                  active={statusFilter === 'suspended'}
+                  onClick={() => toggleStatusFilter('suspended')}
+                />
+                <StatusFilterButton
+                  label="ปิดชั่วคราว"
+                  value={inactiveCount}
+                  bg="#f8fafc"
+                  color="#475569"
+                  active={statusFilter === 'inactive'}
+                  onClick={() => toggleStatusFilter('inactive')}
+                />
+              </div>
             </div>
             <button
               type="button"
@@ -369,20 +413,18 @@ export default function MerchantManagement() {
                       <th style={thStyle}>รหัสร้าน</th>
                       <th style={thStyle}>ชื่อร้านค้า</th>
                       <th style={thStyle}>ล็อคประมูล</th>
-                      <th style={thStyle}>ค่าธรรมเนียม</th>
                       <th style={thStyle}>สถานะ</th>
                       <th style={{ ...thStyle, textAlign: 'right' }}>จัดการ</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {merchants.map((item) => (
+                    {filteredMerchants.map((item) => (
                       <tr key={item.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
                         <td style={tdStyle}>
                           <span style={{ fontWeight: 700, color: '#0f172a' }}>{item.merchantCode}</span>
                         </td>
                         <td style={tdStyle}>{item.name}</td>
                         <td style={tdStyle}>{item.stallCode ?? '-'}</td>
-                        <td style={tdStyle}>{item.feePercent}%</td>
                         <td style={tdStyle}>
                           <span
                             style={{
@@ -429,30 +471,25 @@ export default function MerchantManagement() {
                             >
                               แก้ไข
                             </button>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setError('');
-                                setNotice('');
-                                setDeleteTarget(item);
-                              }}
-                              style={{
-                                padding: '0.35rem 0.7rem',
-                                borderRadius: '8px',
-                                border: '1px solid #fecaca',
-                                background: '#fef2f2',
-                                color: '#b91c1c',
-                                fontSize: '0.78rem',
-                                fontWeight: 600,
-                                cursor: 'pointer',
-                              }}
-                            >
-                              ลบ
-                            </button>
                           </div>
                         </td>
                       </tr>
                     ))}
+                    {filteredMerchants.length === 0 && (
+                      <tr>
+                        <td
+                          colSpan={5}
+                          style={{
+                            padding: '1.5rem 0.5rem',
+                            textAlign: 'center',
+                            color: '#64748b',
+                            fontSize: '0.86rem',
+                          }}
+                        >
+                          ไม่พบร้านค้าที่ตรงกับสถานะที่เลือก
+                        </td>
+                      </tr>
+                    )}
                   </tbody>
                 </table>
               </div>
@@ -534,28 +571,16 @@ export default function MerchantManagement() {
                     style={inputStyle}
                   />
                 </div>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
-                  <div>
-                    <label style={labelStyle}>ค่าธรรมเนียม (%)</label>
-                    <input
-                      type="text"
-                      value={newFee}
-                      onChange={(e) => setNewFee(e.target.value)}
-                      placeholder="2.00"
-                      style={inputStyle}
-                    />
-                  </div>
-                  <div>
-                    <label style={labelStyle}>PIN (6 หลัก)</label>
-                    <input
-                      type="password"
-                      value={newPin}
-                      onChange={(e) => setNewPin(e.target.value)}
-                      maxLength={6}
-                      placeholder="123456"
-                      style={inputStyle}
-                    />
-                  </div>
+                <div>
+                  <label style={labelStyle}>PIN (6 หลัก)</label>
+                  <input
+                    type="password"
+                    value={newPin}
+                    onChange={(e) => setNewPin(e.target.value)}
+                    maxLength={6}
+                    placeholder="123456"
+                    style={inputStyle}
+                  />
                 </div>
                 <div>
                   <label style={labelStyle}>ล็อคประมูล (ถ้ามี)</label>
@@ -569,7 +594,7 @@ export default function MerchantManagement() {
                       .filter((s) => s.merchantId === null)
                       .map((s) => (
                         <option key={s.id} value={s.stallCode}>
-                          {s.stallCode} — {s.winnerName} ({s.feePercent}%)
+                          {s.stallCode} — {s.winnerName}
                         </option>
                       ))}
                   </select>
@@ -600,7 +625,7 @@ export default function MerchantManagement() {
                     แก้ไขร้านค้า: {editTarget.merchantCode}
                   </h4>
                   <p style={{ margin: 0, fontSize: '0.8rem', color: '#64748b' }}>
-                    แก้ไขชื่อร้าน ค่าธรรมเนียม สถานะ หรือรีเซ็ต PIN 6 หลัก
+                    แก้ไขชื่อร้าน สถานะ หรือรีเซ็ต PIN 6 หลัก
                   </p>
                 </div>
 
@@ -616,30 +641,19 @@ export default function MerchantManagement() {
                     style={inputStyle}
                   />
                 </div>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
-                  <div>
-                    <label style={labelStyle}>ค่าธรรมเนียม (%)</label>
-                    <input
-                      type="text"
-                      value={editFee}
-                      onChange={(e) => setEditFee(e.target.value)}
-                      style={inputStyle}
-                    />
-                  </div>
-                  <div>
-                    <label style={labelStyle}>สถานะ</label>
-                    <select
-                      value={editStatus}
-                      onChange={(e) =>
-                        setEditStatus(e.target.value as 'active' | 'suspended' | 'inactive')
-                      }
-                      style={inputStyle}
-                    >
-                      <option value="active">เปิดใช้งาน</option>
-                      <option value="suspended">ถูกระงับ</option>
-                      <option value="inactive">ปิดชั่วคราว</option>
-                    </select>
-                  </div>
+                <div>
+                  <label style={labelStyle}>สถานะ</label>
+                  <select
+                    value={editStatus}
+                    onChange={(e) =>
+                      setEditStatus(e.target.value as 'active' | 'suspended' | 'inactive')
+                    }
+                    style={inputStyle}
+                  >
+                    <option value="active">เปิดใช้งาน</option>
+                    <option value="suspended">ถูกระงับ</option>
+                    <option value="inactive">ปิดชั่วคราว</option>
+                  </select>
                 </div>
                 <div>
                   <label style={labelStyle}>ล็อคประมูล</label>
@@ -653,7 +667,7 @@ export default function MerchantManagement() {
                       .filter((s) => s.merchantId === null || s.merchantId === editTarget.id)
                       .map((s) => (
                         <option key={s.id} value={s.stallCode}>
-                          {s.stallCode} — {s.winnerName} ({s.feePercent}%)
+                          {s.stallCode} — {s.winnerName}
                           {s.merchantId === editTarget.id ? ' (ล็อคปัจจุบัน)' : ''}
                         </option>
                       ))}

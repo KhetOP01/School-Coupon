@@ -7,7 +7,6 @@ interface SettlementResult {
   merchantId: number;
   settlementDate: string;
   grossAmount: string;
-  feeAmount: string;
   netAmount: string;
   status: string;
   approvedBy: string | null;
@@ -24,9 +23,7 @@ interface SampleSettlement {
   merchantId: number;
   merchantCode: string;
   merchantName: string;
-  feePercent: string;
   grossAmount: string;
-  feeAmount: string;
   netAmount: string;
   status: 'PENDING_APPROVAL' | 'APPROVED' | 'PAID';
 }
@@ -37,10 +34,8 @@ const INITIAL_SAMPLES: SampleSettlement[] = [
     merchantId: 701,
     merchantCode: 'M-701',
     merchantName: 'Juice Shop',
-    feePercent: '2.50%',
     grossAmount: '100.00',
-    feeAmount: '2.50',
-    netAmount: '97.50',
+    netAmount: '100.00',
     status: 'PENDING_APPROVAL',
   },
   {
@@ -48,10 +43,8 @@ const INITIAL_SAMPLES: SampleSettlement[] = [
     merchantId: 702,
     merchantCode: 'M-702',
     merchantName: 'Bakery',
-    feePercent: '3.00%',
     grossAmount: '200.00',
-    feeAmount: '6.00',
-    netAmount: '194.00',
+    netAmount: '200.00',
     status: 'APPROVED',
   },
   {
@@ -59,10 +52,8 @@ const INITIAL_SAMPLES: SampleSettlement[] = [
     merchantId: 703,
     merchantCode: 'M-703',
     merchantName: 'Book Stall',
-    feePercent: '1.50%',
     grossAmount: '50.00',
-    feeAmount: '0.75',
-    netAmount: '49.25',
+    netAmount: '50.00',
     status: 'PAID',
   },
 ];
@@ -84,9 +75,7 @@ export default function SettlementApprovalForm() {
         merchantId: number;
         merchantCode: string;
         merchantName: string;
-        feePercent: string;
         grossAmount: string;
-        feeAmount: string;
         netAmount: string;
         status: 'PENDING_APPROVAL' | 'APPROVED' | 'PAID';
       }> } | null) => {
@@ -97,9 +86,7 @@ export default function SettlementApprovalForm() {
             merchantId: s.merchantId,
             merchantCode: s.merchantCode,
             merchantName: s.merchantName,
-            feePercent: `${s.feePercent}%`,
             grossAmount: s.grossAmount,
-            feeAmount: s.feeAmount,
             netAmount: s.netAmount,
             status: s.status,
           })),
@@ -210,46 +197,8 @@ export default function SettlementApprovalForm() {
             สรุปยอดขายรายวันและอนุมัติยอดโอนร้านค้า (UC-07)
           </h2>
           <p style={{ margin: '0.15rem 0 0 0', color: '#64748b', fontSize: '0.82rem' }}>
-            ตรวจสอบยอดขายสุทธิหลังหักค่าธรรมเนียม และกดอนุมัติการตัดรอบโอนเงินรอบ T+1 เข้าบัญชีร้านค้า
+            ตรวจสอบยอดขายสุทธิ และกดอนุมัติการตัดรอบโอนเงินรอบ T+1 เข้าบัญชีร้านค้า
           </p>
-        </div>
-
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '0.6rem',
-            background: '#f4f8ff',
-            border: '1px solid #dbeafe',
-            borderRadius: '11px',
-            padding: '0.55rem 0.9rem',
-            fontSize: '0.79rem',
-            color: '#334155',
-            lineHeight: 1.35,
-          }}
-        >
-          <span
-            style={{
-              width: '20px',
-              height: '20px',
-              borderRadius: '9999px',
-              background: '#2563eb',
-              color: '#ffffff',
-              display: 'inline-flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontSize: '0.72rem',
-              fontWeight: 700,
-              flexShrink: 0,
-            }}
-          >
-            i
-          </span>
-          <span>
-            ตรวจสอบยอดโอนสุทธิ (Net)
-            <br />
-            ก่อนกดอนุมัติรายการทุกครั้ง
-          </span>
         </div>
       </div>
 
@@ -357,7 +306,7 @@ export default function SettlementApprovalForm() {
                 <tr style={{ background: '#f5f8fd', borderBottom: '1px solid #e2e8f0', color: '#334155' }}>
                   <th style={{ padding: '0.7rem 0.6rem', fontWeight: 600 }}>Settlement ID</th>
                   <th style={{ padding: '0.7rem 0.6rem', fontWeight: 600 }}>ร้านค้า</th>
-                  <th style={{ padding: '0.7rem 0.6rem', fontWeight: 600 }}>ยอดขาย / ค่าธรรมเนียม</th>
+                  <th style={{ padding: '0.7rem 0.6rem', fontWeight: 600 }}>ยอดขายรวม</th>
                   <th style={{ padding: '0.7rem 0.6rem', fontWeight: 600 }}>ยอดโอนสุทธิ</th>
                   <th style={{ padding: '0.7rem 0.6rem', fontWeight: 600 }}>สถานะ</th>
                 </tr>
@@ -385,12 +334,11 @@ export default function SettlementApprovalForm() {
                       <td style={{ padding: '0.75rem 0.6rem' }}>
                         <div style={{ fontWeight: 600, color: '#0f172a' }}>{item.merchantName}</div>
                         <div style={{ fontSize: '0.74rem', color: '#64748b' }}>
-                          {item.merchantCode} • Fee {item.feePercent}
+                          {item.merchantCode}
                         </div>
                       </td>
                       <td style={{ padding: '0.75rem 0.6rem', fontSize: '0.79rem', color: '#475569' }}>
-                        <div>รวม: ฿{item.grossAmount}</div>
-                        <div style={{ color: '#94a3b8' }}>หัก: -฿{item.feeAmount}</div>
+                        <div>฿{item.grossAmount}</div>
                       </td>
                       <td style={{ padding: '0.75rem 0.6rem', fontWeight: 700, color: '#16a34a' }}>
                         ฿{item.netAmount}
@@ -473,7 +421,7 @@ export default function SettlementApprovalForm() {
                 <SettlementStatusBadge status={selectedSample.status} />
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', color: '#475569' }}>
-                <span>ยอดรวม ฿{selectedSample.grossAmount} (ค่าธรรมเนียม ฿{selectedSample.feeAmount})</span>
+                <span>ยอดรวม ฿{selectedSample.grossAmount}</span>
                 <strong style={{ color: '#16a34a' }}>สุทธิ ฿{selectedSample.netAmount}</strong>
               </div>
             </div>
@@ -606,7 +554,6 @@ export default function SettlementApprovalForm() {
                 <DetailItem label="ร้านค้า ID" value={`#${result.merchantId}`} />
                 <DetailItem label="วันที่ตัดรอบ" value={result.settlementDate} />
                 <DetailItem label="ยอดขายรวม (Gross)" value={`฿${result.grossAmount}`} />
-                <DetailItem label="ค่าธรรมเนียม (Fee)" value={`฿${result.feeAmount}`} />
                 <DetailItem
                   label="ยอดโอนสุทธิ (Net)"
                   value={<span style={{ color: '#16a34a', fontWeight: 700 }}>฿{result.netAmount}</span>}

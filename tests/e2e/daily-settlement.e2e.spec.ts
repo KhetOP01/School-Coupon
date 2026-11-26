@@ -78,14 +78,14 @@ describe('UC-07 Daily Settlement E2E', () => {
   it('AC7.1 & AC7.3: generates settlements excluding voided payments, and skips duplicates', async () => {
     // Setup 2 merchants
     const m1 = await database.pool.query<{ id: number }>(
-      `INSERT INTO merchants (merchant_code, name, fee_percent, status)
-       VALUES ('M-SETTLE-E2E-1', 'Stall A', 2.00, 'active') RETURNING id`,
+      `INSERT INTO merchants (merchant_code, name, status)
+       VALUES ('M-SETTLE-E2E-1', 'Stall A', 'active') RETURNING id`,
     );
     const m1Id = m1.rows[0].id;
 
     const m2 = await database.pool.query<{ id: number }>(
-      `INSERT INTO merchants (merchant_code, name, fee_percent, status)
-       VALUES ('M-SETTLE-E2E-2', 'Stall B', 3.00, 'active') RETURNING id`,
+      `INSERT INTO merchants (merchant_code, name, status)
+       VALUES ('M-SETTLE-E2E-2', 'Stall B', 'active') RETURNING id`,
     );
     const m2Id = m2.rows[0].id;
 
@@ -125,37 +125,33 @@ describe('UC-07 Daily Settlement E2E', () => {
     expect(genResult.createdCount).toBe(2);
     expect(genResult.skippedCount).toBe(0);
 
-    // Verify M1 settlement in DB: Gross = 150.00, Fee = 3.00 (2%), Net = 147.00
+    // Verify M1 settlement in DB: Gross = 150.00, Net = 150.00
     const m1Db = await database.pool.query<{
       gross_amount: string;
-      fee_amount: string;
       net_amount: string;
       status: string;
     }>(
-      'SELECT gross_amount::text, fee_amount::text, net_amount::text, status FROM settlements WHERE merchant_id = $1',
+      'SELECT gross_amount::text, net_amount::text, status FROM settlements WHERE merchant_id = $1',
       [m1Id],
     );
     expect(m1Db.rows[0]).toMatchObject({
       gross_amount: '150.00',
-      fee_amount: '3.00',
-      net_amount: '147.00',
+      net_amount: '150.00',
       status: 'PENDING_APPROVAL',
     });
 
-    // Verify M2 settlement in DB: Gross = 200.00, Fee = 6.00 (3%), Net = 194.00
+    // Verify M2 settlement in DB: Gross = 200.00, Net = 200.00
     const m2Db = await database.pool.query<{
       gross_amount: string;
-      fee_amount: string;
       net_amount: string;
       status: string;
     }>(
-      'SELECT gross_amount::text, fee_amount::text, net_amount::text, status FROM settlements WHERE merchant_id = $1',
+      'SELECT gross_amount::text, net_amount::text, status FROM settlements WHERE merchant_id = $1',
       [m2Id],
     );
     expect(m2Db.rows[0]).toMatchObject({
       gross_amount: '200.00',
-      fee_amount: '6.00',
-      net_amount: '194.00',
+      net_amount: '200.00',
       status: 'PENDING_APPROVAL',
     });
 
@@ -167,14 +163,14 @@ describe('UC-07 Daily Settlement E2E', () => {
 
   it('AC7.2 & AC7.7: approves a pending settlement, and repeated approval is idempotent', async () => {
     const merchantRes = await database.pool.query<{ id: number }>(
-      `INSERT INTO merchants (merchant_code, name, fee_percent, status)
-       VALUES ('M-SETTLE-E2E-3', 'Stall C', 2.00, 'active') RETURNING id`,
+      `INSERT INTO merchants (merchant_code, name, status)
+       VALUES ('M-SETTLE-E2E-3', 'Stall C', 'active') RETURNING id`,
     );
     const merchantId = merchantRes.rows[0].id;
 
     const settlementRes = await database.pool.query<{ id: number }>(
-      `INSERT INTO settlements (merchant_id, settlement_date, gross_amount, fee_amount, net_amount, status)
-       VALUES ($1, '2026-11-10', 500.00, 10.00, 490.00, 'PENDING_APPROVAL') RETURNING id`,
+      `INSERT INTO settlements (merchant_id, settlement_date, gross_amount, net_amount, status)
+       VALUES ($1, '2026-11-10', 500.00, 500.00, 'PENDING_APPROVAL') RETURNING id`,
       [merchantId],
     );
     const settlementId = settlementRes.rows[0].id;
@@ -190,8 +186,7 @@ describe('UC-07 Daily Settlement E2E', () => {
       merchantId,
       settlementDate: '2026-11-10',
       grossAmount: '500.00',
-      feeAmount: '10.00',
-      netAmount: '490.00',
+      netAmount: '500.00',
       status: 'APPROVED',
       approvedBy: 'staff-admin',
     });
@@ -233,14 +228,14 @@ describe('UC-07 Daily Settlement E2E', () => {
 
   it('AC7.6: returns 409 SETTLEMENT_NOT_PENDING when settlement is in PAID status', async () => {
     const merchantRes = await database.pool.query<{ id: number }>(
-      `INSERT INTO merchants (merchant_code, name, fee_percent, status)
-       VALUES ('M-SETTLE-E2E-4', 'Stall D', 2.00, 'active') RETURNING id`,
+      `INSERT INTO merchants (merchant_code, name, status)
+       VALUES ('M-SETTLE-E2E-4', 'Stall D', 'active') RETURNING id`,
     );
     const merchantId = merchantRes.rows[0].id;
 
     const settlementRes = await database.pool.query<{ id: number }>(
-      `INSERT INTO settlements (merchant_id, settlement_date, gross_amount, fee_amount, net_amount, status)
-       VALUES ($1, '2026-11-10', 300.00, 6.00, 294.00, 'PAID') RETURNING id`,
+      `INSERT INTO settlements (merchant_id, settlement_date, gross_amount, net_amount, status)
+       VALUES ($1, '2026-11-10', 300.00, 300.00, 'PAID') RETURNING id`,
       [merchantId],
     );
     const settlementId = settlementRes.rows[0].id;
