@@ -185,6 +185,7 @@ export function LoginScreen({ topInset, onLoginSuccess }: LoginScreenProps) {
   const [registerPinInput, setRegisterPinInput] = useState('');
   const [registerLoading, setRegisterLoading] = useState(false);
   const [registerError, setRegisterError] = useState<string | null>(null);
+  const [registeredSession, setRegisteredSession] = useState<MerchantLoginResponse | null>(null);
 
   async function submitLogin(targetCode: string, targetPin: string) {
     if (!targetCode.trim() || !targetPin.trim()) {
@@ -225,7 +226,7 @@ export function LoginScreen({ topInset, onLoginSuccess }: LoginScreenProps) {
         pin: registerPinInput,
       });
       setRegisterVisible(false);
-      onLoginSuccess(response);
+      setRegisteredSession(response);
     } catch (err) {
       setRegisterError(err instanceof Error ? err.message : 'ไม่สามารถลงทะเบียนร้านค้าได้');
     } finally {
@@ -486,6 +487,89 @@ export function LoginScreen({ topInset, onLoginSuccess }: LoginScreenProps) {
                 )}
               </TouchableOpacity>
             </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Register Success Modal */}
+      <Modal
+        visible={registeredSession !== null}
+        transparent
+        animationType="fade"
+        onRequestClose={() => {
+          const session = registeredSession;
+          setRegisteredSession(null);
+          if (session) {
+            onLoginSuccess(session);
+          }
+        }}
+      >
+        <View
+          style={{
+            flex: 1,
+            backgroundColor: 'rgba(15, 23, 42, 0.55)',
+            justifyContent: 'center',
+            padding: 20,
+          }}
+        >
+          <View
+            style={{
+              backgroundColor: '#FFFFFF',
+              borderRadius: 20,
+              padding: 22,
+              alignItems: 'center',
+            }}
+          >
+            <Text style={{ fontSize: 18, fontWeight: '800', color: '#0F172A', marginBottom: 6 }}>
+              ลงทะเบียนร้านค้าสำเร็จ
+            </Text>
+            <Text style={{ fontSize: 13, color: '#64748B', textAlign: 'center', marginBottom: 14 }}>
+              กรุณาจดรหัสร้านค้าด้านล่างไว้ใช้คู่กับ PIN 6 หลัก สำหรับเข้าสู่ระบบครั้งถัดไป
+            </Text>
+            <View
+              style={{
+                backgroundColor: '#EFF6FF',
+                borderWidth: 1.5,
+                borderColor: '#BFDBFE',
+                borderRadius: 14,
+                paddingVertical: 12,
+                paddingHorizontal: 24,
+                alignItems: 'center',
+                marginBottom: 18,
+                width: '100%',
+              }}
+            >
+              <Text style={{ fontSize: 12, fontWeight: '700', color: '#1E40AF', marginBottom: 2 }}>
+                รหัสร้านค้าของคุณ
+              </Text>
+              <Text style={{ fontSize: 24, fontWeight: '900', color: '#1E3A8A', letterSpacing: 1 }}>
+                {registeredSession?.merchant.merchantCode ?? ''}
+              </Text>
+              <Text style={{ fontSize: 13, fontWeight: '600', color: '#334155', marginTop: 2 }}>
+                {registeredSession?.merchant.name ?? ''}
+              </Text>
+            </View>
+            <TouchableOpacity
+              style={{
+                width: '100%',
+                paddingVertical: 12,
+                borderRadius: 12,
+                backgroundColor: '#1E64EE',
+                alignItems: 'center',
+              }}
+              onPress={() => {
+                const session = registeredSession;
+                setRegisteredSession(null);
+                if (session) {
+                  onLoginSuccess(session);
+                }
+              }}
+              activeOpacity={0.85}
+            >
+              <Text style={{ color: '#FFFFFF', fontWeight: '800', fontSize: 15 }}>
+                เข้าสู่หน้าขาย (POS)
+              </Text>
+            </TouchableOpacity>
           </View>
         </View>
       </Modal>

@@ -32,7 +32,6 @@ export default function StallManagement() {
   const [editWinnerName, setEditWinnerName] = useState('');
   const [editWinnerPhone, setEditWinnerPhone] = useState('');
   const [editFeePercent, setEditFeePercent] = useState('2.00');
-  const [editMerchantPin, setEditMerchantPin] = useState('');
   const [savingEdit, setSavingEdit] = useState(false);
 
   // Delete confirm modal
@@ -120,7 +119,6 @@ export default function StallManagement() {
     setEditWinnerName(stall.winnerName);
     setEditWinnerPhone(stall.winnerPhone);
     setEditFeePercent(stall.feePercent);
-    setEditMerchantPin('');
     setError('');
     setNotice('');
   }
@@ -135,11 +133,6 @@ export default function StallManagement() {
       return;
     }
 
-    if (editMerchantPin.trim() && !/^\d{6}$/.test(editMerchantPin.trim())) {
-      setError('รหัส PIN ร้านค้าต้องเป็นตัวเลข 6 หลัก');
-      return;
-    }
-
     setSavingEdit(true);
     setError('');
     setNotice('');
@@ -151,7 +144,6 @@ export default function StallManagement() {
           winnerName: editWinnerName.trim(),
           winnerPhone: editWinnerPhone.trim(),
           feePercent: editFeePercent.trim() || '2.00',
-          ...(editMerchantPin.trim() ? { merchantPin: editMerchantPin.trim() } : {}),
         }),
       });
       if (response.status === 401) {
@@ -452,20 +444,6 @@ export default function StallManagement() {
                 />
               </div>
             </div>
-
-            {editTarget.merchantCode && (
-              <div>
-                <label style={labelStyle}>รีเซ็ต PIN ร้านค้า {editTarget.merchantCode} (6 หลัก, เว้นว่างถ้าไม่เปลี่ยน)</label>
-                <input
-                  type="password"
-                  value={editMerchantPin}
-                  onChange={(e) => setEditMerchantPin(e.target.value)}
-                  maxLength={6}
-                  placeholder="••••••"
-                  style={inputStyle}
-                />
-              </div>
-            )}
 
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.55rem', marginTop: '0.35rem' }}>
               <button

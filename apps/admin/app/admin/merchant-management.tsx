@@ -13,9 +13,18 @@ interface AdminMerchantItem {
   createdAt: string;
 }
 
+interface StallOptionItem {
+  id: number;
+  stallCode: string;
+  winnerName: string;
+  feePercent: string;
+  merchantId: number | null;
+}
+
 export default function MerchantManagement() {
   const [subTab, setSubTab] = useState<'merchants' | 'stalls'>('merchants');
   const [merchants, setMerchants] = useState<AdminMerchantItem[]>([]);
+  const [stalls, setStalls] = useState<StallOptionItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
@@ -27,6 +36,7 @@ export default function MerchantManagement() {
   const [newName, setNewName] = useState('');
   const [newFee, setNewFee] = useState('2.00');
   const [newPin, setNewPin] = useState('');
+  const [newStallCode, setNewStallCode] = useState('');
 
   // Edit merchant modal
   const [editTarget, setEditTarget] = useState<AdminMerchantItem | null>(null);
@@ -34,6 +44,7 @@ export default function MerchantManagement() {
   const [editFee, setEditFee] = useState('2.00');
   const [editStatus, setEditStatus] = useState<'active' | 'suspended' | 'inactive'>('active');
   const [editPin, setEditPin] = useState('');
+  const [editStallCode, setEditStallCode] = useState('');
   const [savingEdit, setSavingEdit] = useState(false);
 
   // Delete merchant confirm modal
@@ -44,18 +55,25 @@ export default function MerchantManagement() {
     setLoading(true);
     setError('');
     try {
-      const response = await fetch('/admin/merchants', { cache: 'no-store' });
-      if (response.status === 401) {
+      const [merchantsRes, stallsRes] = await Promise.all([
+        fetch('/admin/merchants', { cache: 'no-store' }),
+        fetch('/admin/stalls', { cache: 'no-store' }),
+      ]);
+      if (merchantsRes.status === 401 || stallsRes.status === 401) {
         window.location.assign('/admin/login?error=session_error');
         return;
       }
-      if (!response.ok) {
-        const body = (await response.json().catch(() => null)) as { message?: string } | null;
+      if (!merchantsRes.ok) {
+        const body = (await merchantsRes.json().catch(() => null)) as { message?: string } | null;
         setError(body?.message ?? 'ไม่สามารถโหลดรายชื่อร้านค้าได้');
         return;
       }
-      const data = (await response.json()) as { items: AdminMerchantItem[] };
+      const data = (await merchantsRes.json()) as { items: AdminMerchantItem[] };
       setMerchants(data.items ?? []);
+      if (stallsRes.ok) {
+        const stallsData = (await stallsRes.json()) as { items: StallOptionItem[] };
+        setStalls(stallsData.items ?? []);
+      }
     } catch {
       setError('ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้');
     } finally {
@@ -89,6 +107,7 @@ export default function MerchantManagement() {
           name: newName.trim(),
           feePercent: newFee.trim() || '2.00',
           pin: newPin.trim(),
+          stallCode: newStallCode || null,
         }),
       });
       if (response.status === 401) {
@@ -102,14 +121,13 @@ export default function MerchantManagement() {
         setError(body?.message ?? 'ไม่สามารถเพิ่มร้านค้าได้');
         return;
       }
-      if (body) {
-        setMerchants((prev) => [...prev, body]);
-      }
       setNewCode('');
       setNewName('');
       setNewFee('2.00');
       setNewPin('');
+      setNewStallCode('');
       setCreateOpen(false);
+      await loadMerchants();
       setNotice(`เพิ่มร้านค้า "${body?.merchantCode ?? ''}" เรียบร้อยแล้ว`);
     } catch {
       setError('ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้');
@@ -124,6 +142,7 @@ export default function MerchantManagement() {
     setEditFee(item.feePercent);
     setEditStatus(item.status);
     setEditPin('');
+    setEditStallCode(item.stallCode ?? '');
     setError('');
     setNotice('');
   }
@@ -153,6 +172,7 @@ export default function MerchantManagement() {
           name: editName.trim(),
           feePercent: editFee.trim() || '2.00',
           status: editStatus,
+          stallCode: editStallCode || null,
           ...(editPin.trim() ? { pin: editPin.trim() } : {}),
         }),
       });
@@ -167,10 +187,8 @@ export default function MerchantManagement() {
         setError(body?.message ?? 'ไม่สามารถแก้ไขข้อมูลร้านค้าได้');
         return;
       }
-      if (body) {
-        setMerchants((prev) => prev.map((m) => (m.id === editTarget.id ? body : m)));
-      }
       setEditTarget(null);
+      await loadMerchants();
       setNotice(`บันทึกข้อมูลร้าน "${editTarget.merchantCode}" เรียบร้อยแล้ว`);
     } catch {
       setError('ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้');
@@ -486,10 +504,10 @@ export default function MerchantManagement() {
               <form onSubmit={handleCreateMerchant} style={modalCardStyle}>
                 <div>
                   <h4 style={{ margin: '0 0 0.25rem', fontSize: '1.02rem', color: '#0f172a' }}>
-                    เพิ่มร้านค้าใหม่
+                    เพิ่มร้านค้าใหม่ (กรณีพิเศษ)
                   </h4>
                   <p style={{ margin: 0, fontSize: '0.8rem', color: '#64748b' }}>
-                    สร้างบัญชีร้านค้าและตั้ง PIN 6 หลักสำหรับเข้าใช้งานแอป Merchant POS
+                    สำหรับร้านค้าพิเศษที่ไม่ต้องผูกล็อคประมูล (ร้านที่ประมูลล็อคให้เพิ่มในแท็บล็อคประมูลและลงทะเบียนผ่านแอป)
                   </p>
                 </div>
 
@@ -538,6 +556,23 @@ export default function MerchantManagement() {
                       style={inputStyle}
                     />
                   </div>
+                </div>
+                <div>
+                  <label style={labelStyle}>ล็อคประมูล (ถ้ามี)</label>
+                  <select
+                    value={newStallCode}
+                    onChange={(e) => setNewStallCode(e.target.value)}
+                    style={inputStyle}
+                  >
+                    <option value="">- ไม่ผูกล็อคประมูล -</option>
+                    {stalls
+                      .filter((s) => s.merchantId === null)
+                      .map((s) => (
+                        <option key={s.id} value={s.stallCode}>
+                          {s.stallCode} — {s.winnerName} ({s.feePercent}%)
+                        </option>
+                      ))}
+                  </select>
                 </div>
 
                 <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.55rem', marginTop: '0.35rem' }}>
@@ -605,6 +640,24 @@ export default function MerchantManagement() {
                       <option value="inactive">ปิดชั่วคราว</option>
                     </select>
                   </div>
+                </div>
+                <div>
+                  <label style={labelStyle}>ล็อคประมูล</label>
+                  <select
+                    value={editStallCode}
+                    onChange={(e) => setEditStallCode(e.target.value)}
+                    style={inputStyle}
+                  >
+                    <option value="">- ไม่ผูกล็อคประมูล -</option>
+                    {stalls
+                      .filter((s) => s.merchantId === null || s.merchantId === editTarget.id)
+                      .map((s) => (
+                        <option key={s.id} value={s.stallCode}>
+                          {s.stallCode} — {s.winnerName} ({s.feePercent}%)
+                          {s.merchantId === editTarget.id ? ' (ล็อคปัจจุบัน)' : ''}
+                        </option>
+                      ))}
+                  </select>
                 </div>
                 <div>
                   <label style={labelStyle}>รีเซ็ต PIN ใหม่ (6 หลัก, เว้นว่างถ้าไม่เปลี่ยน)</label>
