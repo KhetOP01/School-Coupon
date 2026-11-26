@@ -15,8 +15,8 @@ import {
   Post,
   UseGuards,
 } from '@nestjs/common';
-import { IsIn, IsOptional, IsString } from 'class-validator';
-import { Pool } from 'pg';
+import { IsIn, IsOptional, IsString, ValidateIf } from 'class-validator';
+import { Pool, PoolClient } from 'pg';
 import { hashPin } from '../../../../shared/mobile-auth';
 import { POSTGRES_POOL } from '../../auth.tokens';
 import { StaffSessionGuard } from './staff-session.guard';
@@ -37,6 +37,10 @@ class CreateMerchantDto {
   @IsOptional()
   @IsString()
   pin?: string;
+
+  @ValidateIf((_, value) => value !== null && value !== undefined)
+  @IsString()
+  stallCode?: string | null;
 }
 
 class UpdateMerchantDto {
@@ -55,6 +59,10 @@ class UpdateMerchantDto {
   @IsOptional()
   @IsString()
   pin?: string;
+
+  @ValidateIf((_, value) => value !== null && value !== undefined)
+  @IsString()
+  stallCode?: string | null;
 }
 
 interface MerchantListRow {
@@ -101,6 +109,56 @@ export class AdminMerchantsController {
     };
   }
 
+  private async assignStallToMerchant(
+    client: PoolClient,
+    merchantId: number,
+    stallCodeRaw: string | null,
+  ): Promise<string | null> {
+    const normalizedCode = stallCodeRaw?.trim().toUpperCase() ?? '';
+    if (!normalizedCode) {
+      await client.query(
+        'UPDATE canteen_stalls SET merchant_id = NULL, updated_at = now() WHERE merchant_id = $1',
+        [merchantId],
+      );
+      return null;
+    }
+
+    const stallResult = await client.query<{
+      id: number;
+      stall_code: string;
+      merchant_id: number | null;
+    }>(
+      `SELECT id, stall_code, merchant_id
+       FROM canteen_stalls
+       WHERE LOWER(stall_code) = LOWER($1)
+       FOR UPDATE`,
+      [normalizedCode],
+    );
+    const stall = stallResult.rows[0];
+    if (!stall) {
+      throw new NotFoundException({
+        code: 'STALL_NOT_FOUND',
+        message: 'ไม่พบข้อมูลล็อคประมูลที่เลือก',
+      });
+    }
+    if (stall.merchant_id !== null && stall.merchant_id !== merchantId) {
+      throw new ConflictException({
+        code: 'STALL_ALREADY_ASSIGNED',
+        message: `ล็อคประมูล ${stall.stall_code} มีร้านค้าอื่นผูกอยู่แล้ว`,
+      });
+    }
+
+    await client.query(
+      'UPDATE canteen_stalls SET merchant_id = NULL, updated_at = now() WHERE merchant_id = $1 AND id <> $2',
+      [merchantId, stall.id],
+    );
+    await client.query(
+      'UPDATE canteen_stalls SET merchant_id = $1, updated_at = now() WHERE id = $2',
+      [merchantId, stall.id],
+    );
+    return stall.stall_code;
+  }
+
   @Post()
   async create(@Body() dto: CreateMerchantDto) {
     const merchantCode = dto.merchantCode?.trim().toUpperCase() ?? '';
@@ -124,34 +182,50 @@ export class AdminMerchantsController {
       });
     }
 
-    const exists = await this.pool.query(
-      'SELECT 1 FROM merchants WHERE LOWER(merchant_code) = LOWER($1)',
-      [merchantCode],
-    );
-    if (exists.rowCount !== 0) {
-      throw new ConflictException({
-        code: 'MERCHANT_CODE_EXISTS',
-        message: 'รหัสร้านค้านี้มีอยู่ในระบบแล้ว',
-      });
+    const client = await this.pool.connect();
+    try {
+      await client.query('BEGIN');
+
+      const exists = await client.query(
+        'SELECT 1 FROM merchants WHERE LOWER(merchant_code) = LOWER($1)',
+        [merchantCode],
+      );
+      if (exists.rowCount !== 0) {
+        throw new ConflictException({
+          code: 'MERCHANT_CODE_EXISTS',
+          message: 'รหัสร้านค้านี้มีอยู่ในระบบแล้ว',
+        });
+      }
+
+      const result = await client.query<Omit<MerchantListRow, 'stall_code'>>(
+        `INSERT INTO merchants (merchant_code, name, fee_percent, status, pin_hash)
+         VALUES ($1, $2, $3, 'active', $4)
+         RETURNING id, merchant_code, name, fee_percent::text AS fee_percent, status, created_at`,
+        [merchantCode, name, feeNum.toFixed(2), hashPin(pin)],
+      );
+
+      const row = result.rows[0];
+      const assignedStallCode =
+        dto.stallCode !== undefined
+          ? await this.assignStallToMerchant(client, row.id, dto.stallCode)
+          : null;
+
+      await client.query('COMMIT');
+      return {
+        id: row.id,
+        merchantCode: row.merchant_code,
+        name: row.name,
+        feePercent: row.fee_percent,
+        status: row.status,
+        stallCode: assignedStallCode,
+        createdAt: row.created_at.toISOString(),
+      };
+    } catch (error) {
+      await client.query('ROLLBACK');
+      throw error;
+    } finally {
+      client.release();
     }
-
-    const result = await this.pool.query<Omit<MerchantListRow, 'stall_code'>>(
-      `INSERT INTO merchants (merchant_code, name, fee_percent, status, pin_hash)
-       VALUES ($1, $2, $3, 'active', $4)
-       RETURNING id, merchant_code, name, fee_percent::text AS fee_percent, status, created_at`,
-      [merchantCode, name, feeNum.toFixed(2), hashPin(pin)],
-    );
-
-    const row = result.rows[0];
-    return {
-      id: row.id,
-      merchantCode: row.merchant_code,
-      name: row.name,
-      feePercent: row.fee_percent,
-      status: row.status,
-      stallCode: null,
-      createdAt: row.created_at.toISOString(),
-    };
   }
 
   @Patch(':id')
@@ -159,71 +233,87 @@ export class AdminMerchantsController {
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: UpdateMerchantDto,
   ) {
-    const existingResult = await this.pool.query<MerchantListRow>(
-      `SELECT
-         m.id,
-         m.merchant_code,
-         m.name,
-         m.fee_percent::text AS fee_percent,
-         m.status,
-         s.stall_code,
-         m.created_at
-       FROM merchants AS m
-       LEFT JOIN canteen_stalls AS s ON s.merchant_id = m.id
-       WHERE m.id = $1`,
-      [id],
-    );
-    const existing = existingResult.rows[0];
-    if (!existing) {
-      throw new NotFoundException({
-        code: 'MERCHANT_NOT_FOUND',
-        message: 'ไม่พบข้อมูลร้านค้าที่ต้องการแก้ไข',
-      });
-    }
+    const client = await this.pool.connect();
+    try {
+      await client.query('BEGIN');
 
-    const name = dto.name !== undefined ? dto.name.trim() : existing.name;
-    const feeNum =
-      dto.feePercent !== undefined ? Number(dto.feePercent) : Number(existing.fee_percent);
-    const status = dto.status ?? existing.status;
-
-    if (!name || name.length > 150 || !Number.isFinite(feeNum) || feeNum < 0 || feeNum > 100) {
-      throw new BadRequestException({
-        code: 'INVALID_REQUEST',
-        message: 'กรุณากรอกชื่อร้านค้าและค่าธรรมเนียมให้ถูกต้อง',
-      });
-    }
-
-    let pinHashClause = '';
-    const values: unknown[] = [name, feeNum.toFixed(2), status];
-    if (dto.pin !== undefined && dto.pin.trim() !== '') {
-      const pin = dto.pin.trim();
-      if (!/^\d{6}$/.test(pin)) {
-        throw new BadRequestException({
-          code: 'INVALID_REQUEST',
-          message: 'รหัส PIN ร้านค้าต้องเป็นตัวเลข 6 หลัก',
+      const existingResult = await client.query<MerchantListRow>(
+        `SELECT
+           m.id,
+           m.merchant_code,
+           m.name,
+           m.fee_percent::text AS fee_percent,
+           m.status,
+           s.stall_code,
+           m.created_at
+         FROM merchants AS m
+         LEFT JOIN canteen_stalls AS s ON s.merchant_id = m.id
+         WHERE m.id = $1`,
+        [id],
+      );
+      const existing = existingResult.rows[0];
+      if (!existing) {
+        throw new NotFoundException({
+          code: 'MERCHANT_NOT_FOUND',
+          message: 'ไม่พบข้อมูลร้านค้าที่ต้องการแก้ไข',
         });
       }
-      values.push(hashPin(pin));
-      pinHashClause = `, pin_hash = $${values.length}`;
+
+      const name = dto.name !== undefined ? dto.name.trim() : existing.name;
+      const feeNum =
+        dto.feePercent !== undefined ? Number(dto.feePercent) : Number(existing.fee_percent);
+      const status = dto.status ?? existing.status;
+
+      if (!name || name.length > 150 || !Number.isFinite(feeNum) || feeNum < 0 || feeNum > 100) {
+        throw new BadRequestException({
+          code: 'INVALID_REQUEST',
+          message: 'กรุณากรอกชื่อร้านค้าและค่าธรรมเนียมให้ถูกต้อง',
+        });
+      }
+
+      let pinHashClause = '';
+      const values: unknown[] = [name, feeNum.toFixed(2), status];
+      if (dto.pin !== undefined && dto.pin.trim() !== '') {
+        const pin = dto.pin.trim();
+        if (!/^\d{6}$/.test(pin)) {
+          throw new BadRequestException({
+            code: 'INVALID_REQUEST',
+            message: 'รหัส PIN ร้านค้าต้องเป็นตัวเลข 6 หลัก',
+          });
+        }
+        values.push(hashPin(pin));
+        pinHashClause = `, pin_hash = $${values.length}`;
+      }
+
+      values.push(id);
+      await client.query(
+        `UPDATE merchants
+         SET name = $1, fee_percent = $2, status = $3${pinHashClause}
+         WHERE id = $${values.length}`,
+        values,
+      );
+
+      const resultingStallCode =
+        dto.stallCode !== undefined
+          ? await this.assignStallToMerchant(client, id, dto.stallCode)
+          : existing.stall_code;
+
+      await client.query('COMMIT');
+      return {
+        id: existing.id,
+        merchantCode: existing.merchant_code,
+        name,
+        feePercent: feeNum.toFixed(2),
+        status,
+        stallCode: resultingStallCode,
+        createdAt: existing.created_at.toISOString(),
+      };
+    } catch (error) {
+      await client.query('ROLLBACK');
+      throw error;
+    } finally {
+      client.release();
     }
-
-    values.push(id);
-    await this.pool.query(
-      `UPDATE merchants
-       SET name = $1, fee_percent = $2, status = $3${pinHashClause}
-       WHERE id = $${values.length}`,
-      values,
-    );
-
-    return {
-      id: existing.id,
-      merchantCode: existing.merchant_code,
-      name,
-      feePercent: feeNum.toFixed(2),
-      status,
-      stallCode: existing.stall_code,
-      createdAt: existing.created_at.toISOString(),
-    };
   }
 
   @Delete(':id')
